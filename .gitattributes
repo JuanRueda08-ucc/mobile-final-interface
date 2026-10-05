@@ -1,0 +1,8 @@
+# Fuentes originales: bytes exactos (sin conversión de fin de línea) para que
+# sus SHA-256 de docs/spec-index.json se conserven en cualquier checkout.
+docs/source/** -text
+
+# Registros generados y validador: LF en todas las plataformas, para que
+# `python tools/spec_registry.py build` regenere sin diff.
+docs/*.json text eol=lf
+tools/*.py text eol=lf

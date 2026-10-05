@@ -1,0 +1,298 @@
+{
+  "schemaVersion": 1,
+  "task": "VIG-001",
+  "generatedBy": "tools/spec_registry.py build",
+  "scope": "Checklist RL de distribución. Separado de los 310 IDs base (Área 08 §15–§16).",
+  "conventions": {
+    "status": "Estado documentado (pending/blocked); ninguna RL se declara cumplida.",
+    "planA08.status": "Texto literal del Área 08 §16, incluidas aclaraciones tras ';'."
+  },
+  "count": 12,
+  "items": [
+    {
+      "id": "RL01",
+      "evidenceRequired": "PackageId/nombre de distribución/versionCode definidos; versión y hash del APK/AAB",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 428,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1496,
+        "tasksCell": "VIG-002, VIG-003, VIG-064, VIG-069",
+        "tasks": [
+          "VIG-002",
+          "VIG-003",
+          "VIG-064",
+          "VIG-069"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL02",
+      "evidenceRequired": "Firma válida y custodia/recuperación de clave documentadas; actualización probada para ruta elegida",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 429,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1497,
+        "tasksCell": "VIG-058, VIG-069, VIG-071",
+        "tasks": [
+          "VIG-058",
+          "VIG-069",
+          "VIG-071"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL03",
+      "evidenceRequired": "Modelo/Inter/iconos/sonidos/SDKs con procedencia/licencia/atribución; recursos realmente incluidos",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 430,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1498,
+        "tasksCell": "VIG-011, VIG-032, VIG-049, VIG-068",
+        "tasks": [
+          "VIG-011",
+          "VIG-032",
+          "VIG-049",
+          "VIG-068"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL04",
+      "evidenceRequired": "Manifest final, permisos mínimos, target vigente, ABIs/16 KB y tipos FGS comprobados",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 431,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1499,
+        "tasksCell": "VIG-004, VIG-021, VIG-054, VIG-058, VIG-069",
+        "tasks": [
+          "VIG-004",
+          "VIG-021",
+          "VIG-054",
+          "VIG-058",
+          "VIG-069"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL05",
+      "evidenceRequired": "Gates G02–G09 cerrados para candidateReal, condición/equipo/escenario publicados",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 432,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1500,
+        "tasksCell": "VIG-051–VIG-058, VIG-063, VIG-066",
+        "tasks": [
+          "VIG-051",
+          "VIG-052",
+          "VIG-053",
+          "VIG-054",
+          "VIG-055",
+          "VIG-056",
+          "VIG-057",
+          "VIG-058",
+          "VIG-063",
+          "VIG-066"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL06",
+      "evidenceRequired": "Política privacidad/contacto/Data safety coherentes con auditoría, eliminación y copias externas",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 433,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1501,
+        "tasksCell": "VIG-054, VIG-068, VIG-071",
+        "tasks": [
+          "VIG-054",
+          "VIG-068",
+          "VIG-071"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL07",
+      "evidenceRequired": "Listing/capturas/video reales, sin funciones futuras ni aptitud/seguridad prometida",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 434,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1502,
+        "tasksCell": "VIG-065, VIG-068, VIG-071",
+        "tasks": [
+          "VIG-065",
+          "VIG-068",
+          "VIG-071"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL08",
+      "evidenceRequired": "Requisitos de cuenta/track cumplidos; inscripción testers si aplica, revisión real de tienda",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 435,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1503,
+        "tasksCell": "VIG-069, VIG-071",
+        "tasks": [
+          "VIG-069",
+          "VIG-071"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL09",
+      "evidenceRequired": "Evaluación adicional del contexto comercial y protocolo ejecutado; límites aceptados",
+      "status": "blocked",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 436,
+        "status": "blocked"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1504,
+        "tasksCell": "VIG-067, VIG-071",
+        "tasks": [
+          "VIG-067",
+          "VIG-071"
+        ],
+        "status": "blocked"
+      }
+    },
+    {
+      "id": "RL10",
+      "evidenceRequired": "Canal de soporte, flujo de reporte local voluntario y release notes definidos; ningún envío automático añadido",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 437,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1505,
+        "tasksCell": "VIG-070, VIG-072",
+        "tasks": [
+          "VIG-070",
+          "VIG-072"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL11",
+      "evidenceRequired": "Paquete firmado instalado offline y smoke en modelos declarados, evidencia del artefacto distribuible",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 438,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1506,
+        "tasksCell": "VIG-058, VIG-065, VIG-069, VIG-071",
+        "tasks": [
+          "VIG-058",
+          "VIG-065",
+          "VIG-069",
+          "VIG-071"
+        ],
+        "status": "pending"
+      }
+    },
+    {
+      "id": "RL12",
+      "evidenceRequired": "Decisión de etapa por responsable y registro de issues/excepciones; publicación explícitamente autorizada",
+      "status": "pending",
+      "sourceA07": {
+        "file": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+        "section": "15. Checklist de candidato y operación posterior",
+        "line": 439,
+        "status": "pending"
+      },
+      "planA08": {
+        "file": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+        "section": "16. Checklist RL → tareas de distribución",
+        "line": 1507,
+        "tasksCell": "VIG-065, VIG-066, VIG-071",
+        "tasks": [
+          "VIG-065",
+          "VIG-066",
+          "VIG-071"
+        ],
+        "status": "pending; publicación no autorizada en esta entrega"
+      }
+    }
+  ]
+}

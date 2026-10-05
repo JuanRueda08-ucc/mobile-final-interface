@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 1,
+  "task": "VIG-001",
+  "generatedBy": "tools/spec_registry.py build",
+  "hashAlgorithm": "SHA-256 sobre los bytes exactos del archivo",
+  "receptionStatusValues": {
+    "received": "Archivo presente en docs/source/ con tamaño y hash calculados",
+    "missing": "Citado por una fuente vigente pero no recibido; sin hash, tamaño ni contenido inventado"
+  },
+  "precedence": "Área 08 §2: PRD/UX definen comportamiento; arquitectura/IA/datos definen garantías; QA define la demostración; el diseño define presentación. Las contradicciones se registran en docs/decisions/open-issues.md.",
+  "sources": [
+    {
+      "logicalId": "A01-PRD",
+      "area": "01",
+      "title": "PRD: producto y alcance de la primera versión",
+      "path": "docs/source/Vigia_01_PRD_Producto_y_Alcance_v1.1 (1).md",
+      "fileName": "Vigia_01_PRD_Producto_y_Alcance_v1.1 (1).md",
+      "citedAs": "Vigia_01_PRD_Producto_y_Alcance_v1.1.md",
+      "declaredVersion": "1.1",
+      "declaredDate": "1 de octubre de 2026",
+      "versionEvidence": "Área 01 · Versión 1.1 de la especificación · 1 de octubre de 2026",
+      "sizeBytes": 49006,
+      "sha256": "6c610fec8db9df45e15415c97aa3324b984c86874720be876edc258bf92dd7c9",
+      "receptionStatus": "received",
+      "authority": "Alcance y 126 criterios RF/RNF: 96 RF y 30 RNF",
+      "notes": [
+        "El nombre real lleva el sufijo ' (1)'; las Áreas 03, 04 y 08 lo citan sin sufijo. Se conserva el nombre real sin renombrar (ver OI-01)."
+      ]
+    },
+    {
+      "logicalId": "A02-UX",
+      "area": "02",
+      "title": "Experiencia de usuario, flujos y navegación",
+      "path": "docs/source/Vigia_02_UX_Flujos_y_Navegacion_v1.0.md",
+      "fileName": "Vigia_02_UX_Flujos_y_Navegacion_v1.0.md",
+      "citedAs": "Vigia_02_UX_Flujos_y_Navegacion_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": null,
+      "versionEvidence": "**Versión:** 1.0",
+      "sizeBytes": 43185,
+      "sha256": "26d30ca9decf47cb95f67025ea372a0f5751046dca6e5ac72b075bc00196edef",
+      "receptionStatus": "received",
+      "authority": "66 criterios UX, IDs P01–P18/D01–D08, acciones, estados y guardas",
+      "notes": [
+        "El encabezado no declara fecha."
+      ]
+    },
+    {
+      "logicalId": "A03-BRIEF",
+      "area": "03",
+      "title": "Brief de diseño para Claude Design",
+      "path": "docs/source/Vigia_03_Brief_Diseno_Claude_Design_v1.0.md",
+      "fileName": "Vigia_03_Brief_Diseno_Claude_Design_v1.0.md",
+      "citedAs": "Vigia_03_Brief_Diseno_Claude_Design_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "1 de octubre de 2026",
+      "versionEvidence": "Área 03 y Área 04 · Versión 1.0 · 1 de octubre de 2026",
+      "sizeBytes": 13687,
+      "sha256": "e3e917287e3d15203217cb62deba88a72706493b03a8f21c37a36691c1576906",
+      "receptionStatus": "received",
+      "authority": "Referencia visual; no modifica estados ni criterios funcionales",
+      "notes": [
+        "El encabezado dice 'Área 03 y Área 04'; el Área 04 vigente es el documento de arquitectura."
+      ]
+    },
+    {
+      "logicalId": "A03-INSTRUCTIONS",
+      "area": "03",
+      "title": "Instrucciones de trabajo para Claude Design",
+      "path": "docs/source/Vigia_03_Instrucciones_Claude_Design_v1.0.md",
+      "fileName": "Vigia_03_Instrucciones_Claude_Design_v1.0.md",
+      "citedAs": "Vigia_03_Instrucciones_Claude_Design_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "1 de octubre de 2026",
+      "versionEvidence": "Versión 1.0 · 1 de octubre de 2026",
+      "sizeBytes": 17600,
+      "sha256": "897f565f6e948e054504a3c32daca5a0b948630f149870e5135f393546091e35",
+      "receptionStatus": "received",
+      "authority": "Orden y entregables de diseño B1–B5; referencia visual",
+      "notes": []
+    },
+    {
+      "logicalId": "A04-ARCHITECTURE",
+      "area": "04",
+      "title": "Arquitectura técnica y contratos",
+      "path": "docs/source/Vigia_04_Arquitectura_Tecnica_y_Contratos_v1.0.md",
+      "fileName": "Vigia_04_Arquitectura_Tecnica_y_Contratos_v1.0.md",
+      "citedAs": "Vigia_04_Arquitectura_Tecnica_y_Contratos_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "3 de octubre de 2026",
+      "versionEvidence": "Versión 1.0 · 3 de octubre de 2026",
+      "sizeBytes": 56320,
+      "sha256": "29a3b1e2ae25edd8bdaf9222fe9af98d207ab8aeb0f3c0f0d3711a5b537439bd",
+      "receptionStatus": "received",
+      "authority": "Componentes, autoridad, estados, comandos/eventos y AT01–AT22",
+      "notes": []
+    },
+    {
+      "logicalId": "A05-AI",
+      "area": "05",
+      "title": "IA y protocolo de evaluación",
+      "path": "docs/source/Vigia_05_IA_y_Protocolo_de_Evaluacion_v1.0.md",
+      "fileName": "Vigia_05_IA_y_Protocolo_de_Evaluacion_v1.0.md",
+      "citedAs": "Vigia_05_IA_y_Protocolo_de_Evaluacion_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "3 de octubre de 2026",
+      "versionEvidence": "Versión 1.0 · 3 de octubre de 2026",
+      "sizeBytes": 58075,
+      "sha256": "866ac4c421828a65725d482dc9803bf0817760c6066542e1004385baec71ad88",
+      "receptionStatus": "received",
+      "authority": "Q/Kcal/política experimental, AI01–AI28, EV01–EV13, SC01–SC14",
+      "notes": [
+        "Parámetros del §7 con profileId=lab-eye-rules-0.1 y qualificationStatus=experimental; no son política de producción (ver OI-05)."
+      ]
+    },
+    {
+      "logicalId": "A06-DATA",
+      "area": "06",
+      "title": "Modelo de datos y privacidad",
+      "path": "docs/source/Vigia_06_Modelo_de_Datos_y_Privacidad_v1.0.md",
+      "fileName": "Vigia_06_Modelo_de_Datos_y_Privacidad_v1.0.md",
+      "citedAs": "Vigia_06_Modelo_de_Datos_y_Privacidad_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "3 de octubre de 2026",
+      "versionEvidence": "Versión 1.0 · 3 de octubre de 2026",
+      "sizeBytes": 68613,
+      "sha256": "35f5dfb86a13000c6b49bdc7e75fc47a1dc1a03fe273c278273e9802a9be2d11",
+      "receptionStatus": "received",
+      "authority": "DDL/contratos de datos, borrado/exportación, DT01–DT24 y DS00–DS08",
+      "notes": []
+    },
+    {
+      "logicalId": "A07-QA",
+      "area": "07",
+      "title": "Plan de pruebas, calidad y distribución",
+      "path": "docs/source/Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+      "fileName": "Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+      "citedAs": "Vigia_07_Plan_de_Pruebas_Calidad_y_Distribucion_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "3 de octubre de 2026, America/Bogota",
+      "versionEvidence": "Versión 1.0 · 3 de octubre de 2026, America/Bogota",
+      "sizeBytes": 109015,
+      "sha256": "460c5541abc95aeae3ca422ad3f50d24590b089b43811b9a25db3dac017fc83b",
+      "receptionStatus": "received",
+      "authority": "QA01–QA40, etapas E0–E4, G01–G10, RL01–RL12 y 310 IDs trazados",
+      "notes": []
+    },
+    {
+      "logicalId": "A08-IMPLEMENTATION",
+      "area": "08",
+      "title": "Plan de implementación y colaboración",
+      "path": "docs/source/Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+      "fileName": "Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+      "citedAs": "Vigia_08_Plan_de_Implementacion_y_Colaboracion_v1.0.md",
+      "declaredVersion": "1.0",
+      "declaredDate": "5 de octubre de 2026 (UTC)",
+      "versionEvidence": "**Versión:** 1.0 · **Fecha:** 5 de octubre de 2026 (UTC)",
+      "sizeBytes": 122233,
+      "sha256": "46a8c1181d07b8028472327862ad1d932f9dfc60d1ab8ce96f58d90971f04991",
+      "receptionStatus": "received",
+      "authority": "Orden de construcción, propiedad de cambios, backlog y cierre de tareas",
+      "notes": []
+    },
+    {
+      "logicalId": "B5.2-HTML",
+      "area": "03",
+      "title": "Prototipo B5.2 completo (HTML standalone)",
+      "path": "docs/source/Vigia B5.2 Completo (standalone).html",
+      "fileName": "Vigia B5.2 Completo (standalone).html",
+      "citedAs": "HTML completo B5.2",
+      "declaredVersion": "B5.2 · v1 · tokens B4.2",
+      "declaredDate": "2 oct 2026",
+      "versionEvidence": [
+        "Vigía · B5.2 completo · Monocromo y aura (B4.2) · P01–P18 y D01–D08",
+        "v1 · 2 oct 2026 · tokens B4.2 con grafito violeta en oscuro"
+      ],
+      "versionEvidenceLocation": "Texto dentro del bundle comprimido (plantilla y script de la app); el <title> del HTML es 'Bundled Page'.",
+      "sizeBytes": 606811,
+      "sha256": "82a0eb9124bdc5d0631da9a5450f22857fbaacedbb3e30acbed917ae753f4f23",
+      "receptionStatus": "received",
+      "authority": "Referencia visual; no modifica estados ni criterios funcionales (PRD/UX prevalecen)",
+      "notes": [
+        "Recibido. Las Áreas 04 (§1), 07 (§1, §16) y 08 (§2, §12) lo daban por faltante (ver OI-02).",
+        "La recepción no acredita pruebas Android, TalkBack, contraste medido en pantalla, rendimiento ni implementación de la interfaz Flutter.",
+        "Las afirmaciones internas del HTML (120 vistas, 1440 combinaciones, contraste calculado) son evidencia de diseño declarada por la herramienta, no resultados independientes.",
+        "Inventario completo de vistas, tokens, recursos y motion: VIG-032."
+      ],
+      "bundle": {
+        "format": "Página empaquetada: manifest de recursos base64 (gzip opcional) + plantilla JSON",
+        "templateSha256": "cfccbaee5b96dbfc13a1ebca70339e5f67aeca7411927c25fad3342e2c8d4386",
+        "resources": [
+          {
+            "uuid": "14c0790e-bd73-4bc9-97f1-e20a9dea61ea",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 25960,
+            "decodedSha256": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "1ba0fc6a-fa2a-4249-ac5b-2b740db059de",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 18996,
+            "decodedSha256": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "1e2ab68e-2f7c-448a-a37f-835b038d3546",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 18748,
+            "decodedSha256": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "602e5601-3b0a-48a3-8908-87ddb8d220c5",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 11232,
+            "decodedSha256": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "8e99c9c1-00b0-4e26-9a81-3906aa6847f2",
+            "mime": "text/javascript",
+            "compressedInBundle": true,
+            "decodedBytes": 10751,
+            "decodedSha256": "d949f1c3687aedadcedac85261865f29b17cd273997e7f6b2bfc53b2f9d4c4dd",
+            "declaredOrigin": "https://unpkg.com/react@18.3.1/umd/react.production.min.js"
+          },
+          {
+            "uuid": "a604efca-de8d-4720-a846-a40aee8c69fd",
+            "mime": "text/javascript",
+            "compressedInBundle": true,
+            "decodedBytes": 131835,
+            "decodedSha256": "35f4f974f4b2bcd44da73963347f8952e341f83909e4498227d4e26b98f66f0d",
+            "declaredOrigin": "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
+          },
+          {
+            "uuid": "ab59779f-4c79-4a9f-ab86-826f3499b729",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 10252,
+            "decodedSha256": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "ab76e089-0eec-424c-bee4-968e471383fc",
+            "mime": "text/javascript",
+            "compressedInBundle": true,
+            "decodedBytes": 69150,
+            "decodedSha256": "8fe7df74405f3c55f49b7249c74ea1397e65d07dea2b1bd3b4a489bec2e28cbe",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "b498ac56-8ce7-469d-846c-e9d8a3128893",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 48256,
+            "decodedSha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+            "declaredOrigin": null
+          },
+          {
+            "uuid": "ded199fd-75c9-4c05-ad04-dc5a7e62a6d5",
+            "mime": "font/woff2",
+            "compressedInBundle": false,
+            "decodedBytes": 85068,
+            "decodedSha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+            "declaredOrigin": null
+          }
+        ],
+        "observedViewIdCount": 120,
+        "observedViewIdPattern": "[PD][01][0-9]__<estado>__v1",
+        "observedViewIdNote": "Conteo de identificadores de vista encontrados en el código; no inspecciona ni aprueba cada vista (VIG-032)."
+      }
+    }
+  ],
+  "missingSources": [
+    {
+      "logicalId": "BASE-v0.2",
+      "title": "Base del proyecto",
+      "expectedFile": "Vigia_Base_Proyecto_v0.2.md",
+      "versionCited": "0.2",
+      "sizeBytes": null,
+      "sha256": null,
+      "receptionStatus": "missing",
+      "citedBy": [
+        {
+          "logicalId": "A01-PRD",
+          "location": "encabezado, línea 5"
+        },
+        {
+          "logicalId": "A04-ARCHITECTURE",
+          "location": "§1, tabla de fuentes"
+        }
+      ],
+      "notes": [
+        "La versión 0.2 procede del nombre citado, no del documento, que no se recibió.",
+        "Área 04 §1: el PRD y la UX vigentes sustituyen su numeración e inventario iniciales."
+      ]
+    },
+    {
+      "logicalId": "B5.2-SUMMARY",
+      "title": "Resumen de Claude del B5.2 completo",
+      "expectedFile": null,
+      "versionCited": null,
+      "sizeBytes": null,
+      "sha256": null,
+      "receptionStatus": "missing",
+      "citedBy": [
+        {
+          "logicalId": "A04-ARCHITECTURE",
+          "location": "§1 ('Compartido el 03/10/2026')"
+        },
+        {
+          "logicalId": "A07-QA",
+          "location": "§1"
+        },
+        {
+          "logicalId": "A08-IMPLEMENTATION",
+          "location": "§2"
+        }
+      ],
+      "notes": [
+        "No se recibió como archivo. Las fuentes indican que no es evidencia independiente."
+      ]
+    },
+    {
+      "logicalId": "B4.2-B5.2-BRIEF",
+      "title": "Brief B4.2/B5.2 como documento separado",
+      "expectedFile": null,
+      "versionCited": null,
+      "sizeBytes": null,
+      "sha256": null,
+      "receptionStatus": "missing",
+      "citedBy": [
+        {
+          "logicalId": "A08-IMPLEMENTATION",
+          "location": "§2 ('Área 03, brief B4.2/B5.2 + HTML completo por recibir') y VIG-033"
+        }
+      ],
+      "notes": [
+        "Solo se recibió el brief v1.0, que no fija paleta. Los tokens B4.2 que cita VIG-033 (#24232B, #302E39, #3B3845, #F7F5FA, #CEC9D5) aparecen dentro del HTML B5.2.",
+        "Puede tratarse del mismo entregable B5.2; no se asume sin confirmación."
+      ]
+    }
+  ]
+}
