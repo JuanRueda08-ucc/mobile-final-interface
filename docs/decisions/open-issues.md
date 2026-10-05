@@ -10,7 +10,7 @@ Regla de precedencia (Área 08 §2, línea 28): «PRD/UX definen el comportamien
 
 | ID | Hallazgo | Estado | Tarea que lo resuelve |
 |---|---|---|---|
-| OI-01 | El nombre real del PRD no coincide con el nombre citado | Registrado; sin renombrar | VIG-001 (registro); responsable del proyecto (nombre definitivo) |
+| OI-01 | El nombre real del PRD no coincide con el nombre citado | Abierto; registrado sin renombrar | VIG-001 (registro); responsable del proyecto (nombre definitivo) |
 | OI-02 | HTML B5.2 recibido, aunque las Áreas 04/07/08 lo daban por faltante | Abierto | VIG-032 |
 | OI-03 | El HTML usa Inter, pero su tabla de activos y PD-05 citan Public Sans | Abierto | VIG-032, VIG-033 |
 | OI-04 | En el HTML, la etiqueta de la barra inferior deja de escalar al 135 %; PRD/UX exigen 200 % | Abierto | VIG-033, VIG-034, VIG-048 |
@@ -29,7 +29,8 @@ Regla de precedencia (Área 08 §2, línea 28): «PRD/UX definen el comportamien
 - **Efecto:** cualquier referencia automática por nombre citado no encuentra el archivo. El contenido es la versión 1.1 declarada, de modo que no afecta al comportamiento.
 - **Precedencia:** Área 08 §2 (línea 30): VIG-001 copia las fuentes «conservando nombres/versiones» y «no reemplaza silenciosamente el original».
 - **Acción en VIG-001:** `spec-index.json` registra `fileName` (nombre real) y `citedAs` (nombre citado) para `A01-PRD`. No se renombra el archivo.
-- **Pendiente:** el responsable del proyecto decide si en una entrega futura sustituye el archivo por uno con el nombre citado. Si lo hace, el cambio de nombre se registra con un nuevo hash, aunque el contenido no cambie.
+- **Pendiente (abierto):** el responsable del proyecto decide si en una entrega futura renombra el archivo al nombre citado. Renombrar cambia la ruta (`path`) y el nombre (`fileName`) registrados en `spec-index.json`, pero **no cambia el SHA-256 si los bytes permanecen idénticos**: el hash depende solo del contenido. Tras un renombrado, `check` fallaría («todo archivo de docs/source/ está registrado») hasta actualizar el registro con `build`. El hash y el tamaño se conservarían, y el renombrado se revisaría como cambio de ruta, no de contenido.
+- **Corrección (revisión de Codex sobre 02b8798):** la versión anterior de este punto afirmaba que un cambio de nombre «se registra con un nuevo hash, aunque el contenido no cambie». Eso era incorrecto.
 
 ## OI-02 · HTML B5.2 recibido; las fuentes lo daban por faltante
 

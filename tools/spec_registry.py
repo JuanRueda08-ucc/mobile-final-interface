@@ -6,12 +6,17 @@ Uso (desde la raíz del repositorio, Python 3.10+ sin dependencias externas):
     python tools/spec_registry.py build   # regenera docs/spec-index.json,
                                           # docs/traceability.json y
                                           # docs/release-checklist.json
-    python tools/spec_registry.py check   # valida hashes, IDs, conteos y
-                                          # referencias QA contra las fuentes
+    python tools/spec_registry.py check   # valida hashes, IDs, conteos,
+                                          # baseline y referencias QA
+
+Opción `--root DIR`: opera sobre otra raíz con la misma estructura (la usan
+las pruebas de regresión sobre copias temporales).
 
 `build` es determinista: no escribe fechas ni datos del equipo, de modo que
-regenerar sin cambios en docs/source/ deja el diff vacío. `check` vuelve a
-extraer todo desde docs/source/ y compara; nunca modifica archivos.
+regenerar sin cambios en docs/source/ deja el diff vacío. `build` no lee ni
+escribe docs/spec-baseline.json ni docs/decisions/text-exceptions.json.
+`check` vuelve a extraer todo desde docs/source/ y compara; nunca modifica
+archivos. Cualquier fallo produce código de salida 1.
 
 Las fuentes de docs/source/ son de solo lectura para este script.
 """
@@ -27,13 +32,36 @@ import sys
 from collections import Counter, OrderedDict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SOURCE_DIR = ROOT / "docs" / "source"
-SPEC_INDEX = ROOT / "docs" / "spec-index.json"
-TRACEABILITY = ROOT / "docs" / "traceability.json"
-RELEASE_CHECKLIST = ROOT / "docs" / "release-checklist.json"
+DEFAULT_ROOT = Path(__file__).resolve().parent.parent
+ROOT = SOURCE_DIR = SPEC_INDEX = TRACEABILITY = RELEASE_CHECKLIST = None  # type: ignore[assignment]
+BASELINE = TEXT_EXCEPTIONS = OPEN_ISSUES = None  # type: ignore[assignment]
+
+
+def configure(root: Path) -> None:
+    """Fija la raíz sobre la que operan build/check."""
+    global ROOT, SOURCE_DIR, SPEC_INDEX, TRACEABILITY, RELEASE_CHECKLIST
+    global BASELINE, TEXT_EXCEPTIONS, OPEN_ISSUES
+    ROOT = Path(root).resolve()
+    SOURCE_DIR = ROOT / "docs" / "source"
+    SPEC_INDEX = ROOT / "docs" / "spec-index.json"
+    TRACEABILITY = ROOT / "docs" / "traceability.json"
+    RELEASE_CHECKLIST = ROOT / "docs" / "release-checklist.json"
+    BASELINE = ROOT / "docs" / "spec-baseline.json"
+    TEXT_EXCEPTIONS = ROOT / "docs" / "decisions" / "text-exceptions.json"
+    OPEN_ISSUES = ROOT / "docs" / "decisions" / "open-issues.md"
+
+
+configure(DEFAULT_ROOT)
 
 GENERATOR = "tools/spec_registry.py build"
+
+# Huella del baseline fijado tras revisar el commit 02b8798 (ver
+# docs/spec-baseline.json → changePolicy). SHA-256 del JSON canónico de
+# ids, familyCounts, total, acceptanceCriteriaRfRnfUx, qaCount, taskCount y
+# releaseStatuses. Cambiarla exige una revisión explícita del alcance.
+BASELINE_DIGEST = "e6772ba978ea9b675d1c455f2e75491ea050eba5a6f8f2cfd2bc3d73e94c6c31"
+BASELINE_DIGEST_FIELDS = ("ids", "familyCounts", "total", "acceptanceCriteriaRfRnfUx",
+                          "qaCount", "taskCount", "releaseStatuses")
 
 # ---------------------------------------------------------------------------
 # Metadatos curados de las fuentes. Ruta, tamaño y hash se calculan; versión
@@ -432,12 +460,28 @@ def build_spec_index():
 
 # ---------------------------------------------------------------------------
 # Extracción de los 310 IDs base
+#
+# Cada extractor devuelve (primera_aparición_por_id, apariciones), donde
+# apariciones = {id: [(archivo, línea), ...]} se llena ANTES de insertar en el
+# diccionario. Así una fila o ficha duplicada dentro del mismo catálogo nunca
+# se pierde en silencio: `check` informa cada ID y todas sus ubicaciones.
 # ---------------------------------------------------------------------------
+
+def _note(occurrences: dict, entry_id: str, logical_id: str, line_no: int) -> bool:
+    """Registra la aparición; devuelve True si es la primera del catálogo."""
+    occurrences.setdefault(entry_id, []).append((file_of(logical_id), line_no))
+    return len(occurrences[entry_id]) == 1
+
+
+def _section_bounds(lines: list[str], start_prefix: str, end_prefix: str) -> tuple[int, int]:
+    start = next(i for i, l in enumerate(lines) if l.startswith(start_prefix))
+    end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith(end_prefix)), len(lines))
+    return start, end
+
 
 def extract_bullet_definitions():
     """RFxx.CAx / RNFxx.CAx (PRD) y UXxx.CAx (UX) con su requisito padre."""
-    out = {}
-    duplicates = []
+    out, occ = {}, {}
     for logical_id, fam_regex, parent_regex in (
         ("A01-PRD", r"(?:RF|RNF)", r"^#{3,4} ((?:RF|RNF)\d{2}) — (.+)$"),
         ("A02-UX", r"UX", r"^### (UX\d{2}) · (.+)$"),
@@ -453,8 +497,7 @@ def extract_bullet_definitions():
             if not m:
                 continue
             entry_id, text = m.group(1), m.group(2)
-            if entry_id in out:
-                duplicates.append((entry_id, file_of(logical_id), i + 1))
+            if not _note(occ, entry_id, logical_id, i + 1):
                 continue
             if parent is None or not entry_id.startswith(parent[0] + "."):
                 raise SystemExit(f"Padre no encontrado para {entry_id} en {file_of(logical_id)}:{i + 1}")
@@ -466,12 +509,11 @@ def extract_bullet_definitions():
                 "text": text,
                 "row": None,
             }
-    return out, duplicates
+    return out, occ
 
 
 def extract_table_definitions():
-    out = {}
-    duplicates = []
+    out, occ = {}, {}
     for family, (logical_id, _) in TABLE_FAMILIES.items():
         lines = read_lines(logical_id)
         for i, line in enumerate(lines):
@@ -479,6 +521,8 @@ def extract_table_definitions():
             if not m:
                 continue
             entry_id = m.group(1)
+            if not _note(occ, entry_id, logical_id, i + 1):
+                continue
             # Cabecera = fila anterior al separador más cercano hacia arriba.
             j = i - 1
             while j > 0 and not re.match(r"^\|\s*-{3}", lines[j]):
@@ -487,9 +531,6 @@ def extract_table_definitions():
             cells = split_row(line)
             if len(header) != len(cells):
                 raise SystemExit(f"Columnas inconsistentes en {file_of(logical_id)}:{i + 1}")
-            if entry_id in out:
-                duplicates.append((entry_id, file_of(logical_id), i + 1))
-                continue
             out[entry_id] = {
                 "logicalId": logical_id,
                 "line": i + 1,
@@ -498,14 +539,22 @@ def extract_table_definitions():
                 "text": None,
                 "row": [OrderedDict([("header", h), ("value", v)]) for h, v in zip(header[1:], cells[1:])],
             }
-    return out, duplicates
+    return out, occ
+
+
+def extract_definitions():
+    bullets, occ_b = extract_bullet_definitions()
+    tables, occ_t = extract_table_definitions()
+    occ = dict(occ_b)
+    for k, v in occ_t.items():
+        occ.setdefault(k, []).extend(v)
+    return {**bullets, **tables}, occ
 
 
 def extract_annex07():
     lines = read_lines("A07-QA")
     start = next(i for i, l in enumerate(lines) if l.startswith("## 19. Anexo de trazabilidad por ID"))
-    rows = {}
-    duplicates = []
+    rows, occ = {}, {}
     for i in range(start, len(lines)):
         line = lines[i]
         if not line.startswith("| ") or line.startswith("| ID ") or line.startswith("|---"):
@@ -514,8 +563,7 @@ def extract_annex07():
         if len(cells) != 5:
             raise SystemExit(f"Fila de anexo con {len(cells)} columnas: A07 línea {i + 1}")
         entry_id, code, text, qa, status = cells
-        if entry_id in rows:
-            duplicates.append((entry_id, file_of("A07-QA"), i + 1))
+        if not _note(occ, entry_id, "A07-QA", i + 1):
             continue
         rows[entry_id] = {
             "line": i + 1,
@@ -524,16 +572,14 @@ def extract_annex07():
             "qa": [q.strip() for q in qa.split(",")],
             "status": status,
         }
-    return rows, duplicates
+    return rows, occ
 
 
 def extract_documented_counts():
     lines = read_lines("A07-QA")
-    start = next(i for i, l in enumerate(lines) if l.startswith("## 18. Verificación de esta entrega"))
+    start, end = _section_bounds(lines, "## 18. Verificación de esta entrega", "## 19.")
     counts = OrderedDict()
-    for i in range(start, len(lines)):
-        if lines[i].startswith("## 19."):
-            break
+    for i in range(start, end):
         m = re.match(r"^\| (RF\.CA|RNF\.CA|UX\.CA|AT|AI|EV|DT|SC|DS|UT|Total de IDs fuente) \| (\d+) \|$", lines[i])
         if m:
             counts[m.group(1)] = int(m.group(2))
@@ -542,17 +588,14 @@ def extract_documented_counts():
 
 def extract_plan08():
     lines = read_lines("A08-IMPLEMENTATION")
-    start = next(i for i, l in enumerate(lines) if l.startswith("## 15. Anexo"))
-    end = next(i for i, l in enumerate(lines) if l.startswith("## 16."))
-    rows = {}
-    duplicates = []
+    start, end = _section_bounds(lines, "## 15. Anexo", "## 16.")
+    rows, occ = {}, {}
     for i in range(start, end):
         line = lines[i]
         if not line.startswith("| ") or line.startswith("| ID fuente") or line.startswith("|---"):
             continue
         entry_id, qa, primary, support, status = split_row(line)
-        if entry_id in rows:
-            duplicates.append((entry_id, file_of("A08-IMPLEMENTATION"), i + 1))
+        if not _note(occ, entry_id, "A08-IMPLEMENTATION", i + 1):
             continue
         rows[entry_id] = {
             "line": i + 1,
@@ -561,25 +604,25 @@ def extract_plan08():
             "supportTasks": [t.strip() for t in support.split(",") if t.strip()],
             "status": status,
         }
-    return rows, duplicates
+    return rows, occ
 
 
 def extract_tasks08():
     lines = read_lines("A08-IMPLEMENTATION")
-    tasks = OrderedDict()
+    tasks, occ = OrderedDict(), {}
     for i, line in enumerate(lines):
         m = re.match(r"^#### (VIG-\d{3}) · (.+)$", line)
-        if m:
+        if m and _note(occ, m.group(1), "A08-IMPLEMENTATION", i + 1):
             tasks[m.group(1)] = {"title": m.group(2).strip(), "line": i + 1}
-    return tasks
+    return tasks, occ
 
 
 def extract_qa_catalog():
     lines = read_lines("A07-QA")
-    catalog = []
+    catalog, occ = [], {}
     for i, line in enumerate(lines):
         m = re.match(r"^### (QA\d{2}) · (.+)$", line)
-        if m:
+        if m and _note(occ, m.group(1), "A07-QA", i + 1):
             catalog.append(OrderedDict([
                 ("id", m.group(1)),
                 ("title", m.group(2).strip()),
@@ -590,7 +633,35 @@ def extract_qa_catalog():
                     ("line", i + 1),
                 ])),
             ]))
-    return catalog
+    return catalog, occ
+
+
+def extract_rl07():
+    """Filas RL de Área 07 §15 (checklist de candidato)."""
+    lines = read_lines("A07-QA")
+    start, end = _section_bounds(lines, "## 15. Checklist de candidato", "## 16.")
+    rows, occ = OrderedDict(), {}
+    for i in range(start, end):
+        m = re.match(r"^\| (RL\d{2}) \|", lines[i])
+        if m and _note(occ, m.group(1), "A07-QA", i + 1):
+            _, evidence, status = split_row(lines[i])
+            rows[m.group(1)] = {"line": i + 1, "evidence": evidence, "status": status,
+                                "section": heading_at(lines, i)}
+    return rows, occ
+
+
+def extract_rl08():
+    """Filas RL de Área 08 §16 (checklist RL → tareas)."""
+    lines = read_lines("A08-IMPLEMENTATION")
+    start, end = _section_bounds(lines, "## 16. Checklist RL", "## 17.")
+    rows, occ = OrderedDict(), {}
+    for i in range(start, end):
+        m = re.match(r"^\| (RL\d{2}) \|", lines[i])
+        if m and _note(occ, m.group(1), "A08-IMPLEMENTATION", i + 1):
+            _, tasks, status = split_row(lines[i])
+            rows[m.group(1)] = {"line": i + 1, "tasksCell": tasks, "tasks": expand_tasks(tasks),
+                                "status": status, "section": heading_at(lines, i)}
+    return rows, occ
 
 
 def expected_annex_text(defn) -> str:
@@ -600,12 +671,10 @@ def expected_annex_text(defn) -> str:
 
 
 def build_traceability():
-    bullets, dup_b = extract_bullet_definitions()
-    tables, dup_t = extract_table_definitions()
-    definitions = {**bullets, **tables}
-    annex, dup_a = extract_annex07()
-    plan08, dup_p = extract_plan08()
-    qa_catalog = extract_qa_catalog()
+    definitions, occ_d = extract_definitions()
+    annex, occ_a = extract_annex07()
+    plan08, occ_p = extract_plan08()
+    qa_catalog, _ = extract_qa_catalog()
 
     all_ids = sorted(set(definitions) | set(annex) | set(plan08), key=id_sort_key)
     entries = []
@@ -663,6 +732,10 @@ def build_traceability():
         for meta in RECEIVED_SOURCES
         if meta["logicalId"] in ("A01-PRD", "A02-UX", "A04-ARCHITECTURE", "A05-AI", "A06-DATA", "A07-QA", "A08-IMPLEMENTATION")
     )
+    duplicates = [
+        OrderedDict([("id", i), ("file", f), ("line", l)])
+        for occ in (occ_d, occ_a, occ_p) for i, locs in sorted(occ.items()) if len(locs) > 1 for f, l in locs[1:]
+    ]
     return OrderedDict([
         ("schemaVersion", 1),
         ("task", "VIG-001"),
@@ -683,9 +756,7 @@ def build_traceability():
             + [("acceptanceCriteriaRfRnfUx", sum(counts.get(f, 0) for f in ("RF.CA", "RNF.CA", "UX.CA"))),
                ("total", len(entries))]
         )),
-        ("extractionDuplicates", [
-            OrderedDict([("id", d[0]), ("file", d[1]), ("line", d[2])]) for d in dup_b + dup_t + dup_a + dup_p
-        ]),
+        ("extractionDuplicates", duplicates),
         ("qaCatalog", qa_catalog),
         ("entries", entries),
     ])
@@ -707,22 +778,8 @@ def expand_tasks(cell: str) -> list[str]:
 
 
 def build_release_checklist():
-    lines07 = read_lines("A07-QA")
-    lines08 = read_lines("A08-IMPLEMENTATION")
-    rows07 = OrderedDict()
-    for i, line in enumerate(lines07):
-        m = re.match(r"^\| (RL\d{2}) \|", line)
-        if m:
-            _, evidence, status = split_row(line)
-            rows07[m.group(1)] = {"line": i + 1, "evidence": evidence, "status": status,
-                                  "section": heading_at(lines07, i)}
-    rows08 = OrderedDict()
-    for i, line in enumerate(lines08):
-        m = re.match(r"^\| (RL\d{2}) \|", line)
-        if m:
-            _, tasks, status = split_row(line)
-            rows08[m.group(1)] = {"line": i + 1, "tasksCell": tasks, "tasks": expand_tasks(tasks),
-                                  "status": status, "section": heading_at(lines08, i)}
+    rows07, _ = extract_rl07()
+    rows08, _ = extract_rl08()
     items = []
     for rl in sorted(set(rows07) | set(rows08)):
         a, b = rows07.get(rl), rows08.get(rl)
@@ -747,10 +804,38 @@ def build_release_checklist():
         ("conventions", OrderedDict([
             ("status", "Estado documentado (pending/blocked); ninguna RL se declara cumplida."),
             ("planA08.status", "Texto literal del Área 08 §16, incluidas aclaraciones tras ';'."),
+            ("baseline", "Estados exigidos por docs/spec-baseline.json → releaseStatuses."),
         ])),
         ("count", len(items)),
         ("items", items),
     ])
+
+
+# ---------------------------------------------------------------------------
+# Baseline y excepciones de texto (archivos versionados que `build` no toca)
+# ---------------------------------------------------------------------------
+
+def baseline_digest(baseline: dict) -> str:
+    canonical = {k: baseline[k] for k in BASELINE_DIGEST_FIELDS}
+    payload = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return sha256_bytes(payload.encode("utf-8"))
+
+
+def open_issue_states() -> dict:
+    """OI-xx → estado de la tabla resumen, solo si además existe su sección '## OI-xx'."""
+    if not OPEN_ISSUES.exists():
+        return {}
+    text = OPEN_ISSUES.read_text(encoding="utf-8")
+    headings = set(re.findall(r"^## (OI-\d{2}) ", text, re.M))
+    states = {}
+    for m in re.finditer(r"^\| (OI-\d{2}) \| [^|]+ \| ([^|]+) \|", text, re.M):
+        if m.group(1) in headings:
+            states[m.group(1)] = m.group(2).strip()
+    return states
+
+
+EXCEPTION_FIELDS = ("id", "openIssue", "source", "annex")
+CITATION_FIELDS = ("file", "line", "text")
 
 
 # ---------------------------------------------------------------------------
@@ -773,17 +858,15 @@ def cmd_build() -> int:
 class Report:
     def __init__(self):
         self.failures: list[str] = []
-        self.warnings: list[str] = []
         self.passed: list[str] = []
+        self.info: list[str] = []
 
     def ok(self, cond: bool, label: str, detail: str = ""):
         if cond:
             self.passed.append(label)
         else:
             self.failures.append(label + (f": {detail}" if detail else ""))
-
-    def warn(self, label: str):
-        self.warnings.append(label)
+        return cond
 
 
 def load_json(path: Path, report: Report):
@@ -801,8 +884,50 @@ def load_json(path: Path, report: Report):
     return data
 
 
-def cmd_check() -> int:
+def check_duplicates(r: Report, catalog: str, occ: dict, expected_unique: int | None = None):
+    """Duplicados dentro de UN catálogo: falla con cada ID y todas sus ubicaciones."""
+    dups = {i: locs for i, locs in occ.items() if len(locs) > 1}
+    detail = "; ".join(f"{i} en " + ", ".join(f"{f}:{l}" for f, l in locs) for i, locs in sorted(dups.items()))
+    r.ok(not dups, f"sin duplicados en {catalog}", detail)
+    raw = sum(len(v) for v in occ.values())
+    r.ok(raw == len(occ), f"apariciones originales = IDs únicos en {catalog}",
+         f"{raw} apariciones, {len(occ)} IDs únicos")
+    if expected_unique is not None:
+        r.ok(len(occ) == expected_unique, f"IDs únicos esperados en {catalog}",
+             f"esperados {expected_unique}, obtenidos {len(occ)}")
+    return raw
+
+
+def compare_id_sets(r: Report, label: str, actual: set, expected: set):
+    missing = sorted(expected - actual, key=id_sort_key)
+    extra = sorted(actual - expected, key=id_sort_key)
+    r.ok(not missing and not extra, label,
+         f"ausentes {missing or '[]'}; adicionales {extra or '[]'}")
+
+
+def run_check() -> Report:
     r = Report()
+
+    # 0. Baseline independiente (no se regenera con build).
+    baseline = load_json(BASELINE, r)
+    base_ids: set = set()
+    base_counts: dict = {}
+    base_rl: dict = {}
+    if baseline is not None:
+        digest = baseline_digest(baseline)
+        r.ok(digest == BASELINE_DIGEST, "huella del baseline coincide con la fijada en el validador",
+             f"fijada {BASELINE_DIGEST}, calculada {digest}")
+        ids_list = baseline["ids"]
+        base_ids = set(ids_list)
+        base_counts = baseline["familyCounts"]
+        base_rl = baseline["releaseStatuses"]
+        r.ok(len(ids_list) == len(base_ids), "baseline sin IDs repetidos")
+        derived = Counter(family_of(i) for i in ids_list)
+        r.ok(all(derived.get(f, 0) == base_counts.get(f) for f in FAMILY_ORDER),
+             "conteos del baseline = IDs del baseline por familia")
+        r.ok(sum(base_counts.values()) == baseline["total"] == len(base_ids), "total del baseline coherente")
+        r.ok(base_counts.get("RF.CA", 0) + base_counts.get("RNF.CA", 0) + base_counts.get("UX.CA", 0)
+             == baseline["acceptanceCriteriaRfRnfUx"], "CA RF/RNF/UX del baseline coherentes")
 
     # 1. spec-index: hashes, tamaños, evidencia de versión, cobertura de docs/source/.
     index = load_json(SPEC_INDEX, r)
@@ -842,45 +967,57 @@ def cmd_check() -> int:
         r.ok(index == json.loads(dump_json(SPEC_INDEX, build_spec_index())),
              "spec-index.json coincide con la regeneración desde las fuentes")
 
-    # 2. Trazabilidad: re-extracción independiente desde las fuentes.
-    trace = load_json(TRACEABILITY, r)
-    bullets, dup_b = extract_bullet_definitions()
-    tables, dup_t = extract_table_definitions()
-    definitions = {**bullets, **tables}
-    annex, dup_a = extract_annex07()
-    plan08, dup_p = extract_plan08()
-    tasks08 = extract_tasks08()
-    qa_catalog = extract_qa_catalog()
+    # 2. Extracción independiente con detección de duplicados por catálogo.
+    definitions, occ_def = extract_definitions()
+    annex, occ_a07 = extract_annex07()
+    plan08, occ_a08 = extract_plan08()
+    tasks08, occ_vig = extract_tasks08()
+    qa_catalog, occ_qa = extract_qa_catalog()
+    rl07, occ_rl07 = extract_rl07()
+    rl08, occ_rl08 = extract_rl08()
     documented = extract_documented_counts()
 
-    r.ok(not dup_b and not dup_t, "IDs definidos una sola vez en sus fuentes",
-         str(dup_b + dup_t))
-    r.ok(not dup_a, "IDs únicos en el anexo §19 del Área 07", str(dup_a))
-    r.ok(not dup_p, "IDs únicos en el anexo §15 del Área 08", str(dup_p))
+    check_duplicates(r, "definiciones de origen (PRD/UX/A04/A05/A06)", occ_def, len(base_ids) or None)
+    check_duplicates(r, "anexo §19 del Área 07", occ_a07, len(base_ids) or None)
+    check_duplicates(r, "anexo §15 del Área 08", occ_a08, len(base_ids) or None)
+    check_duplicates(r, "fichas VIG del Área 08", occ_vig, baseline["taskCount"] if baseline else None)
+    check_duplicates(r, "catálogo QA del Área 07", occ_qa, baseline["qaCount"] if baseline else None)
+    check_duplicates(r, "RL del Área 07 §15", occ_rl07, len(base_rl) or None)
+    check_duplicates(r, "RL del Área 08 §16", occ_rl08, len(base_rl) or None)
 
+    # Apariciones legítimas en documentos distintos: cada ID base exactamente
+    # una vez en su fuente, una en el anexo A07 y una en el anexo A08.
+    cross = [i for i in base_ids
+             if (len(occ_def.get(i, [])), len(occ_a07.get(i, [])), len(occ_a08.get(i, []))) != (1, 1, 1)]
+    r.ok(not cross, "cada ID base aparece una vez en su fuente, una en A07 §19 y una en A08 §15",
+         "; ".join(f"{i}: fuente {len(occ_def.get(i, []))}, A07 {len(occ_a07.get(i, []))}, "
+                   f"A08 {len(occ_a08.get(i, []))}" for i in sorted(cross, key=id_sort_key)[:20]))
+    r.info.append(f"Apariciones legítimas entre documentos: {len(base_ids)} IDs × 3 catálogos "
+                  f"(fuente, A07 §19, A08 §15); RL × 2 catálogos (A07 §15, A08 §16).")
+
+    # 3. Baseline frente a fuentes, anexos y conteos documentales.
+    if baseline is not None:
+        compare_id_sets(r, "IDs de las fuentes = baseline", set(definitions), base_ids)
+        compare_id_sets(r, "IDs del anexo A07 = baseline", set(annex), base_ids)
+        compare_id_sets(r, "IDs del anexo A08 = baseline", set(plan08), base_ids)
+        src_counts = Counter(family_of(i) for i in definitions)
+        for fam in FAMILY_ORDER:
+            r.ok(src_counts.get(fam, 0) == base_counts[fam], f"conteo {fam} en fuentes = baseline",
+                 f"baseline {base_counts[fam]}, extraído {src_counts.get(fam, 0)}")
+            r.ok(documented.get(fam) == base_counts[fam], f"conteo documentado {fam} (A07 §18) = baseline",
+                 f"baseline {base_counts[fam]}, documentado {documented.get(fam)}")
+        r.ok(documented.get("Total de IDs fuente") == baseline["total"],
+             "total documentado (A07 §18) = baseline",
+             f"baseline {baseline['total']}, documentado {documented.get('Total de IDs fuente')}")
+        ca = sum(src_counts.get(f, 0) for f in ("RF.CA", "RNF.CA", "UX.CA"))
+        r.ok(ca == baseline["acceptanceCriteriaRfRnfUx"], "criterios RF/RNF/UX = baseline",
+             f"baseline {baseline['acceptanceCriteriaRfRnfUx']}, extraídos {ca}")
+
+    # 4. Referencias QA, estados y tareas.
     qa_ids = [q["id"] for q in qa_catalog]
     r.ok(qa_ids == [f"QA{n:02d}" for n in range(1, 41)], "catálogo QA01–QA40 completo y ordenado",
          f"obtenidos {len(qa_ids)}: {qa_ids}")
     qa_set = set(qa_ids)
-
-    src_counts = Counter(family_of(i) for i in definitions)
-    annex_counts = Counter(family_of(i) for i in annex)
-    for fam in FAMILY_ORDER:
-        exp = documented.get(fam)
-        r.ok(src_counts.get(fam, 0) == exp, f"conteo en fuentes {fam}",
-             f"documentado {exp}, extraído {src_counts.get(fam, 0)}")
-        r.ok(annex_counts.get(fam, 0) == exp, f"conteo en anexo A07 {fam}",
-             f"documentado {exp}, anexo {annex_counts.get(fam, 0)}")
-    total_doc = documented.get("Total de IDs fuente")
-    r.ok(len(definitions) == total_doc, "total de IDs base en fuentes",
-         f"documentado {total_doc}, extraído {len(definitions)}")
-    ca = sum(src_counts.get(f, 0) for f in ("RF.CA", "RNF.CA", "UX.CA"))
-    r.ok(ca == 192, "192 criterios de aceptación RF/RNF/UX", f"extraídos {ca}")
-    r.ok(set(definitions) == set(annex), "mismos IDs en fuentes y anexo A07",
-         f"solo fuentes {sorted(set(definitions) - set(annex))}; solo anexo {sorted(set(annex) - set(definitions))}")
-    r.ok(set(definitions) == set(plan08), "mismos IDs en fuentes y anexo A08",
-         f"solo fuentes {sorted(set(definitions) - set(plan08))}; solo A08 {sorted(set(plan08) - set(definitions))}")
-
     bad_qa = sorted({(i, q) for i, a in annex.items() for q in a["qa"] if q not in qa_set})
     r.ok(not bad_qa, "referencias QA del anexo A07 existen en QA01–QA40", str(bad_qa))
     used_qa = {q for a in annex.values() for q in a["qa"]}
@@ -888,38 +1025,70 @@ def cmd_check() -> int:
          f"sin referencias: {sorted(qa_set - used_qa)}")
     qa_mismatch = sorted(i for i in annex if i in plan08 and annex[i]["qa"] != plan08[i]["qa"])
     r.ok(not qa_mismatch, "QA de A07 y A08 coinciden por ID", str(qa_mismatch[:20]))
-
     status_bad = sorted(i for i, a in annex.items() if a["status"] != FAMILY_STATUS[family_of(i)])
     r.ok(not status_bad, "estado inicial del anexo A07 según familia", str(status_bad[:20]))
     status_bad08 = sorted(i for i, p in plan08.items() if p["status"] != FAMILY_STATUS[family_of(i)])
     r.ok(not status_bad08, "estado inicial del anexo A08 según familia", str(status_bad08[:20]))
-
+    code_of = dict(list(BULLET_FAMILIES.values()) + list(TABLE_FAMILIES.values()))
     code_bad = sorted(i for i, a in annex.items()
-                      if i in definitions and a["sourceCode"] != dict(
-                          list(BULLET_FAMILIES.values()) + list(TABLE_FAMILIES.values())
-                      ).get(definitions[i]["logicalId"]))
+                      if i in definitions and a["sourceCode"] != code_of.get(definitions[i]["logicalId"]))
     r.ok(not code_bad, "fuente declarada en el anexo A07 coincide con el documento de origen", str(code_bad))
-
     task_bad = sorted({(i, t) for i, p in plan08.items()
                        for t in [p["primaryTask"]] + p["supportTasks"] if t not in tasks08})
     r.ok(not task_bad, "tareas del anexo A08 existen entre las fichas VIG", str(task_bad[:20]))
-    r.ok(list(tasks08) == [f"VIG-{n:03d}" for n in range(1, 73)], "fichas VIG-001–VIG-072 completas",
+    r.ok(list(tasks08) == [f"VIG-{n:03d}" for n in range(1, 73)], "fichas VIG-001–VIG-072 completas y ordenadas",
          f"obtenidas {len(tasks08)}")
 
-    text_mismatch = sorted(i for i in annex if i in definitions
-                           and annex[i]["text"] != expected_annex_text(definitions[i]))
-    if text_mismatch:
-        r.warn(f"{len(text_mismatch)} textos del anexo A07 difieren de su fuente de origen: "
-               f"{text_mismatch}. Se conserva el texto de origen en 'text'/'row'.")
-    else:
+    # 5. Textos: discrepancia origen/anexo = fallo salvo excepción documentada.
+    discrepancies = {i: (definitions[i], annex[i]) for i in annex
+                     if i in definitions and annex[i]["text"] != expected_annex_text(definitions[i])}
+    exc_doc = load_json(TEXT_EXCEPTIONS, r)
+    accepted = set()
+    if exc_doc is not None:
+        oi_states = open_issue_states()
+        seen = Counter(e.get("id") for e in exc_doc.get("exceptions", []))
+        for e in exc_doc.get("exceptions", []):
+            eid = e.get("id", "<sin id>")
+            label = f"excepción de texto {eid}"
+            if not r.ok(all(k in e for k in EXCEPTION_FIELDS)
+                        and all(isinstance(e[c], dict) and all(f in e[c] for f in CITATION_FIELDS)
+                                for c in ("source", "annex")),
+                        f"{label} completa", f"requiere {EXCEPTION_FIELDS} y source/annex con {CITATION_FIELDS}"):
+                continue
+            r.ok(seen[eid] == 1, f"{label} única")
+            oi = e["openIssue"]
+            r.ok(oi in oi_states and not oi_states[oi].lower().startswith("cerrado"),
+                 f"{label} referencia un hallazgo abierto", f"{oi} no existe en open-issues.md o está cerrado")
+            if not r.ok(eid in discrepancies, f"{label} corresponde a una discrepancia real",
+                        "el texto del anexo ya coincide con el origen; retirar la excepción"):
+                continue
+            defn, a = discrepancies[eid]
+            r.ok(e["source"] == {"file": file_of(defn["logicalId"]), "line": defn["line"],
+                                 "text": expected_annex_text(defn)},
+                 f"{label}: cita de origen vigente (archivo, línea y texto exactos)")
+            r.ok(e["annex"] == {"file": file_of("A07-QA"), "line": a["line"], "text": a["text"]},
+                 f"{label}: cita del anexo vigente (archivo, línea y texto exactos)")
+            if not any(f.startswith(label) for f in r.failures):
+                accepted.add(eid)
+    for i in sorted(discrepancies, key=id_sort_key):
+        if i in accepted:
+            r.info.append(f"Discrepancia de texto {i} aceptada por excepción documentada.")
+            continue
+        defn, a = discrepancies[i]
+        r.ok(False, f"texto discrepante {i} sin excepción documentada",
+             f"origen {file_of(defn['logicalId'])}:{defn['line']} «{expected_annex_text(defn)}» ≠ "
+             f"anexo {file_of('A07-QA')}:{a['line']} «{a['text']}»")
+    if not discrepancies:
         r.ok(True, "textos del anexo A07 idénticos a sus fuentes")
 
+    # 6. traceability.json
+    trace = load_json(TRACEABILITY, r)
     if trace is not None:
         ids = [e["id"] for e in trace["entries"]]
         r.ok(len(ids) == len(set(ids)), "cada ID aparece una sola vez en traceability.json",
              str([i for i, c in Counter(ids).items() if c > 1]))
-        r.ok(set(ids) == set(definitions), "traceability.json contiene exactamente los IDs de las fuentes",
-             f"faltan {sorted(set(definitions) - set(ids))}; sobran {sorted(set(ids) - set(definitions))}")
+        if baseline is not None:
+            compare_id_sets(r, "IDs de traceability.json = baseline", set(ids), base_ids)
         for lid, h in trace["derivedFromSha256"].items():
             meta = next(s for s in RECEIVED_SOURCES if s["logicalId"] == lid)
             r.ok(sha256_bytes(src_path(meta["file"]).read_bytes()) == h, f"trazabilidad derivada de {lid} vigente")
@@ -932,54 +1101,78 @@ def cmd_check() -> int:
             if d is None:
                 continue
             if d["text"] is not None:
-                if e.get("text") != d["text"]:
-                    r.ok(False, f"texto literal {e['id']}")
-            elif e.get("row") != json.loads(json.dumps(d["row"])):
-                r.ok(False, f"fila literal {e['id']}")
+                r.ok(e.get("text") == d["text"], f"texto literal de origen {e['id']}")
+            else:
+                r.ok(e.get("row") == json.loads(json.dumps(d["row"])), f"fila literal de origen {e['id']}")
         r.ok(trace["counts"]["total"] == len(trace["entries"]), "conteo total declarado = entradas")
         r.ok(trace == json.loads(dump_json(TRACEABILITY, build_traceability())),
              "traceability.json coincide con la regeneración desde las fuentes")
 
-    # 3. Checklist RL.
+    # 7. Checklist RL: estados exigidos por el baseline (no solo coherencia A07/A08).
     rl = load_json(RELEASE_CHECKLIST, r)
+    if baseline is not None:
+        compare_id_sets(r, "RL del Área 07 §15 = baseline", set(rl07), set(base_rl))
+        compare_id_sets(r, "RL del Área 08 §16 = baseline", set(rl08), set(base_rl))
+        for rl_id, expected in base_rl.items():
+            s07 = rl07.get(rl_id, {}).get("status")
+            s08 = rl08.get(rl_id, {}).get("status", "").split(";")[0].strip() or None
+            r.ok(s07 == expected, f"estado {rl_id} en A07 §15 = baseline ({expected})", f"A07 {s07}")
+            r.ok(s08 == expected, f"estado {rl_id} en A08 §16 = baseline ({expected})", f"A08 {s08}")
     if rl is not None:
         rl_ids = [i["id"] for i in rl["items"]]
-        r.ok(rl_ids == [f"RL{n:02d}" for n in range(1, 13)], "RL01–RL12 completos y únicos", str(rl_ids))
-        r.ok(not (set(rl_ids) & set(definitions)), "RL fuera de los 310 IDs base")
+        r.ok(len(rl_ids) == len(set(rl_ids)), "RL únicas en release-checklist.json",
+             str([i for i, c in Counter(rl_ids).items() if c > 1]))
+        r.ok(rl_ids == [f"RL{n:02d}" for n in range(1, 13)], "RL01–RL12 completos y ordenados", str(rl_ids))
+        r.ok(not (set(rl_ids) & (set(definitions) | base_ids)), "RL fuera de los 310 IDs base")
         for item in rl["items"]:
-            a07 = item["sourceA07"]["status"] if item["sourceA07"] else None
-            a08 = item["planA08"]["status"].split(";")[0].strip() if item["planA08"] else None
-            r.ok(a07 == a08 == item["status"], f"estado {item['id']} coincide en A07/A08",
-                 f"A07 {a07}, A08 {a08}, registro {item['status']}")
-            r.ok(item["status"] in ("pending", "blocked"), f"estado {item['id']} es pending/blocked")
+            if baseline is not None:
+                expected = base_rl.get(item["id"])
+                r.ok(item["status"] == expected, f"estado {item['id']} del registro = baseline ({expected})",
+                     f"registro {item['status']}")
             if item["planA08"]:
                 missing = [t for t in item["planA08"]["tasks"] if t not in tasks08]
                 r.ok(not missing, f"tareas de {item['id']} existen", str(missing))
         r.ok(rl == json.loads(dump_json(RELEASE_CHECKLIST, build_release_checklist())),
              "release-checklist.json coincide con la regeneración desde las fuentes")
 
-    # Informe.
-    print("Conteos extraídos de las fuentes:")
-    for fam in FAMILY_ORDER:
-        print(f"  {fam:7} {src_counts.get(fam, 0):4}  (documentado {documented.get(fam)})")
-    print(f"  {'total':7} {len(definitions):4}  (documentado {total_doc})")
-    print(f"  CA RF/RNF/UX: {ca}; QA en catálogo: {len(qa_ids)}; fichas VIG: {len(tasks08)}")
+    src_counts = Counter(family_of(i) for i in definitions)
+    r.info.insert(0, "Conteos extraídos de las fuentes (baseline / documentado A07 §18):\n" + "\n".join(
+        f"  {fam:7} {src_counts.get(fam, 0):4}  ({base_counts.get(fam)} / {documented.get(fam)})"
+        for fam in FAMILY_ORDER
+    ) + f"\n  {'total':7} {len(definitions):4}  ({len(base_ids)} / {documented.get('Total de IDs fuente')})"
+      + f"\n  CA RF/RNF/UX: {sum(src_counts.get(f, 0) for f in ('RF.CA', 'RNF.CA', 'UX.CA'))}; "
+        f"QA: {len(qa_ids)}; fichas VIG: {len(tasks08)}; RL: {len(rl07)}/{len(rl08)} (A07/A08)")
+    return r
+
+
+def cmd_check() -> int:
+    r = run_check()
+    for line in r.info:
+        print(line)
     print(f"\nComprobaciones superadas: {len(r.passed)}")
-    for w in r.warnings:
-        print(f"AVISO: {w}")
     for f in r.failures:
         print(f"FALLO: {f}")
-    print("\nResultado:", "FALLÓ" if r.failures else "OK")
+    print("\nResultado:", f"FALLÓ ({len(r.failures)} fallos)" if r.failures else "OK")
     return 1 if r.failures else 0
 
 
 def main(argv: list[str]) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    if len(argv) != 2 or argv[1] not in ("build", "check"):
+    args = argv[1:]
+    root = DEFAULT_ROOT
+    if "--root" in args:
+        k = args.index("--root")
+        if k + 1 >= len(args):
+            print(__doc__)
+            return 2
+        root = Path(args[k + 1])
+        args = args[:k] + args[k + 2:]
+    if len(args) != 1 or args[0] not in ("build", "check"):
         print(__doc__)
         return 2
-    return cmd_build() if argv[1] == "build" else cmd_check()
+    configure(root)
+    return cmd_build() if args[0] == "build" else cmd_check()
 
 
 if __name__ == "__main__":

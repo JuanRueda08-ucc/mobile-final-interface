@@ -5,7 +5,8 @@
   "scope": "Checklist RL de distribución. Separado de los 310 IDs base (Área 08 §15–§16).",
   "conventions": {
     "status": "Estado documentado (pending/blocked); ninguna RL se declara cumplida.",
-    "planA08.status": "Texto literal del Área 08 §16, incluidas aclaraciones tras ';'."
+    "planA08.status": "Texto literal del Área 08 §16, incluidas aclaraciones tras ';'.",
+    "baseline": "Estados exigidos por docs/spec-baseline.json → releaseStatuses."
   },
   "count": 12,
   "items": [

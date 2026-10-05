@@ -8,33 +8,74 @@ Herramienta auxiliar de documentación. **No forma parte del runtime de Vigía**
 | Requisito | Valor |
 |---|---|
 | Intérprete | Python 3.13 (verificado con 3.13.15 en Windows 11; requiere ≥ 3.10) |
-| Dependencias | Solo biblioteca estándar (`json`, `hashlib`, `re`, `gzip`, `base64`, `pathlib`, `collections`) |
+| Dependencias | Solo biblioteca estándar (`json`, `hashlib`, `re`, `gzip`, `base64`, `pathlib`, `collections`; pruebas: `unittest`, `subprocess`, `tempfile`, `shutil`) |
 | Red | No usa red |
-| Escritura | `build` escribe solo `docs/spec-index.json`, `docs/traceability.json` y `docs/release-checklist.json`. `check` no escribe nada. Ninguno modifica `docs/source/` |
+| Escritura | `build` escribe solo `docs/spec-index.json`, `docs/traceability.json` y `docs/release-checklist.json`. `check` y las pruebas no escriben en el repositorio. Nada modifica `docs/source/` |
 
 ### Comandos (desde la raíz del repositorio)
 
 ```bash
-python tools/spec_registry.py check   # valida; código de salida 0 = OK, 1 = fallos
-python tools/spec_registry.py build   # regenera los tres JSON desde docs/source/
+python tools/spec_registry.py check                 # valida; salida 0 = OK, 1 = cualquier fallo
+python tools/spec_registry.py build                 # regenera los tres JSON desde docs/source/
+python -m unittest tools/test_spec_registry.py -v   # regresiones (copias temporales)
 ```
 
-`check` vuelve a extraer los datos desde `docs/source/` y comprueba:
+La opción `--root DIR` ejecuta `build`/`check` sobre otra raíz con la misma estructura. Las pruebas la usan sobre copias temporales.
 
-- SHA-256 y tamaños;
-- que todos los archivos de las fuentes están registrados;
-- IDs únicos;
-- conteos frente al Área 07 §18 (310 IDs, 192 CA);
-- referencias a QA01–QA40;
-- estados `notRun`/`planned`;
-- tareas VIG-001–VIG-072;
-- RL01–RL12;
-- que la regeneración coincide exactamente con los archivos.
+### Qué valida `check`
 
-`build` es determinista: si las fuentes no cambian, el diff queda vacío.
+1. **Fuentes:** SHA-256, tamaño y evidencia de versión de cada archivo de `docs/source/`, y que no hay archivos sin registrar.
+2. **Duplicados por catálogo:** definiciones de origen, anexo §19 del Área 07, anexo §15 del Área 08, fichas VIG, catálogo QA, RL del Área 07 §15 y RL del Área 08 §16. Cada aparición se anota **antes** de insertarla en un diccionario. Un duplicado falla con el ID y todas sus ubicaciones (`archivo:línea`), y se compara el número de apariciones originales con el de IDs únicos.
+3. **Apariciones legítimas entre documentos:** cada ID base aparece exactamente una vez en su fuente, una vez en el anexo A07 y una vez en el anexo A08. Las RL aparecen una vez en A07 §15 y una vez en A08 §16.
+4. **Baseline** (ver abajo): IDs ausentes y adicionales en fuentes, anexos y `traceability.json`, conteos por familia y conteos documentados del Área 07 §18.
+5. **Referencias:** QA01–QA40 existentes y todos usados, QA iguales en A07 y A08, y tareas VIG-001–VIG-072 existentes.
+6. **Estados:** `notRun` para criterios y ensayos, `planned` para SC/DS/UT.
+7. **RL:** estado de cada RL en A07 §15, en A08 §16 y en el registro igual al baseline (**RL09 = blocked; las otras once = pending**). Un cambio coordinado en los tres sitios falla.
+8. **Textos:** toda discrepancia entre el texto de origen y el del anexo A07 **falla** (código 1), salvo que tenga una excepción válida (ver abajo). El registro conserva siempre el literal de origen.
+9. **Regeneración:** los tres JSON coinciden exactamente con lo que produciría `build`.
+
+### Baseline: `docs/spec-baseline.json`
+
+- **Procedencia:** extraído una sola vez del commit revisado `02b8798a6fd8a7ea976fe4d79ada094b7eeaffc8` (`docs/traceability.json` y `docs/release-checklist.json` de ese commit) y confirmado por el responsable del proyecto al corregir la revisión de Codex.
+- **Contenido:** los 310 IDs exactos y estos conteos:
+
+  | RF.CA | RNF.CA | UX.CA | AT | AI | EV | DT | SC | DS | UT | Total |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | 96 | 30 | 66 | 22 | 28 | 13 | 24 | 14 | 9 | 8 | 310 |
+
+  También fija 192 CA RF/RNF/UX, 40 QA, 72 fichas VIG y los estados RL01–RL12.
+- **Independencia:** `build` no lo lee ni lo escribe. `check` verifica su huella SHA-256 (campos `ids`, `familyCounts`, `total`, `acceptanceCriteriaRfRnfUx`, `qaCount`, `taskCount` y `releaseStatuses`) contra la constante `BASELINE_DIGEST` del validador.
+- **Cambiarlo** modifica el alcance verificado y requiere una revisión explícita del alcance: nueva versión de la fuente, ADR en `docs/decisions/`, y actualizar el baseline y `BASELINE_DIGEST` en el mismo commit revisado.
+
+### Excepciones de texto: `docs/decisions/text-exceptions.json`
+
+Vacío en este baseline. Una excepción solo se acepta si cumple todo lo siguiente:
+- tiene `id`, `openIssue`, `source {file, line, text}` y `annex {file, line, text}`, con citas exactas y vigentes;
+- referencia un `OI-xx` con sección propia en `open-issues.md` que no esté cerrado;
+- corresponde a una discrepancia real (una excepción sobrante también falla).
+
+No se añaden excepciones para ocultar casos de prueba.
+
+### Regresiones (`tools/test_spec_registry.py`)
+
+Cada caso copia las fuentes a un directorio temporal, altera **solo la copia** con datos simulados, regenera los registros y ejecuta `check --root` como proceso aparte. Los casos negativos exigen código de salida 1 y la línea `FALLO` concreta, no un aviso. El conjunto verifica además que el SHA-256 de las fuentes reales no cambia.
+
+| Caso | Resultado exigido |
+|---|---|
+| Repositorio real sin regenerar / copia regenerada | OK (código 0) |
+| RL09 → pending, coordinado en A07, A08 y registro | Falla contra el baseline en los tres |
+| Ficha VIG-005 duplicada | Falla con ambas ubicaciones |
+| Fila RL03 duplicada en A07 y A08 | Falla en cada catálogo |
+| AT23 coordinado (fuente, anexos, conteo AT 23 y total 311) | Falla: ID adicional y conteos |
+| Solo total documental 311 | Falla |
+| AT22 eliminado de la fuente | Falla: ID ausente |
+| Baseline alterado (AT23 / 311) | Falla: huella distinta |
+| Texto del anexo distinto del origen | Falla y conserva el literal de origen |
+| Excepción incompleta / con OI inexistente / sobrante | Falla |
+| Excepción completa con OI abierto simulado (solo en la copia) | OK |
 
 ### Límites
 
 - Valida la coherencia documental, no el funcionamiento de la app.
 - Un `OK` no aprueba criterios, ensayos QA, gates ni RL.
-- Si cambia una fuente, `check` falla hasta que se registre la nueva versión con `build` y se revisen los hallazgos de `docs/decisions/open-issues.md`.
+- Las pruebas usan mutaciones simuladas y no cubren cualquier alteración posible de los documentos. La extracción se basa en el formato Markdown actual (viñetas `- **ID:**` y filas de tabla).
