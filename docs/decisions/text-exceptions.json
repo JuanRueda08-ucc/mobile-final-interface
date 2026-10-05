@@ -1,12 +1,6 @@
 {
   "schemaVersion": 1,
-  "purpose": "Excepciones documentadas a discrepancias de texto entre el origen de un ID y el anexo §19 del Área 07. Sin excepción válida, toda discrepancia hace fallar `check`.",
-  "requiredFields": {
-    "id": "ID base afectado",
-    "openIssue": "OI-xx abierto con sección propia en docs/decisions/open-issues.md",
-    "source": "{file, line, text}: cita exacta del documento de origen (tablas: celdas unidas por ' · ')",
-    "annex": "{file, line, text}: cita exacta de la fila del anexo §19 del Área 07"
-  },
-  "policy": "Una excepción no corrige ningún texto: el registro conserva siempre el literal de origen. No se añaden excepciones para ocultar casos de prueba. `build` no lee ni escribe este archivo.",
+  "purpose": "Registro de excepciones a discrepancias de texto entre el origen de un ID y el anexo §19 del Área 07.",
+  "policy": "Baseline VIG-001: no se admiten excepciones. La lista debe permanecer vacía; cualquier entrada hace fallar `check` (código 1). Toda discrepancia de texto falla, cite o no un hallazgo abierto (OI). Los OI documentan, pero no sustituyen la comparación literal. Admitir excepciones requiere una revisión explícita de esta política. `build` no lee ni escribe este archivo.",
   "exceptions": []
 }

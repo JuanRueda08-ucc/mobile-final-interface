@@ -180,16 +180,22 @@ class SpecRegistryRegression(unittest.TestCase):
         res = self.sb.build_and_check()
         self.assertFails(res, "huella del baseline coincide con la fijada en el validador")
 
-    # --- hallazgo 4: textos discrepantes -----------------------------------
+    # --- hallazgo 4 y P2: textos discrepantes, sin excepciones -------------
+    #
+    # Política del baseline VIG-001: toda discrepancia de texto falla y
+    # text-exceptions.json debe estar vacío. Ninguna excepción, ni siquiera
+    # completa y ligada a un OI abierto, convierte una discrepancia en OK.
 
-    def _alter_annex_text(self):
-        self.sb.sub(A07, r"^(\| RF01\.CA1 \| PRD \| .*?)( \| QA01 \| notRun \|)$",
+    NO_EXCEPTIONS = "excepciones de texto no admitidas en el baseline VIG-001"
+
+    def _alter_annex_text(self, entry_id: str = "RF01.CA1", qa: str = "QA01"):
+        self.sb.sub(A07, rf"^(\| {re.escape(entry_id)} \| PRD \| .*?)( \| {qa} \| notRun \|)$",
                     r"\1 Texto simulado añadido.\2")
 
     def test_text_discrepancy_fails_and_keeps_source_literal(self):
         self._alter_annex_text()
         res = self.sb.build_and_check()
-        self.assertFails(res, "texto discrepante RF01.CA1 sin excepción documentada")
+        self.assertFails(res, "texto discrepante RF01.CA1 entre origen y anexo A07")
         trace = json.loads((self.sb.root / "docs" / "traceability.json").read_text(encoding="utf-8"))
         entry = next(e for e in trace["entries"] if e["id"] == "RF01.CA1")
         self.assertFalse(entry["annexA07"]["textMatchesSource"])
@@ -199,47 +205,55 @@ class SpecRegistryRegression(unittest.TestCase):
         self._alter_annex_text()
         self._write_exceptions([{"id": "RF01.CA1", "openIssue": "OI-01"}])
         res = self.sb.build_and_check()
-        self.assertFails(res, "excepción de texto RF01.CA1 completa",
-                         "texto discrepante RF01.CA1 sin excepción documentada")
+        self.assertFails(res, self.NO_EXCEPTIONS, "texto discrepante RF01.CA1 entre origen y anexo A07")
 
-    def test_exception_to_unknown_issue_fails(self):
+    def test_exception_citing_unrelated_open_issue_fails(self):
+        """OI-03 (fuente tipográfica) es ajeno a RF01.CA1."""
         self._alter_annex_text()
-        self._write_exceptions([self._full_exception("OI-98")])
+        self._write_exceptions([self._full_exception("RF01.CA1", "OI-03")])
         res = self.sb.build_and_check()
-        self.assertFails(res, "excepción de texto RF01.CA1 referencia un hallazgo abierto",
-                         "texto discrepante RF01.CA1 sin excepción documentada")
+        self.assertFails(res, self.NO_EXCEPTIONS, "texto discrepante RF01.CA1 entre origen y anexo A07")
 
-    def test_documented_exception_with_specific_open_issue_is_accepted(self):
-        """Mecanismo de excepción sobre datos simulados (OI-99 solo existe en la copia)."""
+    def test_exception_citing_oi08_for_another_rf27_ca2_discrepancy_fails(self):
+        """OI-08 trata RF27.CA2, pero no esta discrepancia simulada del anexo."""
+        self._alter_annex_text("RF27.CA2", "QA27")
+        self._write_exceptions([self._full_exception("RF27.CA2", "OI-08")])
+        res = self.sb.build_and_check()
+        self.assertFails(res, self.NO_EXCEPTIONS, "texto discrepante RF27.CA2 entre origen y anexo A07")
+
+    def test_exception_with_oi_documenting_exact_id_and_citations_fails(self):
+        """Aun documentada con exactitud (OI-99 simulado en la copia), la discrepancia falla."""
         self._alter_annex_text()
+        exc = self._full_exception("RF01.CA1", "OI-99")
         oi = self.sb.root / "docs" / "decisions" / "open-issues.md"
         text = oi.read_text(encoding="utf-8")
-        text = text.replace("| OI-08 |", "| OI-99 | Simulado para prueba | Abierto | Prueba |\n| OI-08 |", 1)
-        text += "\n## OI-99 · Discrepancia simulada de prueba\n"
+        text = text.replace("| OI-08 |", "| OI-99 | Discrepancia simulada RF01.CA1 | Abierto | Prueba |\n| OI-08 |", 1)
+        text += (f"\n## OI-99 · Discrepancia simulada de RF01.CA1\n\n"
+                 f"- Origen {exc['source']['file']}:{exc['source']['line']}: «{exc['source']['text']}»\n"
+                 f"- Anexo {exc['annex']['file']}:{exc['annex']['line']}: «{exc['annex']['text']}»\n")
         oi.write_text(text, encoding="utf-8")
-        self._write_exceptions([self._full_exception("OI-99")])
+        self._write_exceptions([exc])
         res = self.sb.build_and_check()
-        self.assertEqual(res.returncode, 0, res.stdout)
-        self.assertIn("Discrepancia de texto RF01.CA1 aceptada por excepción documentada", res.stdout)
+        self.assertFails(res, self.NO_EXCEPTIONS, "texto discrepante RF01.CA1 entre origen y anexo A07")
+        self.assertNotIn("aceptada", res.stdout)
 
-    def test_stale_exception_without_discrepancy_fails(self):
-        self._write_exceptions([self._full_exception("OI-01", annex_text="texto viejo")])
+    def test_any_exception_entry_fails_even_without_discrepancy(self):
+        self._write_exceptions([self._full_exception("RF01.CA1", "OI-01")])
         res = self.sb.build_and_check()
-        self.assertFails(res, "excepción de texto RF01.CA1 corresponde a una discrepancia real")
+        self.assertFails(res, self.NO_EXCEPTIONS)
 
-    def _full_exception(self, oi: str, annex_text: str | None = None) -> dict:
+    def _full_exception(self, entry_id: str, oi: str) -> dict:
         lines07 = self.sb.path(A07).read_bytes().decode("utf-8").split("\n")
-        n = next(i for i, l in enumerate(lines07) if l.startswith("| RF01.CA1 | PRD |"))
-        annex = lines07[n].split(" | ")[2]
+        n = next(i for i, l in enumerate(lines07) if l.startswith(f"| {entry_id} | PRD |"))
         prd = next(p for p in (self.sb.root / "docs" / "source").iterdir() if p.name.startswith("Vigia_01"))
         lines01 = prd.read_bytes().decode("utf-8").split("\n")
-        m = next(i for i, l in enumerate(lines01) if l.startswith("- **RF01.CA1:** "))
+        prefix = f"- **{entry_id}:** "
+        m = next(i for i, l in enumerate(lines01) if l.startswith(prefix))
         return {
-            "id": "RF01.CA1",
+            "id": entry_id,
             "openIssue": oi,
-            "source": {"file": f"docs/source/{prd.name}", "line": m + 1,
-                       "text": lines01[m][len("- **RF01.CA1:** "):]},
-            "annex": {"file": f"docs/source/{A07}", "line": n + 1, "text": annex_text or annex},
+            "source": {"file": f"docs/source/{prd.name}", "line": m + 1, "text": lines01[m][len(prefix):]},
+            "annex": {"file": f"docs/source/{A07}", "line": n + 1, "text": lines07[n].split(" | ")[2]},
         }
 
     def _write_exceptions(self, exceptions: list) -> None:

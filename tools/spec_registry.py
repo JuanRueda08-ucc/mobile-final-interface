@@ -34,13 +34,13 @@ from pathlib import Path
 
 DEFAULT_ROOT = Path(__file__).resolve().parent.parent
 ROOT = SOURCE_DIR = SPEC_INDEX = TRACEABILITY = RELEASE_CHECKLIST = None  # type: ignore[assignment]
-BASELINE = TEXT_EXCEPTIONS = OPEN_ISSUES = None  # type: ignore[assignment]
+BASELINE = TEXT_EXCEPTIONS = None  # type: ignore[assignment]
 
 
 def configure(root: Path) -> None:
     """Fija la raíz sobre la que operan build/check."""
     global ROOT, SOURCE_DIR, SPEC_INDEX, TRACEABILITY, RELEASE_CHECKLIST
-    global BASELINE, TEXT_EXCEPTIONS, OPEN_ISSUES
+    global BASELINE, TEXT_EXCEPTIONS
     ROOT = Path(root).resolve()
     SOURCE_DIR = ROOT / "docs" / "source"
     SPEC_INDEX = ROOT / "docs" / "spec-index.json"
@@ -48,7 +48,6 @@ def configure(root: Path) -> None:
     RELEASE_CHECKLIST = ROOT / "docs" / "release-checklist.json"
     BASELINE = ROOT / "docs" / "spec-baseline.json"
     TEXT_EXCEPTIONS = ROOT / "docs" / "decisions" / "text-exceptions.json"
-    OPEN_ISSUES = ROOT / "docs" / "decisions" / "open-issues.md"
 
 
 configure(DEFAULT_ROOT)
@@ -812,7 +811,7 @@ def build_release_checklist():
 
 
 # ---------------------------------------------------------------------------
-# Baseline y excepciones de texto (archivos versionados que `build` no toca)
+# Baseline y política de textos (archivos versionados que `build` no toca)
 # ---------------------------------------------------------------------------
 
 def baseline_digest(baseline: dict) -> str:
@@ -821,21 +820,12 @@ def baseline_digest(baseline: dict) -> str:
     return sha256_bytes(payload.encode("utf-8"))
 
 
-def open_issue_states() -> dict:
-    """OI-xx → estado de la tabla resumen, solo si además existe su sección '## OI-xx'."""
-    if not OPEN_ISSUES.exists():
-        return {}
-    text = OPEN_ISSUES.read_text(encoding="utf-8")
-    headings = set(re.findall(r"^## (OI-\d{2}) ", text, re.M))
-    states = {}
-    for m in re.finditer(r"^\| (OI-\d{2}) \| [^|]+ \| ([^|]+) \|", text, re.M):
-        if m.group(1) in headings:
-            states[m.group(1)] = m.group(2).strip()
-    return states
-
-
-EXCEPTION_FIELDS = ("id", "openIssue", "source", "annex")
-CITATION_FIELDS = ("file", "line", "text")
+# Política del baseline VIG-001: no se admiten excepciones de texto. Toda
+# discrepancia entre el texto de origen y el anexo §19 del Área 07 falla,
+# cite o no un hallazgo abierto; los OI documentan, no sustituyen la
+# comparación literal. Admitir excepciones exigiría una revisión explícita
+# de esta política (ver tools/README.md).
+TEXT_EXCEPTIONS_ALLOWED = False
 
 
 # ---------------------------------------------------------------------------
@@ -1039,47 +1029,25 @@ def run_check() -> Report:
     r.ok(list(tasks08) == [f"VIG-{n:03d}" for n in range(1, 73)], "fichas VIG-001–VIG-072 completas y ordenadas",
          f"obtenidas {len(tasks08)}")
 
-    # 5. Textos: discrepancia origen/anexo = fallo salvo excepción documentada.
+    # 5. Textos: toda discrepancia origen/anexo es FALLO (sin excepciones en VIG-001).
     discrepancies = {i: (definitions[i], annex[i]) for i in annex
                      if i in definitions and annex[i]["text"] != expected_annex_text(definitions[i])}
-    exc_doc = load_json(TEXT_EXCEPTIONS, r)
-    accepted = set()
-    if exc_doc is not None:
-        oi_states = open_issue_states()
-        seen = Counter(e.get("id") for e in exc_doc.get("exceptions", []))
-        for e in exc_doc.get("exceptions", []):
-            eid = e.get("id", "<sin id>")
-            label = f"excepción de texto {eid}"
-            if not r.ok(all(k in e for k in EXCEPTION_FIELDS)
-                        and all(isinstance(e[c], dict) and all(f in e[c] for f in CITATION_FIELDS)
-                                for c in ("source", "annex")),
-                        f"{label} completa", f"requiere {EXCEPTION_FIELDS} y source/annex con {CITATION_FIELDS}"):
-                continue
-            r.ok(seen[eid] == 1, f"{label} única")
-            oi = e["openIssue"]
-            r.ok(oi in oi_states and not oi_states[oi].lower().startswith("cerrado"),
-                 f"{label} referencia un hallazgo abierto", f"{oi} no existe en open-issues.md o está cerrado")
-            if not r.ok(eid in discrepancies, f"{label} corresponde a una discrepancia real",
-                        "el texto del anexo ya coincide con el origen; retirar la excepción"):
-                continue
-            defn, a = discrepancies[eid]
-            r.ok(e["source"] == {"file": file_of(defn["logicalId"]), "line": defn["line"],
-                                 "text": expected_annex_text(defn)},
-                 f"{label}: cita de origen vigente (archivo, línea y texto exactos)")
-            r.ok(e["annex"] == {"file": file_of("A07-QA"), "line": a["line"], "text": a["text"]},
-                 f"{label}: cita del anexo vigente (archivo, línea y texto exactos)")
-            if not any(f.startswith(label) for f in r.failures):
-                accepted.add(eid)
     for i in sorted(discrepancies, key=id_sort_key):
-        if i in accepted:
-            r.info.append(f"Discrepancia de texto {i} aceptada por excepción documentada.")
-            continue
         defn, a = discrepancies[i]
-        r.ok(False, f"texto discrepante {i} sin excepción documentada",
+        r.ok(False, f"texto discrepante {i} entre origen y anexo A07",
              f"origen {file_of(defn['logicalId'])}:{defn['line']} «{expected_annex_text(defn)}» ≠ "
              f"anexo {file_of('A07-QA')}:{a['line']} «{a['text']}»")
     if not discrepancies:
         r.ok(True, "textos del anexo A07 idénticos a sus fuentes")
+    exc_doc = load_json(TEXT_EXCEPTIONS, r)
+    if exc_doc is not None:
+        entries = exc_doc.get("exceptions")
+        r.ok(isinstance(entries, list), "text-exceptions.json contiene la lista 'exceptions'")
+        if isinstance(entries, list) and not TEXT_EXCEPTIONS_ALLOWED:
+            listed = [e.get("id", "<sin id>") if isinstance(e, dict) else repr(e) for e in entries]
+            r.ok(not entries, "excepciones de texto no admitidas en el baseline VIG-001",
+                 f"{len(entries)} entrada(s) en {rel(TEXT_EXCEPTIONS)}: {listed}; "
+                 "ninguna convierte una discrepancia en aceptable")
 
     # 6. traceability.json
     trace = load_json(TRACEABILITY, r)

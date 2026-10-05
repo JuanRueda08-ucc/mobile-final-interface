@@ -31,7 +31,7 @@ La opción `--root DIR` ejecuta `build`/`check` sobre otra raíz con la misma es
 5. **Referencias:** QA01–QA40 existentes y todos usados, QA iguales en A07 y A08, y tareas VIG-001–VIG-072 existentes.
 6. **Estados:** `notRun` para criterios y ensayos, `planned` para SC/DS/UT.
 7. **RL:** estado de cada RL en A07 §15, en A08 §16 y en el registro igual al baseline (**RL09 = blocked; las otras once = pending**). Un cambio coordinado en los tres sitios falla.
-8. **Textos:** toda discrepancia entre el texto de origen y el del anexo A07 **falla** (código 1), salvo que tenga una excepción válida (ver abajo). El registro conserva siempre el literal de origen.
+8. **Textos:** toda discrepancia entre el texto de origen y el del anexo A07 **falla** (código 1). No hay excepciones en este baseline (ver abajo). El registro conserva siempre el literal de origen.
 9. **Regeneración:** los tres JSON coinciden exactamente con lo que produciría `build`.
 
 ### Baseline: `docs/spec-baseline.json`
@@ -47,14 +47,18 @@ La opción `--root DIR` ejecuta `build`/`check` sobre otra raíz con la misma es
 - **Independencia:** `build` no lo lee ni lo escribe. `check` verifica su huella SHA-256 (campos `ids`, `familyCounts`, `total`, `acceptanceCriteriaRfRnfUx`, `qaCount`, `taskCount` y `releaseStatuses`) contra la constante `BASELINE_DIGEST` del validador.
 - **Cambiarlo** modifica el alcance verificado y requiere una revisión explícita del alcance: nueva versión de la fuente, ADR en `docs/decisions/`, y actualizar el baseline y `BASELINE_DIGEST` en el mismo commit revisado.
 
-### Excepciones de texto: `docs/decisions/text-exceptions.json`
+### Textos: sin excepciones en el baseline VIG-001
 
-Vacío en este baseline. Una excepción solo se acepta si cumple todo lo siguiente:
-- tiene `id`, `openIssue`, `source {file, line, text}` y `annex {file, line, text}`, con citas exactas y vigentes;
-- referencia un `OI-xx` con sección propia en `open-issues.md` que no esté cerrado;
-- corresponde a una discrepancia real (una excepción sobrante también falla).
+**Política:** en este baseline **no se admiten excepciones de texto**.
+- Toda discrepancia entre el texto de origen y la fila del anexo §19 del Área 07 produce `FALLO` y código de salida 1, cite o no un hallazgo abierto.
+- `docs/decisions/text-exceptions.json` debe tener la lista `exceptions` vacía. Cualquier entrada, completa o no, falla con «excepciones de texto no admitidas en el baseline VIG-001».
+- Los hallazgos de `docs/decisions/open-issues.md` (por ejemplo, OI-08 sobre RF27.CA2) **documentan** contradicciones, pero no sustituyen la comparación literal ni vuelven aceptable una discrepancia.
+- No existe lógica que convierta una discrepancia en aceptable (constante `TEXT_EXCEPTIONS_ALLOWED = False` en el validador).
 
-No se añaden excepciones para ocultar casos de prueba.
+**Alcance:**
+- La política cubre la coherencia entre las fuentes y el anexo A07 del baseline VIG-001. Hoy los 310 textos coinciden.
+- No corrige ni reinterpreta ningún requisito: RF27.CA2 conserva su literal y su contradicción sigue en OI-08.
+- Admitir excepciones en el futuro requeriría una revisión explícita de esta política, con ADR, cambio del validador y nuevas pruebas, y no se haría para ocultar casos de prueba.
 
 ### Regresiones (`tools/test_spec_registry.py`)
 
@@ -71,8 +75,11 @@ Cada caso copia las fuentes a un directorio temporal, altera **solo la copia** c
 | AT22 eliminado de la fuente | Falla: ID ausente |
 | Baseline alterado (AT23 / 311) | Falla: huella distinta |
 | Texto del anexo distinto del origen | Falla y conserva el literal de origen |
-| Excepción incompleta / con OI inexistente / sobrante | Falla |
-| Excepción completa con OI abierto simulado (solo en la copia) | OK |
+| Excepción incompleta | Falla |
+| Excepción completa citando un OI ajeno (OI-03) a RF01.CA1 | Falla |
+| Excepción citando OI-08 para otra discrepancia simulada de RF27.CA2 | Falla |
+| Excepción completa con OI simulado que documenta el ID y ambas citas exactas | Falla |
+| Cualquier entrada en `text-exceptions.json`, aunque no haya discrepancia | Falla |
 
 ### Límites
 
