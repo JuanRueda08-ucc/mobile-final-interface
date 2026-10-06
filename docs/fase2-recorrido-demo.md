@@ -26,7 +26,7 @@ flutter run --dart-define=VIGIA_DEMO=true
 flutter build apk --release --dart-define=VIGIA_DEMO=true
 ```
 
-El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Si Gradle falla con «Unable to establish loopback connection», `TEMP` apunta a una ruta demasiado larga para el socket local del JDK: compila con `TEMP` y `TMP` cortos (p. ej., `D:\dev	mp`). Está firmado con la clave de depuración de la plantilla de Flutter; sirve para demostración, no para distribución.
+El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Si Gradle falla con «Unable to establish loopback connection», `TEMP` apunta a una ruta demasiado larga para el socket local del JDK: compila con `TEMP` y `TMP` cortos (p. ej., `D:\dev\tmp`). Está firmado con la clave de depuración de la plantilla de Flutter; sirve para demostración, no para distribución.
 
 ## Guion de presentación (unos 3 minutos)
 
