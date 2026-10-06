@@ -19,7 +19,21 @@ enum VigiaIcon {
   check('M5 12.5l4.5 4.5L19 7.5'),
   close('M6 6l12 12M18 6L6 18'),
   refresh('M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7'),
-  lock('M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3');
+  lock('M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3'),
+
+  // Fase 2: Volver del encabezado y los iconos de P04–P07.
+  back('M15 5l-7 7 7 7'),
+  activity('M3 12h4l3-8 4 16 3-8h4'),
+  // B5.2 usa «s6-1 9-5»; aquí, su equivalente «c3 0 6-1 9-5» (el analizador no admite S).
+  eyeClosed('M3 12c3 4 6 5 9 5c3 0 6-1 9-5M6 15l-2 2M12 17v3M18 15l2 2'),
+  pause('M8 5v14M16 5v14'),
+  play('M7 4.5v15l12-7.5z'),
+  speaker(
+    'M4 9.5v5h4l5 4v-13l-5 4zM16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11',
+  ),
+  target(
+    'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  );
 
   const VigiaIcon(this.svgPath);
 

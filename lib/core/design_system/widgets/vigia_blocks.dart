@@ -19,6 +19,7 @@ class StatusCard extends StatelessWidget {
     required this.title,
     this.text,
     required this.icon,
+    this.titleSize,
   });
 
   final StatusTone tone;
@@ -27,9 +28,15 @@ class StatusCard extends StatelessWidget {
   final String? text;
   final VigiaIcon icon;
 
+  /// Tamaño del título; nulo = 22 (B5.2 usa 32 en el aviso principal de P06).
+  final double? titleSize;
+
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
+    final titleStyle = titleSize == null
+        ? VigiaType.cardTitle
+        : VigiaType.cardTitle.copyWith(fontSize: titleSize);
     final (bg, fg) = switch (tone) {
       StatusTone.plain => (p.surface, p.ink),
       StatusTone.strong => (p.surfaceStrong, p.ink),
@@ -72,10 +79,7 @@ class StatusCard extends StatelessWidget {
               children: [
                 VigiaText(tag, style: VigiaType.cardTag.copyWith(color: fg)),
                 const SizedBox(height: 4),
-                VigiaText(
-                  title,
-                  style: VigiaType.cardTitle.copyWith(color: fg),
-                ),
+                VigiaText(title, style: titleStyle.copyWith(color: fg)),
                 if (text != null) ...[
                   const SizedBox(height: 4),
                   VigiaText(text!, style: VigiaType.body.copyWith(color: fg)),
@@ -89,7 +93,7 @@ class StatusCard extends StatelessWidget {
             final besideIcon = box.maxWidth - 44 - 14;
             final stacked =
                 !_wordsFit(tag, VigiaType.cardTag, besideIcon, scaler) ||
-                !_wordsFit(title, VigiaType.cardTitle, besideIcon, scaler) ||
+                !_wordsFit(title, titleStyle, besideIcon, scaler) ||
                 (text != null &&
                     !_wordsFit(text!, VigiaType.body, besideIcon, scaler));
             if (stacked) {

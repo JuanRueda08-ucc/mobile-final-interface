@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
-import 'app/inicio_source.dart';
+import 'app/app_config.dart';
 import 'app/vigia_app.dart';
 
-/// Vigía · prototipo, fase 1 del plan activo (`AGENTS.md`): base visual B5.2 e
-/// Inicio (P03). No usa cámara, no ejecuta IA, no crea sesiones ni emite alertas.
+/// Vigía · prototipo, fase 2 del plan activo (`AGENTS.md`).
 ///
-/// Variantes DEMO de Inicio: `--dart-define=VIGIA_DEMO_INICIO=<variante>`
-/// (`sin_historial`, `ultimo_resumen`, `sesion_vigente`,
-/// `registro_interrumpido`, `motor_desconocido`).
+/// - Sin definiciones: estado real; el motor **no está comprobado** y la
+///   preparación queda bloqueada. No usa cámara ni IA ni crea sesiones.
+/// - `--dart-define=VIGIA_DEMO=true`: recorrido demostrativo Inicio →
+///   Preparación → Calibración → Monitoreo → Resumen, con datos simulados
+///   rotulados «DEMO — datos simulados».
+/// - `--dart-define=VIGIA_DEMO_INICIO=<variante>`: revisión de variantes de
+///   Inicio (`sin_historial`, `ultimo_resumen`, `sesion_vigente`,
+///   `registro_interrumpido`, `motor_desconocido`). No inicia sesiones.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   registerVigiaLicenses();
-  runApp(VigiaApp(inicioState: resolveInicioState()));
+  runApp(VigiaApp(mode: resolveAppMode()));
 }

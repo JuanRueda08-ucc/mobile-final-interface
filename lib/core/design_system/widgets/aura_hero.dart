@@ -32,6 +32,7 @@ class AuraHero extends StatefulWidget {
     this.minHeight = 230,
     this.c0 = VigiaAura.lilac,
     this.c1 = VigiaAura.lime,
+    this.animate = true,
   });
 
   final String title;
@@ -43,6 +44,9 @@ class AuraHero extends StatefulWidget {
   final double minHeight;
   final Color c0;
   final Color c1;
+
+  /// `false`: aura estática (`still` de B5.2, P07).
+  final bool animate;
 
   @override
   State<AuraHero> createState() => _AuraHeroState();
@@ -59,7 +63,7 @@ class _AuraHeroState extends State<AuraHero>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final reduce = MediaQuery.disableAnimationsOf(context);
+    final reduce = MediaQuery.disableAnimationsOf(context) || !widget.animate;
     if (reduce) {
       _c.stop();
       _c.value = 0;
@@ -77,7 +81,7 @@ class _AuraHeroState extends State<AuraHero>
 
   @override
   Widget build(BuildContext context) {
-    final reduce = MediaQuery.disableAnimationsOf(context);
+    final reduce = MediaQuery.disableAnimationsOf(context) || !widget.animate;
     // Con texto ampliado se gana ancho: relleno 16 y sin el tope de 270 del texto.
     final large = isLargeText(context);
     final pad = large ? 16.0 : VigiaSpace.heroPadding;

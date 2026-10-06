@@ -102,6 +102,13 @@ abstract final class VigiaType {
     fontWeight: FontWeight.w500,
   );
 
+  /// Título de diálogo: 24/400, interlínea 1,25.
+  static final dialogTitle = _base.copyWith(
+    fontSize: 24,
+    height: 1.25,
+    fontWeight: FontWeight.w400,
+  );
+
   /// Aviso temporal (toast): 14.
   static final toast = _base.copyWith(fontSize: 14, height: 1.4);
 }

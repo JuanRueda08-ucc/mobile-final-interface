@@ -55,6 +55,7 @@ class VigiaScaffold extends StatelessWidget {
     this.navIndex,
     this.onNavSelected,
     this.notice,
+    this.onBack,
   });
 
   final String title;
@@ -68,9 +69,16 @@ class VigiaScaffold extends StatelessWidget {
   /// Texto del aviso temporal visible, si lo hay.
   final String? notice;
 
+  /// Acción de «‹ Volver» del encabezado (P04–P07). Nula: sin botón.
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
+    final heading = Semantics(
+      header: true,
+      child: Text(title, style: VigiaType.appBarTitle.copyWith(color: p.ink)),
+    );
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
@@ -83,16 +91,15 @@ class VigiaScaffold extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Semantics(
-                    header: true,
-                    child: Text(
-                      title,
-                      style: VigiaType.appBarTitle.copyWith(color: p.ink),
-                    ),
-                  ),
-                ),
+                child: onBack == null
+                    ? Align(alignment: Alignment.centerLeft, child: heading)
+                    : Row(
+                        children: [
+                          VigiaBackButton(onPressed: onBack!),
+                          const SizedBox(width: 10),
+                          Expanded(child: heading),
+                        ],
+                      ),
               ),
             ),
             if (isDemo)
@@ -142,6 +149,42 @@ class VigiaScaffold extends StatelessWidget {
                 onSelected: onNavSelected ?? (_) {},
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «‹ Volver» del encabezado de B5.2: círculo de 48, fondo `sfs`, chevrón 24.
+class VigiaBackButton extends StatelessWidget {
+  const VigiaBackButton({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = VigiaColors.of(context);
+    return Semantics(
+      button: true,
+      label: 'Volver',
+      excludeSemantics: true,
+      onTap: onPressed,
+      child: PressScale(
+        child: Material(
+          color: p.surfaceStrong,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            key: const Key('vigia-back'),
+            onTap: onPressed,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: p.focus.withValues(alpha: 0.24),
+            child: SizedBox.square(
+              dimension: VigiaSpace.minTap,
+              child: Center(child: VigiaIconView(VigiaIcon.back, color: p.ink)),
+            ),
+          ),
         ),
       ),
     );

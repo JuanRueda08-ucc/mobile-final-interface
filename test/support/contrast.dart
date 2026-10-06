@@ -39,24 +39,41 @@ class ContrastAudit {
   final _positions = <String>[];
 
   /// Tramos con contraste por debajo del mínimo.
-  List<String> get failures => [
-    for (final s in _spans.values)
+  List<String> get failures => _failuresOf(_spans.values);
+
+  /// Tramos con alguna palabra que no se pudo evaluar de forma fiable.
+  List<String> get unevaluated => _unevaluatedOf(_spans.values);
+
+  /// Fallos y regiones sin evaluar: ninguno de los dos se da por aprobado.
+  List<String> get problems => [...failures, ...unevaluated];
+
+  /// Fallos y regiones sin evaluar de [paragraphs] solamente, identificados
+  /// por objeto (no por texto). Sirve para exigir el contraste del contenido
+  /// activo, p. ej., un diálogo sobre un velo, sin confundirlo con un texto
+  /// igual de la pantalla inactiva que queda debajo.
+  List<String> problemsOf(Iterable<RenderParagraph> paragraphs) {
+    final only = paragraphs.toSet();
+    final spans = [
+      for (final MapEntry(key: (p, _), value: s) in _spans.entries)
+        if (only.contains(p)) s,
+    ];
+    return [..._failuresOf(spans), ..._unevaluatedOf(spans)];
+  }
+
+  static List<String> _failuresOf(Iterable<_SpanRecord> spans) => [
+    for (final s in spans)
       if (s.worst + 1e-9 < s.minimum)
         '«${s.text}»: ${_shown(s.worst)}:1 '
             '(texto ${_hex(s.worstFg)}, fondo ${_hex(s.worstBg)}, '
             'mínimo ${s.minimum})',
   ];
 
-  /// Tramos con alguna palabra que no se pudo evaluar de forma fiable.
-  List<String> get unevaluated => [
-    for (final s in _spans.values)
+  static List<String> _unevaluatedOf(Iterable<_SpanRecord> spans) => [
+    for (final s in spans)
       if (s.missing.isNotEmpty)
         'SIN EVALUAR «${s.text}»: ${s.missing.map((i) => '«${s.words[i].text}» '
             '(${s.reasons[i] ?? 'no medida'})').join(', ')}',
   ];
-
-  /// Fallos y regiones sin evaluar: ninguno de los dos se da por aprobado.
-  List<String> get problems => [...failures, ...unevaluated];
 
   /// `true` si todas las palabras de todos los tramos de [p] se evaluaron.
   bool isFullyEvaluated(RenderParagraph p) {

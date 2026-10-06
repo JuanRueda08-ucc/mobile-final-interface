@@ -75,7 +75,8 @@ final class InicioMotorNoComprobado extends InicioState {
   const InicioMotorNoComprobado() : super(isDemo: false);
 }
 
-/// Acciones de Inicio. En la fase 1 no tienen destino funcional (avisos).
+/// Acciones de Inicio. Con `VIGIA_DEMO=true` abren el recorrido; en la vista
+/// de revisión (`VIGIA_DEMO_INICIO`) muestran un aviso.
 enum InicioAction {
   prepararSesion,
   volverAlMonitoreo,

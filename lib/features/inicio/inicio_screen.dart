@@ -1,36 +1,46 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../core/design_system/tokens.dart';
+import '../../app/app_config.dart';
+import '../../app/router.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/aura_hero.dart';
+import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
+import '../preparation/preparation_controller.dart';
+import 'inicio_providers.dart';
 import 'inicio_state.dart';
 
 /// P03 · Inicio (UX §3, RF19–RF21; composición de B5.2 `vP03`).
 ///
-/// Fase 1 del plan activo: las acciones que llevan a pantallas de fases
-/// posteriores muestran un aviso de disponibilidad pendiente. No navegan ni
-/// simulan esas pantallas.
-class InicioScreen extends StatefulWidget {
-  const InicioScreen({super.key, required this.state});
+/// - Con `VIGIA_DEMO=true` sus acciones abren el recorrido demostrativo:
+///   Preparar sesión, Volver al monitoreo (consulta el estado; no crea otro
+///   inicio) y Ver último resumen.
+/// - Con `VIGIA_DEMO_INICIO` es una vista de revisión: sus acciones muestran
+///   un aviso, porque la variante no es una sesión iniciada.
+/// - Historial, Ajustes y Revisar registro llegan en la fase 3 (aviso).
+class InicioScreen extends ConsumerStatefulWidget {
+  const InicioScreen({super.key});
 
-  final InicioState state;
-
-  /// Avisos de disponibilidad pendiente (fase 1).
+  /// Avisos de la vista de revisión (`VIGIA_DEMO_INICIO`) y de las funciones
+  /// de la fase 3.
   static const pendingNotices = <InicioAction, String>{
     InicioAction.prepararSesion:
-        'Preparación todavía no está disponible en este prototipo (fase 2).',
+        'Vista de revisión de Inicio: no abre la preparación. El recorrido '
+        'demostrativo se abre con VIGIA_DEMO=true.',
     InicioAction.volverAlMonitoreo:
-        'Monitoreo todavía no está disponible en este prototipo (fase 2).',
+        'Vista de revisión de Inicio: esta sesión vigente es una variante '
+        'simulada, no una sesión iniciada.',
     InicioAction.verUltimoResumen:
-        'Resumen todavía no está disponible en este prototipo (fase 2).',
+        'Vista de revisión de Inicio: este resumen es una variante simulada, '
+        'sin sesión que abrir.',
     InicioAction.revisarRegistro: 'Detalle del registro todavía no está disponible en este prototipo (fase 3).',
     InicioAction.consultarEstado:
-        'La consulta de estado del motor llega con el monitoreo (fase 2).',
+        'Vista de revisión de Inicio: no hay motor que consultar; el estado '
+        'mostrado es una variante simulada.',
   };
 
   static const historialNotice =
@@ -42,49 +52,52 @@ class InicioScreen extends StatefulWidget {
       'Prepara el teléfono con el vehículo detenido y el soporte fijo.';
 
   @override
-  State<InicioScreen> createState() => _InicioScreenState();
+  ConsumerState<InicioScreen> createState() => _InicioScreenState();
 }
 
-class _InicioScreenState extends State<InicioScreen> {
-  String? _notice;
-  Timer? _timer;
-
-  void _show(String text) {
-    _timer?.cancel();
-    setState(() => _notice = text);
-    _timer = Timer(VigiaMotion.toastDuration, () {
-      if (mounted) setState(() => _notice = null);
-    });
+class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
+  void _act(InicioAction a) {
+    if (ref.read(appModeProvider) is DemoMode) {
+      switch (a) {
+        case InicioAction.prepararSesion:
+          ref.read(preparationProvider.notifier).open();
+          context.go(VigiaRoutes.preparacion);
+          return;
+        case InicioAction.volverAlMonitoreo:
+          // Consulta el estado y abre el mismo ID; no ejecuta otro inicio.
+          context.go(VigiaRoutes.monitoreo);
+          return;
+        case InicioAction.verUltimoResumen:
+          context.go(VigiaRoutes.resumen);
+          return;
+        case InicioAction.revisarRegistro || InicioAction.consultarEstado:
+          break;
+      }
+    }
+    showNotice(InicioScreen.pendingNotices[a]!);
   }
-
-  void _act(InicioAction a) => _show(InicioScreen.pendingNotices[a]!);
 
   void _nav(int index) {
     switch (index) {
       case 1:
-        _show(InicioScreen.historialNotice);
+        showNotice(InicioScreen.historialNotice);
       case 2:
-        _show(InicioScreen.ajustesNotice);
+        showNotice(InicioScreen.ajustesNotice);
       default:
         break; // Inicio: ya estamos aquí; no se crea otra copia (UX §2.1).
     }
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final state = ref.watch(inicioStateProvider);
     return VigiaScaffold(
       title: 'Vigía',
-      isDemo: widget.state.isDemo,
+      isDemo: state.isDemo,
       navIndex: 0,
       onNavSelected: _nav,
-      notice: _notice,
-      children: _blocks(widget.state),
+      notice: notice,
+      children: _blocks(state),
     );
   }
 

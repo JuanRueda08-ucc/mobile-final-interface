@@ -31,6 +31,7 @@ class VigiaButton extends StatelessWidget {
     this.kind = VigiaButtonKind.primary,
     this.icon,
     this.expand = true,
+    this.height,
   });
 
   final String label;
@@ -39,15 +40,20 @@ class VigiaButton extends StatelessWidget {
   final VigiaIcon? icon;
   final bool expand;
 
+  /// Altura mínima explícita (B5.2 usa 56 en los controles de P06).
+  final double? height;
+
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
     final disabled = onPressed == null;
-    final minHeight = switch (kind) {
-      VigiaButtonKind.primary ||
-      VigiaButtonKind.onAura => VigiaSpace.primaryButtonHeight,
-      _ => VigiaSpace.secondaryButtonHeight,
-    };
+    final minHeight =
+        height ??
+        switch (kind) {
+          VigiaButtonKind.primary ||
+          VigiaButtonKind.onAura => VigiaSpace.primaryButtonHeight,
+          _ => VigiaSpace.secondaryButtonHeight,
+        };
     late final Color bg, fg;
     BorderSide side = BorderSide.none;
     var dashed = false;
