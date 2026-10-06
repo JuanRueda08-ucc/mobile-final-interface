@@ -1,62 +1,78 @@
-# Vigía · Toolchain de desarrollo (VIG-002)
+# Vigía · Toolchain de desarrollo
 
-**Tarea:** VIG-002 · Fijar toolchain y equipos de referencia (Área 08, H00)
-**Rama:** `task/VIG-002-toolchain` · **Base:** `ad51cb2` (VIG-001 aceptada) · **Fecha:** 2026-10-05, America/Bogota
-**Máquina de desarrollo:** Windows 11 Home Single Language 10.0.26200 (25H2), x64
-**Evidencia:** [`docs/evidence/VIG-002/`](evidence/VIG-002/) (salidas literales de las herramientas)
+**Creado en:** VIG-002 (base `ad51cb2`, commit `3adb678`) · **Actualizado en:** VIG-003 (rama `task/VIG-003-bootstrap`) · **Fecha:** 2026-10-05, America/Bogota
+**Máquina de desarrollo:** Windows 11 Home Single Language 10.0.26200 (25H2), x64, 15,8 GB de RAM
+**Repositorio de trabajo:** `D:\dev\vigia` desde VIG-003 (ver «Ubicación del repositorio»)
+**Evidencia:** [`docs/evidence/VIG-002/`](evidence/VIG-002/) (instalación) y [`docs/evidence/VIG-003/`](evidence/VIG-003/) (compilación)
 
 ## Estados usados en este documento
 
 | Estado | Significado |
 |---|---|
-| **Instalado/verificado** | Presente en esta máquina, con versión confirmada por la propia herramienta (evidencia enlazada) |
-| **Candidato** | Versión propuesta (plantilla de Flutter 3.47.6 o última estable publicada a 2026-10-05) y **no** comprobada compilando. Se confirma o cambia en VIG-003 |
-| **Pendiente** | Sin decidir o sin resolver. No instalado |
+| **Instalado/verificado** | Presente en la máquina, con versión confirmada por la propia herramienta |
+| **Verificado por compilación** | Usado en la compilación real del APK de VIG-003 (dos compilaciones con la misma resolución) |
+| **Candidato** | Versión propuesta, sin comprobar por compilación o pendiente de ensayo físico |
+| **Pendiente** | Sin decidir o sin resolver. No instalado ni añadido al proyecto |
 
-Ninguna dependencia de la futura app (Pigeon, CameraX, MediaPipe, Room, Drift, Riverpod, go_router) está instalada ni se declara compatible: la compatibilidad se comprobará **por compilación** en VIG-003 (Área 08 §3, VIG-002 «Cierre»). minSdk 26 sigue siendo **candidato**.
+Ninguna dependencia futura de IA, cámara o almacenamiento (Pigeon, CameraX, MediaPipe, Room, Drift, Riverpod, go_router) se ha añadido al proyecto, y ninguna se declara compatible. **La compilación de VIG-003 no prueba compatibilidad en equipos**: no hay D1 (ver `docs/testing.md`).
 
 ## Matriz
 
 | Componente | Versión | Ruta / origen | Estado | Evidencia |
 |---|---|---|---|---|
-| Flutter SDK | **3.47.6** stable · framework `5fc346839b` (2026-09-30) · engine `692136cb65` | `D:\dev\flutter` · zip oficial `flutter_windows_3.47.6-stable.zip`, SHA-256 `a01bb0d26de91bc23c97cd9ccfaad281a612fb8304213fdd5df1119a09404796` (coincide con `releases_windows.json`) | Instalado/verificado | 01, 03 |
-| Dart | **3.13.5** (stable), incluido en el SDK de Flutter | `D:\dev\flutter\bin\dart` (no hay otro Dart instalado) | Instalado/verificado | 02 |
-| DevTools | 2.60.0 | Incluido en Flutter | Instalado/verificado | 01 |
-| Pigeon | 29.0.6 (pub.dev, publicado 2026-10-02; requiere Dart ^3.11.0) | Dependencia de desarrollo del plugin (VIG-003/VIG-008) | Candidato | — |
-| Kotlin (Gradle plugin) | 2.4.0 (plantilla Flutter 3.47.6); última estable publicada: 2.4.20 | Por proyecto (`settings.gradle.kts`) | Candidato | — |
-| JDK usado por Flutter/Gradle | **Temurin 21.0.10+7 LTS** | `D:\Program Files\Eclipse Adoptium\jdk-21` (instalación previa, reutilizada) | Instalado/verificado (Flutter); Gradle se confirma en VIG-003 | 03, 06 |
-| Gradle | 9.3.1 (plantilla de Flutter 3.47.6 = máximo conocido y soportado por esta versión de Flutter) | Wrapper por proyecto (VIG-003); no hay Gradle global. Caché: `GRADLE_USER_HOME=D:\dev\gradle-home` | Candidato | — |
-| Android Gradle Plugin (AGP) | 9.1.0 (plantilla). Flutter 3.47.6 conoce hasta 9.2; última estable publicada: 9.4.1 | Por proyecto | Candidato | — |
-| Android SDK · Command-line Tools | 23.0 (paquete `commandlinetools-win-16111833_latest.zip`, SHA-1 `57d04f2d75eb8e8fffc5000a987e5de4b5a63e9d`, coincide con el repositorio de Google). Incluye Android CLI 1.0.16500706 | `D:\dev\android-sdk\cmdline-tools\latest` | Instalado/verificado | 07 |
-| Android SDK · Platform-Tools (`adb`) | 37.0.1 (adb 1.0.41, build 37.0.1-15733141) | `D:\dev\android-sdk\platform-tools` | Instalado/verificado | 05, 07 |
-| Android SDK · Platform | android-36 (Android 16), revisión 2 | `D:\dev\android-sdk\platforms\android-36` | Instalado/verificado | 03, 07 |
-| Android SDK · Build-Tools | 36.1.0 | `D:\dev\android-sdk\build-tools\36.1.0` | Instalado/verificado (AGP puede pedir otra versión al compilar; VIG-003) | 03, 07 |
-| Android SDK · NDK | 28.2.13676358 (la que fija `FlutterExtension.ndkVersion` en 3.47.6) | `D:\dev\android-sdk\ndk\28.2.13676358` | Instalado/verificado | 07 |
-| Android SDK · CMake | 4.1.2 | `D:\dev\android-sdk\cmake\4.1.2` | Instalado/verificado (uso real por confirmar en VIG-003) | 07 |
-| Licencias del Android SDK | Aceptadas por el responsable del proyecto al instalar con Android CLI | `D:\dev\android-sdk\licenses` | Verificado («All Android licenses accepted») | 03 |
-| compileSdk / targetSdk | 36 / 36 (plantilla). El Área 07 §14 exige target ≥ 36 para Play desde 31/08/2026; se revalida al distribuir (VIG-069) | Por proyecto | Candidato | — |
-| minSdk | **26** (Área 04 §2, Área 07 §5). La plantilla de Flutter usa 24 por defecto | Por proyecto | Candidato | — |
-| CameraX | 1.6.2 (última estable en Google Maven; existe 1.7.0-alpha03, no se usará una alpha) | Dependencia Android del plugin | Pendiente (versión candidata sin resolver) | — |
-| MediaPipe Tasks Vision (Face Landmarker) | 1.0.0 (último listado en Google Maven `com.google.mediapipe:tasks-vision`); modelo `.task` con hash y licencia en VIG-011 | Dependencia Android del plugin | Pendiente | — |
-| Room | 2.8.5 (última estable en Google Maven) | Dependencia Android del plugin (journal) | Pendiente | — |
-| Drift | 2.35.1 (`drift` y `drift_dev`, pub.dev 2026-09-30) | Dependencia Dart de la app | Pendiente | — |
-| SQLite nativo para Drift | `sqlite3_flutter_libs` aparece como **fin de vida** (0.6.0+eol: «update to version 3.x of package:sqlite3»); `sqlite3` 3.7.0 | Dependencia Dart de la app | Pendiente: decidir en VIG-003 la integración SQLite compatible con Drift 2.35 | — |
-| Riverpod / go_router | `flutter_riverpod` 3.4.3 / `go_router` 18.0.2 (pub.dev) | Dependencias Dart de la app | Pendiente | — |
+| Flutter SDK | **3.47.6** stable · framework `5fc346839b` · engine `692136cb65` | `D:\dev\flutter` (zip oficial, SHA-256 `a01bb0d26de9…04796`, coincide con `releases_windows.json`) | Verificado por compilación | VIG-002/01, VIG-003/01 |
+| Dart | **3.13.5**, el del SDK de Flutter | `D:\dev\flutter\bin\dart` | Verificado por compilación | VIG-002/02, VIG-003/06 |
+| Gradle (wrapper) | **9.3.1** · `distributionSha256Sum` `17f27786…6e43` · `gradle-wrapper.jar` oficial 9.3.1 (`b3a875dd…ec13`) | `android/gradle/wrapper/` (versionado). Distribución en `D:\dev\gradle-home` | Verificado por compilación | VIG-003/02, 08 |
+| JDK de Gradle | **Temurin 21.0.10+7 LTS** | `D:\Program Files\Eclipse Adoptium\jdk-21` | Verificado (ver «Selección del JDK») | VIG-003/02, 10 |
+| Android Gradle Plugin | **9.1.0** (plantilla Flutter 3.47.6) | `android/settings.gradle.kts` (app); `packages/monitoring_engine/android/build.gradle.kts` (plugin) | Verificado por compilación | VIG-003/compilacion-* |
+| Kotlin Gradle Plugin / stdlib | **2.4.0** (plantilla). Los scripts de Gradle usan el Kotlin embebido 2.2.21 | Ídem | Verificado por compilación | VIG-003/02, compilacion-*-gradle-* |
+| compileSdk / targetSdk | **36 / 36**, fijados explícitamente en `android/app/build.gradle.kts`. El APK reporta `compileSdkVersion='36'` y `targetSdkVersion:'36'` | App | Verificado por compilación. Requisitos de Play: revalidar en VIG-069 | VIG-003/07 |
+| minSdk | **26** (el APK reporta `minSdkVersion:'26'`; app y plugin) | App y plugin | **Candidato**: compila, pero sin D3 no se declara probado (Área 07 §5) | VIG-003/07 |
+| Android SDK · Platform android-36 · Platform-Tools 37.0.1 · cmdline-tools 23.0 | Ver VIG-002 | `D:\dev\android-sdk` | Instalado/verificado. La plataforma android-36 es la que usa la compilación | VIG-002/07, VIG-003/11 |
+| Build-Tools **36.1.0** | 36.1.0 | `D:\dev\android-sdk\build-tools\36.1.0` | **Instalado (VIG-002), no utilizado** por la compilación observada | VIG-002/07, VIG-003/11 |
+| Build-Tools **36.0.0** (utilizado) | 36.0.0: versión por defecto de AGP 9.1.0 (no fijada en el proyecto) | `D:\dev\android-sdk\build-tools\36.0.0`, instalado **automáticamente por AGP** durante la compilación 1 de VIG-003, bajo la licencia ya aceptada del SDK | **Verificado por compilación**: el modelo efectivo de AGP informa `buildToolsVersion=36.0.0` en `:app` y `:monitoring_engine` | VIG-003/11; histórico: `compilacion-1-flutter-build-apk-debug.txt`, líneas 4–10 |
+| NDK | 28.2.13676358 (`flutter.ndkVersion`, que Flutter pasa a Gradle) | `D:\dev\android-sdk\ndk\28.2.13676358` | Instalado. Uso efectivo en la compilación no verificado por separado | VIG-002/07 |
+| CMake | 4.1.2 | `D:\dev\android-sdk\cmake\4.1.2` | Instalado. No lo usa la base actual | VIG-002/07 |
+| `pubspec.lock` (app) | `cupertino_icons` 1.0.9 · `flutter_lints` 6.0.0 · `plugin_platform_interface` 2.1.8 · `monitoring_engine` 0.1.0 (path) | `pubspec.lock` (versionado; SHA-256 `30245718…cc14`) | Verificado: sin cambios tras dos compilaciones con `--enforce-lockfile` | VIG-003/06, compilacion-*-resumen |
+| Pigeon | 29.0.6 (pub.dev) | No añadido. VIG-007/VIG-008 | Candidato | — |
+| CameraX | 1.6.2 (última estable en Google Maven) | No añadido. VIG-010 | Pendiente | — |
+| MediaPipe Tasks Vision | 1.0.0 (último listado en Google Maven) | No añadido. VIG-011 | Pendiente | — |
+| Room | 2.8.5 | No añadido. VIG-012 | Pendiente | — |
+| Drift / SQLite | `drift` 2.35.1. `sqlite3_flutter_libs` está en fin de vida (→ `sqlite3` 3.x) | No añadido. VIG-023 | Pendiente | — |
+| Riverpod / go_router | `flutter_riverpod` 3.4.3 / `go_router` 18.0.2 | No añadidos. VIG-034/VIG-038 | Pendiente | — |
 
-## Selección de Java (resuelta)
+### Gradle 9.3.1: qué significa
 
-Situación previa (evidencia 00 y 06), conservada sin cambios:
-- El **primer `java` del PATH es Oracle Java 8** (`1.8.0_503`, vía `C:\Program Files (x86)\Common Files\Oracle\Java\java8path`).
-- `JAVA_HOME` (usuario y máquina) apunta a **Temurin 21** (`D:\Program Files\Eclipse Adoptium\jdk-21`).
+Gradle 9.3.1 es la **versión que usa la plantilla de Flutter 3.47.6** (`templateDefaultGradleVersion` en `packages/flutter_tools/lib/src/android/gradle_utils.dart`). Es también el **límite superior conocido por esa versión del tooling** (`maxKnownAndSupportedGradleVersion = '9.3.1'`), es decir, la versión más alta que Flutter 3.47.6 sabe evaluar en sus comprobaciones de compatibilidad.
 
-Decisión aplicada:
-- `flutter config --jdk-dir "D:\Program Files\Eclipse Adoptium\jdk-21"`. `flutter doctor -v` confirma «Java binary at: D:\Program Files\Eclipse Adoptium\jdk-21\bin\java · This JDK is specified in your Flutter configuration · Temurin-21.0.10+7».
-- Flutter pasa ese JDK a Gradle al compilar. El wrapper de Gradle invocado directamente usa `JAVA_HOME` (también Temurin 21). Que Gradle use realmente JDK 21 se confirmará en VIG-003 con `gradlew -version`.
-- **No** se desinstaló Java 8 ni se cambió su posición en el PATH. Afecta solo a quien invoque `java` sin ruta. Flutter/Gradle no lo usan.
+Esto no es una declaración de soporte general de Gradle 9.3.1. Lo único comprobado es que **este proyecto compila con Gradle 9.3.1 + AGP 9.1.0 + Kotlin 2.4.0 + JDK 21** en esta máquina (VIG-003). La versión de VIG-002 de este documento lo describía como «máximo conocido y soportado»; queda corregido aquí.
 
-## Cambios de configuración realizados (y cómo revertirlos)
+## Selección del JDK
 
-Respaldo previo literal en [`00-entorno-previo.txt`](evidence/VIG-002/00-entorno-previo.txt).
+**Mecanismo actual:**
+1. `flutter config --jdk-dir "D:\Program Files\Eclipse Adoptium\jdk-21"` (configuración de Flutter del usuario, aplicada en VIG-002).
+2. Cuando Flutter compila (`flutter build`), lanza `android\gradlew.bat`, y el daemon de Gradle arranca con `D:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe`. Esto consta en el log detallado de la compilación, con los daemons detenidos antes ([evidencia VIG-003/10](evidence/VIG-003/10-jdk-gradle-desde-flutter.txt)).
+3. Cuando se invoca `android/gradlew` directamente, **`jdk-dir` no interviene**: el wrapper usa `JAVA_HOME` y, si no está definido, el primer `java` del PATH. En esta máquina ese `java` es Java 8. La revisión de Codex lo reprodujo: sin `JAVA_HOME`, `:app:dependencies` falla con «Gradle requires JVM 17 or later to run … JVM 8». Con el `JAVA_HOME` de usuario y máquina (Temurin 21) funciona. `gradlew -version` reporta `Launcher JVM: 21.0.10 (Eclipse Adoptium 21.0.10+7-LTS)` y `Daemon JVM: D:\Program Files\Eclipse Adoptium\jdk-21 (no Daemon JVM specified, using current Java home)` ([evidencia VIG-003/02](evidence/VIG-003/02-gradle-version-jdk.txt)).
+4. El proyecto no fija `org.gradle.java.home` ni criterios de toolchain del daemon. Si cambiara `JAVA_HOME` o `jdk-dir`, cambiaría el JDK.
+5. **`tools/vig003_build.sh` no depende de ninguno de los dos.**
+   - Selecciona explícitamente el Temurin 21 verificado (`VIG003_JDK_HOME`, por defecto `D:\Program Files\Eclipse Adoptium\jdk-21`) y comprueba que `java -version` informa Temurin 21.0.10 antes de empezar; si no, falla con salida 3.
+   - Fija `JAVA_HOME` y antepone su `bin` al `PATH` solo dentro de su proceso.
+   - Antes de las consultas verifica con `gradlew -version` que `Launcher JVM` es 21.0.10; si no, falla con salida 7.
+
+   Ejecución real sin `JAVA_HOME` y con Java 8 primero en el PATH del invocador: [compilacion-4-invocador.txt](evidence/VIG-003/compilacion-4-invocador.txt) y [compilacion-4-resumen.txt](evidence/VIG-003/compilacion-4-resumen.txt).
+
+**Evidencia nueva y evidencia histórica:**
+- **Histórica (VIG-002, evidencias 03 y 06):** solo `flutter doctor -v` y `java -version`. Probaban qué JDK tiene configurado Flutter, pero **no** el que usa Gradle.
+- **Nueva (VIG-003, evidencias 02 y 10):** ejecución real de Gradle, tanto lanzado por Flutter como directamente, con el `JAVA_HOME` de Temurin 21 presente.
+- **Corrección tras la revisión de VIG-003 (`compilacion-4-*`):** llamadas directas con el JDK seleccionado por el script, aunque el invocador no tenga `JAVA_HOME`.
+
+**Java 8:** sigue siendo el primer `java` del PATH. No se usa en el camino de Flutter (`jdk-dir`) ni en el de Gradle cuando `JAVA_HOME` apunta a Temurin 21 o cuando se usa `tools/vig003_build.sh`. Un `gradlew` directo **sin** `JAVA_HOME` sí lo tomaría y fallaría. No se desinstaló ni se movió.
+
+## Cambios de configuración del sistema
+
+### Variables, PATH y Flutter (VIG-002)
+
+Respaldo previo literal en [`VIG-002/00-entorno-previo.txt`](evidence/VIG-002/00-entorno-previo.txt).
 
 | Cambio | Ámbito | Valor |
 |---|---|---|
@@ -68,38 +84,44 @@ Respaldo previo literal en [`00-entorno-previo.txt`](evidence/VIG-002/00-entorno
 
 Para revertir: restaurar el PATH de usuario desde la evidencia 00, borrar las tres variables nuevas y ejecutar `flutter config --jdk-dir=""`.
 
-**Motivo de usar `D:\dev`:** C: tenía 2,1 GB libres al empezar. D: tiene NTFS fijo, 84 GB libres, y la ruta no tiene espacios, como recomienda la guía de Flutter. La raíz `D:\` solo permite escritura a Administradores; el responsable creó `D:\dev` y concedió control total a su usuario con `icacls`.
+### ACL de `D:\dev` (VIG-002)
 
-**Uso de disco tras la instalación** (evidencia 08): `flutter` 3,25 GB · `android-sdk` 2,59 GB · `pub-cache` 0,11 GB · `downloads` 1,94 GB (zips de instalación conservados para trazabilidad; prescindibles) · `gradle-home` 0 GB.
+- **Por qué:** C: tenía 2,1 GB libres. En D:, la raíz solo concede `(OI)(CI)(RX)` a `BUILTIN\Usuarios` y a `Authenticated Users`, y `(F)` a `Administradores` y `SYSTEM` (observado con `icacls D:\` antes del cambio). El usuario no podía crear carpetas.
+- **Qué se hizo:** el responsable ejecutó, en PowerShell como administrador, los comandos que se le indicaron:
+  ```powershell
+  New-Item -ItemType Directory -Force D:\dev
+  icacls D:\dev /grant "DESKTOP-O9J2TLR\Edwin Rueda:(OI)(CI)F"
+  ```
+  El primer `icacls` indicado (`icacls D:\dev /grant "Edwin Rueda:(OI)(CI)F"`) no dejó el permiso aplicado: después de crear la carpeta, una prueba de escritura dio «Acceso denegado» e `icacls D:\dev` solo mostraba las ACE heredadas. Por eso se indicó la segunda forma, con la cuenta completa.
+- **Alcance:** solo `D:\dev` y lo que contiene (herencia `OI`/`CI`). No se modificaron `D:\` ni otras carpetas.
+- **Estado actual** ([evidencia VIG-003/09](evidence/VIG-003/09-acl-d-dev.txt)):
+  - permiso explícito: `DESKTOP-O9J2TLR\Edwin Rueda:(OI)(CI)(F)`;
+  - entradas heredadas de `D:\`: `Usuarios` y `Authenticated Users` en `RX`, `Administradores` y `SYSTEM` en `F`.
+- **Estado previo de `D:\dev`:** no existía. El intento del agente de crear `D:\dev\downloads` falló con «Acceso denegado a la ruta de acceso 'dev'», al intentar crear `dev`; esa salida se observó en la sesión, pero no se guardó como archivo de evidencia. No hay una ACL anterior de `D:\dev` que restaurar.
+- **Datos que faltan, no registrados y no inventados:**
+  - la salida literal de los comandos del responsable;
+  - la ACL de `D:\dev` entre su creación y la concesión (no se capturó);
+  - si el primer `icacls` llegó a ejecutarse, devolvió error o se aplicó a otra cuenta.
+- **Reversión posible (no ejecutada):** en PowerShell como administrador, `icacls D:\dev /remove "DESKTOP-O9J2TLR\Edwin Rueda"` quita el permiso explícito y deja solo las ACE heredadas de `D:\`. Hacerlo impediría a la cuenta escribir en el SDK, las cachés y el repositorio.
 
-## Resultado de `flutter doctor -v` (evidencia 03)
+## Ubicación del repositorio (VIG-003)
 
-| Categoría | Resultado | Relevancia para Vigía |
-|---|---|---|
-| Flutter | ✓ 3.47.6 stable | Requerido |
-| Windows Version | ✓ | — |
-| Android toolchain | ✓ SDK 36.1.0, platform android-36, build-tools 36.1.0, JDK Temurin 21, licencias aceptadas. «Emulator version unknown» (emulador no instalado por decisión del responsable) | Requerido |
-| Chrome | ✓ | No requerido (sin WebView ni web en V1) |
-| Visual Studio | ✗ no instalado | **No requerido**: solo sirve para apps de escritorio Windows, fuera del alcance (Android primero) |
-| Connected device | Windows, Chrome, Edge. **Ningún dispositivo Android** | Bloquea D1 (ver `docs/testing.md`) |
-| Network resources | ✓ | — |
+La ruta original `C:\Users\Edwin Rueda\Documents\Diseño de interfaces\mobile-final-interface` contiene «ñ», y hace fallar dos herramientas:
+- **`flutter analyze`:** el servidor de análisis LSP sale con código 255 por un mensaje JSON truncado. En la misma ruta `dart analyze` funciona, y en una copia con ruta ASCII `flutter analyze` funciona.
+- **AGP 9.1.0:** rechaza la ruta («Your project path contains non-ASCII characters… Please move your project to a different directory»).
 
-## Observaciones y bloqueos
+Decisión del responsable: **copiar el repositorio a `D:\dev\vigia`** (con `.git` y el trabajo sin commitear, excluyendo solo `build`, `.dart_tool` y `.gradle`), en una ruta ASCII sin espacios y en la misma unidad que las cachés. Así desaparece también el riesgo de compilación incremental de Kotlin entre unidades: no se observó el aviso «different roots» en los logs. La carpeta de C: queda intacta; borrarla es decisión del responsable. No se usó `android.overridePathCheck`. Detalle en [VIG-003/00-incidencias.txt](evidence/VIG-003/00-incidencias.txt).
 
-1. **Ningún teléfono Android conectado.** `adb devices -l` está vacío y `flutter devices` no lista Android. VIG-003 exige «Instalación en D1»: queda **bloqueado** en ese punto hasta disponer de D1 (ver `docs/testing.md`).
-2. **Emulador no instalado**, por decisión del responsable (sin emulador por ahora). El perfil EM queda pendiente.
-3. **El proyecto y la caché están en unidades distintas.** El repositorio está en `C:` y `PUB_CACHE`/`GRADLE_USER_HOME` en `D:`. Kotlin tiene un problema conocido de compilación incremental cuando el proyecto y la caché de Pub están en raíces distintas. Se comprobará en VIG-003. Si aparece, se valorará mover el repositorio a `D:\dev` o desactivar la compilación incremental de Kotlin.
-4. **Android CLI sustituye a `sdkmanager`.** `sdkmanager` está obsoleto en cmdline-tools 23.0, y `--licenses` «ya no es necesario»: las licencias se aceptan al instalar. Por eso Flutter no reconocía el SDK con `flutter doctor --android-licenses` hasta que existió `licenses/` o `platform-tools/` (comprobado en `android_sdk.dart`). Los paquetes se instalaron con `android.exe --no-metrics sdk install …`, ejecutado por el responsable.
-5. **SQLite para Drift:** `sqlite3_flutter_libs` está marcado como fin de vida. Hay que decidir la integración nativa de SQLite al fijar dependencias en VIG-003.
-6. **Telemetría:** Flutter/Dart muestran el aviso de analíticas. No se modificó esa preferencia (se desactiva con `flutter --disable-analytics`, a decisión del responsable).
-7. **Codificación de la evidencia:** `flutter doctor` imprime «Versi¢n» al leer la versión de Windows desde la consola. Es salida literal de la herramienta y se conserva sin editar.
+## Mitigación aplicada solo en la sesión del agente
 
-## Siguiente paso (VIG-003, no iniciado)
+En la sesión de Claude Code, la JVM no pudo crear sockets AF_UNIX bajo `AppData\Local` («Unable to establish loopback connection»). Lo reproduje con un programa Java mínimo; apunta a una restricción del entorno de ejecución de la sesión. Los comandos de Gradle de esa sesión usaron `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=D:\dev\tmp`, solo en el entorno del comando: no está en el sistema ni en el repositorio.
 
-Crear la app Flutter y el plugin local Kotlin con el wrapper de Gradle, fijar las versiones de la tabla mediante compilación, y verificar:
-- que la segunda compilación no modifica la resolución;
-- `gradlew -version` (JDK efectivo);
-- el problema de unidades distintas;
-- la instalación en D1.
+En una terminal propia del responsable no debería hacer falta, aunque no está verificado. Si aparece el mismo error, la misma variable lo resuelve.
 
-Mientras no exista D1, la parte de instalación en dispositivo de VIG-003 queda bloqueada.
+## Observaciones abiertas
+
+1. **Sin teléfono Android (D1):** la instalación, el arranque físico y la compatibilidad en equipos de VIG-003 están **pendientes**. Ver `docs/testing.md`.
+2. **Emulador no instalado,** por decisión del responsable. EM y P16K pendientes.
+3. **Permiso `INTERNET` en el APK debug:** viene del `src/debug/AndroidManifest.xml` de la plantilla (necesario para hot reload/depuración). `src/main/AndroidManifest.xml` no declara permisos. La auditoría del manifiesto fusionado de las variantes reales sin `INTERNET` corresponde a VIG-004.
+4. **Telemetría:** no se modificaron las analíticas de Flutter/Dart (decisión del responsable).
+5. **Codificación de la evidencia VIG-002:** «Versi¢n» es salida literal de `flutter doctor`.

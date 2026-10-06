@@ -1,0 +1,15 @@
+# flutter test (app)
+00:00 +0: loading D:/dev/vigia/test/widget_test.dart
+00:00 +0: identifica la base técnica y su alcance, sin contador
+00:01 +1: sin plugin registrado lo indica en vez de simular éxito
+00:01 +2: un error del plugin se muestra con su código
+00:01 +3: All tests passed!
+salida 0
+
+# flutter test (packages/monitoring_engine)
+00:00 +0: loading D:/dev/vigia/packages/monitoring_engine/test/monitoring_engine_method_channel_test.dart
+00:00 +0: D:/dev/vigia/packages/monitoring_engine/test/monitoring_engine_method_channel_test.dart: getPlatformVersion
+00:00 +1: D:/dev/vigia/packages/monitoring_engine/test/monitoring_engine_test.dart: MethodChannelMonitoringEngine is the default instance
+00:00 +2: D:/dev/vigia/packages/monitoring_engine/test/monitoring_engine_test.dart: getPlatformVersion
+00:00 +3: All tests passed!
+salida 0

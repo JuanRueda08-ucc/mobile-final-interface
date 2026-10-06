@@ -1,0 +1,13 @@
+# VIG-003: el wrapper de Gradle (gradlew, gradlew.bat y gradle-wrapper.jar oficial 9.3.1)
+# se versiona para fijar la versión y poder compilar sin regenerarlo (Área 08 §3).
+/.gradle
+/captures/
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks

@@ -86,3 +86,73 @@ Cada caso copia las fuentes a un directorio temporal, altera **solo la copia** c
 - Valida la coherencia documental, no el funcionamiento de la app.
 - Un `OK` no aprueba criterios, ensayos QA, gates ni RL.
 - Las pruebas usan mutaciones simuladas y no cubren cualquier alteración posible de los documentos. La extracción se basa en el formato Markdown actual (viñetas `- **ID:**` y filas de tabla).
+
+## vig003_build.sh · compilación reproducible de la base Android (VIG-003)
+
+Script auxiliar de Git Bash (usa `bash` de Git for Windows, no el de WSL). No forma parte del runtime de la app.
+
+```bash
+tools/vig003_build.sh <etiqueta> <directorio_evidencia>
+```
+
+**Etiqueta:** solo letras ASCII, números, `-` y `_` (`[A-Za-z0-9_-]+`).
+- Se valida **antes** de crear, escribir o borrar nada.
+- Se rechazan con salida 2 y sin escrituras: etiqueta vacía, `.`, `..`, `/`, `\`, `:`, espacios y caracteres no ASCII.
+- Se rechaza también que la carpeta de evidencia o la de la etiqueta sean enlaces simbólicos o archivos, o que la carpeta de la etiqueta no resuelva como hija directa de la carpeta de evidencia.
+
+**Salida:** cada ejecución escribe en una carpeta exclusiva, `<directorio_evidencia>/<etiqueta>/`:
+- `resumen.txt`, `jdk.txt`, `pub-get.txt`, `flutter-build-apk-debug.txt` y `gradle-version.txt`;
+- por cada consulta, `gradle-<nombre>.txt`, `.FALLIDA.txt` o `.tmp`.
+
+Al empezar solo se retiran **esos archivos exactos** de esa carpeta: no hay borrado por patrones. Una ejecución con la etiqueta `t` no toca `t-gradle-history/` ni evidencias planas anteriores (`compilacion-4-*.txt`, `t-*.txt`), y conserva archivos ajenos dentro de `t/`. Las evidencias históricas de VIG-003 con nombres planos no se migran ni se borran.
+
+**Requisitos:** Flutter en el PATH y `ANDROID_HOME` (ver `docs/toolchain.md`).
+
+**JDK:** el script **no** depende de `flutter config --jdk-dir` (que no afecta a las llamadas directas a `gradlew`) ni del Java del proceso invocador.
+- Usa `VIG003_JDK_HOME`, por defecto `D:\Program Files\Eclipse Adoptium\jdk-21`, y exige que su `java -version` informe Temurin 21.0.10.
+- Fija `JAVA_HOME` y antepone su `bin` al `PATH` solo dentro de su proceso. No cambia variables persistentes ni configuración global.
+
+**Pasos.** Cada paso depende del anterior, salvo las tres consultas entre sí:
+
+| Paso | Si falla |
+|---|---|
+| 1. Comprobar el JDK requerido | salida **3**; no se ejecuta nada más |
+| 2. `flutter pub get --enforce-lockfile` | salida **4**; no se compila |
+| 3. `flutter build apk --debug` (registra el APK solo si tiene éxito) | salida **5**; sin APK ni consultas Gradle |
+| 4. `gradlew -version`: `Launcher JVM` debe ser 21.0.10 | salida **7**; sin consultas |
+| 5. Consultas de dependencias Gradle: `:app` `debugRuntimeClasspath` y `releaseRuntimeClasspath`, `:monitoring_engine` `releaseRuntimeClasspath` | salida **6** si falla alguna |
+| Cada SHA-256: `pubspec.lock` antes y después, APK y los tres árboles | salida **8**; termina en ese punto |
+
+**SHA-256 como paso comprobado:**
+- Si `sha256sum` termina con error, o su resultado no son 64 caracteres hexadecimales (vacío o malformado), el script termina con salida 8.
+- El resumen identifica el punto (`hash:pubspec-antes`, `hash:apk`, `hash:pubspec-despues`, `hash:gradle-<nombre>`) y el archivo.
+- Nunca se registra un hash vacío ni se declara OK.
+- El hash de cada árbol se calcula antes de darle el nombre de evidencia válida: si falla, queda como `.tmp`.
+
+**Otras reglas:**
+- La salida es 0 solo si todo termina correctamente; 2 indica uso o etiqueta inválidos.
+- `resumen.txt` indica el paso fallido y su código.
+- Un árbol solo se guarda como evidencia (`gradle-<nombre>.txt`) si su consulta terminó con 0 y su hash es válido. Si la consulta falla, el diagnóstico queda en `gradle-<nombre>.FALLIDA.txt` y no se presenta como resolución.
+
+Comparar dos ejecuciones demuestra que la resolución no cambió. El script no instala nada en dispositivos.
+
+### Pruebas simuladas (`tools/test_vig003_build.py`)
+
+```bash
+python -m unittest tools/test_vig003_build.py -v
+```
+
+Ejecutan el script real en un directorio temporal con `flutter`, `gradlew`, `sha256sum`, Java 8 y JDK 21 **falsos**: no compilan nada. El invocador no tiene `JAVA_HOME` y tiene Java 8 primero en el PATH. Usan `C:\Program Files\Git\usr\bin\bash.exe`, porque el lanzador `bin\bash.exe` antepone `/usr/bin` al PATH y ocultaría el `sha256sum` falso.
+
+Comprueban, con el código de salida y el registro de invocaciones (para verificar que no se ejecutan pasos dependientes de uno fallido):
+- éxito;
+- JDK ausente y JDK de otra versión;
+- fallo de `pub get`, de la compilación y de `gradlew -version`;
+- fallo de cada una de las tres consultas;
+- retirada de un árbol válido anterior al repetir con fallo;
+- uso incorrecto;
+- que las llamadas directas a `gradlew` usan el JDK 21 seleccionado;
+- **etiquetas:** `../history` se rechaza sin cambios en disco; también las etiquetas vacías, con separadores, puntos, espacios o no ASCII; se aceptan las válidas;
+- **aislamiento:** `t` conserva íntegra la evidencia de `t-gradle-history` y las evidencias planas; repetir una etiqueta solo afecta a su carpeta y conserva archivos ajenos;
+- **SHA-256:** en cada uno de los seis puntos de cálculo, `sha256sum` con salida 31, resultado vacío y resultado malformado producen salida 8, sin hashes vacíos registrados, sin `Resultado: OK` y sin ejecutar los pasos posteriores;
+- carpeta de etiqueta que es un enlace simbólico. Esta prueba se omite si Windows no permite crear enlaces sin privilegios; en este equipo quedó omitida.

@@ -1,0 +1,12 @@
+# compilacion-4 · 2026-10-06T07:44:40-05:00
+## pubspec.lock antes: 30245718cbdb6ec9bd1fb04aa7cd1dc3a31963e1cf62f919be3c1dacb24ccc14
+JDK: D:\Program Files\Eclipse Adoptium\jdk-21 (openjdk version "21.0.10" 2026-01-20 LTS); JAVA_HOME y PATH ajustados solo en este proceso
+flutter pub get --enforce-lockfile: salida 0
+flutter build apk --debug: salida 0, 9 s
+APK: build/app/outputs/flutter-apk/app-debug.apk · 150494442 bytes · SHA-256 44153886f652ce5939b4c4eb520a67f1fa4df85843f3ceabab5d5fb87bf137a0
+## pubspec.lock después: 30245718cbdb6ec9bd1fb04aa7cd1dc3a31963e1cf62f919be3c1dacb24ccc14
+gradlew -version: Gradle 9.3.1;Launcher JVM:  21.0.10 (Eclipse Adoptium 21.0.10+7-LTS);Daemon JVM:    D:\Program Files\Eclipse Adoptium\jdk-21 (no Daemon JVM specified, using current Java home)
+gradle-debugRuntimeClasspath (:app debugRuntimeClasspath): salida 0; SHA-256 sin líneas 'Picked up' 936cd6b6b908bef0f266a204486e108dd60a21281735663b119582e5cc887646; versiones dinámicas '+': 0
+gradle-releaseRuntimeClasspath (:app releaseRuntimeClasspath): salida 0; SHA-256 sin líneas 'Picked up' 81070b664d869097d093adb0000dfdb68740998ee875285c5d25010d397da896; versiones dinámicas '+': 0
+gradle-plugin-releaseRuntimeClasspath (:monitoring_engine releaseRuntimeClasspath): salida 0; SHA-256 sin líneas 'Picked up' 0eee993889197bb3dd27f976f7db6f4782ed8747cf726094f82c5fa53035ba6f; versiones dinámicas '+': 0
+Resultado: OK (salida 0)

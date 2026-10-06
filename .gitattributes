@@ -6,3 +6,9 @@ docs/source/** -text
 # `python tools/spec_registry.py build` regenere sin diff.
 docs/*.json text eol=lf
 tools/*.py text eol=lf
+
+# VIG-003: wrapper de Gradle y scripts con fin de línea fijo; jar binario.
+android/gradlew text eol=lf
+android/gradlew.bat text eol=crlf
+*.jar binary
+tools/*.sh text eol=lf

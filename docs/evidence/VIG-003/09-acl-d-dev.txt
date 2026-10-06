@@ -1,0 +1,8 @@
+# ACL de D:\dev (lectura, 2026-10-05)
+D:\dev DESKTOP-O9J2TLR\Edwin Rueda:(OI)(CI)(F)
+       BUILTIN\Usuarios:(I)(OI)(CI)(RX)
+       NT AUTHORITY\Authenticated Users:(I)(OI)(CI)(RX)
+       BUILTIN\Administradores:(I)(OI)(CI)(F)
+       NT AUTHORITY\SYSTEM:(I)(OI)(CI)(F)
+
+Se procesaron correctamente 1 archivos; error al procesar 0 archivos

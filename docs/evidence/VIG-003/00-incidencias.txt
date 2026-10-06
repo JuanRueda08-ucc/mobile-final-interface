@@ -1,0 +1,31 @@
+# Incidencias de VIG-003 (extractos literales) · 2026-10-05
+
+## 1. flutter analyze en C:\Users\Edwin Rueda\Documents\Diseño de interfaces\mobile-final-interface
+`flutter analyze` (servidor LSP) terminó con código 255 sin analizar:
+  Unhandled exception:
+  FormatException: Unexpected end of input (at character 449)
+  ...le-final-interface/"}],"capabilities":{"window":{"workDoneProgress":true}}}
+  #6 LspByteStreamServerChannel._readMessage (package:analysis_server/src/lsp/channel/lsp_byte_stream_channel.dart:96)
+  analysis server exited with code 255
+En la misma ruta `dart analyze` dio "No issues found!" (salida 0) y `flutter analyze` sobre una
+copia en ruta solo ASCII dio "No issues found!" (salida 0). Causa atribuida: carácter «ñ» en la ruta.
+
+## 2. AGP en la ruta con «ñ»
+`flutter build apk --debug -v` (AGP 9.1.0):
+> Your project path contains non-ASCII characters. This will most likely cause the build to fail on Windows. Please move your project to a different directory. See http://b.android.com/95744 for details. This warning can be disabled by adding the line 'android.overridePathCheck=true' to gradle.properties file in the project directory.
+Decisión del responsable: copiar el repositorio a D:\dev\vigia (ruta ASCII sin espacios). La carpeta
+original en C: quedó intacta. No se usó android.overridePathCheck.
+
+## 3. Socket AF_UNIX de la JVM en el entorno de ejecución de esta sesión
+Primer intento de compilación (Gradle 9.3.1, JDK 21) desde la sesión de Claude Code:
+  java.io.IOException: Unable to establish loopback connection
+  Caused by: java.net.SocketException: Invalid argument: connect
+Reproducido con un programa Java mínimo (JDK 21.0.10): Selector.open() falla con el directorio temporal
+C:\Users\EDWINR~1\AppData\Local\Temp (y con otras carpetas bajo AppData\Local); funciona con
+-Djdk.net.unixdomain.tmpdir=D:\dev\tmp, con C:\Users\Edwin Rueda\Documents y con la carpeta de trabajo
+de la sesión. TCP loopback y Pipe.open() funcionan. Los archivos de socket creados en AppData\Local
+resultaron inaccesibles desde la sesión, lo que apunta a una restricción del entorno de ejecución de
+la sesión, no a una configuración del sistema (no verificado en una terminal propia del usuario).
+Mitigación aplicada SOLO en los comandos de esta sesión (no persistida en el sistema ni en el repo):
+  JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=D:\dev\tmp
+Por eso las salidas de Gradle incluyen la línea "Picked up JAVA_TOOL_OPTIONS".

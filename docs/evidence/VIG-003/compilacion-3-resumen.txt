@@ -1,0 +1,7 @@
+# compilacion-3 · 2026-10-06T07:40:21-05:00
+## pubspec.lock antes: 30245718cbdb6ec9bd1fb04aa7cd1dc3a31963e1cf62f919be3c1dacb24ccc14
+JDK: D:\Program Files\Eclipse Adoptium\jdk-21 (OpenJDK Runtime Environment Temurin-21.0.10+7 (build 21.0.10+7-LTS)); JAVA_HOME y PATH ajustados solo en este proceso
+flutter pub get --enforce-lockfile: salida 0
+flutter build apk --debug: salida 1, 7 s
+FALLO en paso 'build': salida 1; sin APK ni consultas Gradle (ver compilacion-3-flutter-build-apk-debug.txt)
+Resultado: FALLÓ (salida 5)
