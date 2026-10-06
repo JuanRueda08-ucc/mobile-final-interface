@@ -12,3 +12,7 @@ android/gradlew text eol=lf
 android/gradlew.bat text eol=crlf
 *.jar binary
 tools/*.sh text eol=lf
+
+# Fase 1: fuentes y renderizados binarios.
+*.ttf binary
+*.png binary

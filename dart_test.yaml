@@ -1,0 +1,3 @@
+# Etiquetas de pruebas. `render`: renderizados de referencia (goldens) de las pantallas.
+tags:
+  render:
