@@ -30,6 +30,8 @@ Generadas con la versión corregida de `tools/vig003_build.sh`. Los archivos his
 | `compilacion-4-*` | Ejecución real completa (mitigación AF_UNIX solo de sesión) | Salida 0. JDK seleccionado Temurin 21.0.10; `gradlew -version`: Launcher y Daemon JVM 21.0.10; mismo `pubspec.lock`, mismo APK y árboles idénticos a las compilaciones 1 y 2 |
 | `jdk-ausente-resumen.txt` | Ejecución real con `VIG003_JDK_HOME` inexistente | Salida 3 en el paso `jdk`, antes de cualquier otro paso |
 
+**Formato de las ejecuciones futuras del script:** desde la corrección de etiquetas y hashes (revisión limitada posterior a `e1bf3cb`), `tools/vig003_build.sh` escribe cada ejecución en una carpeta exclusiva `docs/evidence/VIG-003/<etiqueta>/`, sin prefijo en los nombres. Los archivos con nombres planos de esta carpeta (`compilacion-1-*` a `compilacion-4-*`, `jdk-ausente-resumen.txt`) son evidencia histórica de versiones anteriores del script: no se migran ni se borran, y el script ya no los toca.
+
 **APK** (no versionado en Git): `build/app/outputs/flutter-apk/app-debug.apk`, 150 494 442 bytes, SHA-256 `44153886f652ce5939b4c4eb520a67f1fa4df85843f3ceabab5d5fb87bf137a0`. Es un APK debug firmado con la clave de depuración local, no un artefacto de distribución.
 
 **No ejecutado:** instalación y arranque en dispositivo (no hay D1), compilación release, auditoría del manifiesto de variantes reales (VIG-004).
