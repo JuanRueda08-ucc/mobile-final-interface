@@ -1,0 +1,28 @@
+# JDK efectivo
+Fecha: 2026-10-05T21:31:06.8163047-05:00
+
+flutter config --list (jdk-dir):
+  jdk-dir: D:\Program Files\Eclipse Adoptium\jdk-21
+
+Java usado por flutter (jdk-dir\bin\java -version):
+openjdk version "21.0.10" 2026-01-20 LTS
+OpenJDK Runtime Environment Temurin-21.0.10+7 (build 21.0.10+7-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.10+7 (build 21.0.10+7-LTS, mixed mode, sharing)
+
+Java en PATH (orden where java):
+C:\Program Files (x86)\Common Files\Oracle\Java\java8path\java.exe
+D:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe
+C:\ProgramData\Oracle\Java\javapath\java.exe
+
+java -version del PATH (primer java):
+java version "1.8.0_503"
+Java(TM) SE Runtime Environment (build 1.8.0_503-b01)
+Java HotSpot(TM) 64-Bit Server VM (build 25.503-b01, mixed mode)
+
+JAVA_HOME usuario: D:\Program Files\Eclipse Adoptium\jdk-21
+JAVA_HOME maquina: D:\Program Files\Eclipse Adoptium\jdk-21\
+
+javac -version (JAVA_HOME):
+javac 21.0.10
+
+Codigo de salida: 0

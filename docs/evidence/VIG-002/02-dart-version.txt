@@ -1,0 +1,9 @@
+# dart --version y origen de dart
+Fecha: 2026-10-05T21:30:51.4475607-05:00
+
+Dart SDK version: 3.13.5 (stable) (Tue Sep 29 01:00:52 2026 -0700) on "windows_x64"
+where dart:
+D:\dev\flutter\bin\dart
+D:\dev\flutter\bin\dart.bat
+
+Codigo de salida: 0
