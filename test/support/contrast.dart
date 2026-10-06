@@ -22,10 +22,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// 2. Cada párrafo se vuelve a dibujar aislado, con el mismo diseño y la misma
 ///    posición subpíxel, para conocer la cobertura esperada `e` de sus glifos.
 /// 3. Para cada palabra de cada tramo ([TextSpan] con texto), en los píxeles de
-///    trazo (`e ≥ 0,5`), el color efectivo del texto es
-///    `fondo + (dibujado − fondo) / e` (deshace el suavizado; las desviaciones
-///    de redondeo respecto a la mediana se descartan) y se compara con el fondo
-///    de ese mismo píxel. Se conserva el peor valor.
+///    trazo (`e ≥ 0,5`), el color efectivo del texto es el dibujado en los
+///    píxeles interiores del glifo y `fondo + (dibujado − fondo) / e` en los de
+///    borde (deshace el suavizado). Se compara con el fondo de ese mismo píxel,
+///    sin tolerancia ni color típico, y se conserva el peor valor sin redondear;
+///    el redondeo solo se aplica al presentarlo.
 /// 4. Umbral WCAG 2.x: 4,5:1, o 3:1 para texto grande (≥ 24 px, o ≥ 18,66 px en
 ///    negrita), según el estilo resuelto del tramo.
 ///
@@ -41,7 +42,7 @@ class ContrastAudit {
   List<String> get failures => [
     for (final s in _spans.values)
       if (s.worst + 1e-9 < s.minimum)
-        '«${s.text}»: ${s.worst.toStringAsFixed(2)}:1 '
+        '«${s.text}»: ${_shown(s.worst)}:1 '
             '(texto ${_hex(s.worstFg)}, fondo ${_hex(s.worstBg)}, '
             'mínimo ${s.minimum})',
   ];
@@ -79,7 +80,7 @@ class ContrastAudit {
         '[$status] «${s.text.replaceAll('\n', '⏎')}» '
         'palabras ${s.words.length - s.missing.length}/${s.words.length}, '
         'píxeles de trazo ${s.samples} (excluidos ${s.excluded}), '
-        'peor ${s.worst.isFinite ? '${s.worst.toStringAsFixed(2)}:1' : '—'} '
+        'peor ${s.worst.isFinite ? '${_shown(s.worst)}:1' : '—'} '
         '(texto ${_hex(s.worstFg)}, fondo ${_hex(s.worstBg)}), '
         'mínimo ${s.minimum}',
       );
@@ -325,30 +326,34 @@ class ContrastAudit {
     if (hidden > 0.02 * visibility.length) {
       return 'glifos tapados o recortados en parte ($hidden de ${visibility.length} píxeles)';
     }
-    // Color efectivo del texto en cada píxel de trazo visible. La cobertura
-    // aislada se corrige con la visibilidad medida en ese píxel (diferencias
-    // de rasterizado); los píxeles tolerados como tapados (≤ 2 %) se excluyen
-    // y se cuentan en el registro. Deshacer el suavizado amplifica el
-    // redondeo (unos ±2 niveles): las desviaciones de ese orden respecto a la
-    // mediana se tratan como ruido. Una variación mayor es real (p. ej., texto
-    // translúcido sobre fondo variable) y se conserva píxel a píxel.
-    final used = <(int, int, int)>[];
+    // Color efectivo del texto en cada píxel de trazo visible, sin tolerancia
+    // ni sustitución por un color típico:
+    // - en los píxeles interiores del glifo (cobertura completa) el color
+    //   dibujado es el color efectivo exacto, sin extrapolar;
+    // - en los de borde se deshace el suavizado,
+    //   `fondo + (dibujado − fondo) / e`, con la cobertura aislada corregida
+    //   por la visibilidad medida en ese píxel.
+    // Con el mismo fondo, el color efectivo es el mismo (también si el texto
+    // es translúcido), así que los fondos con píxeles interiores se evalúan
+    // con su medición exacta; los demás, con cada valor de borde. Los píxeles
+    // tolerados como tapados (≤ 2 %) se excluyen y se cuentan en el registro.
+    final interior = <int, List<int>>{}; // fondo → colores dibujados exactos
+    final edge = <int, List<int>>{}; // fondo → colores extrapolados
+    var used = 0;
     for (final (x, y, v) in samples) {
       final r = v == null ? 1.0 : v / opacity;
       if (r < 0.5) continue;
-      final e = (iso.coverage(x, y) * r).clamp(0.25, 1.0);
-      used.add((x, y, px.effectiveText(x, y, e)));
-    }
-    s.excluded += samples.length - used.length;
-    int median(int sh) {
-      final c = [for (final (_, _, f) in used) (f >> sh) & 255]..sort();
-      return c[c.length ~/ 2];
-    }
-
-    final typical = (median(16) << 16) | (median(8) << 8) | median(0);
-    for (final (x, y, measured) in used) {
+      used++;
       final bg = px.background(x, y);
-      final fg = _near(measured, typical, 3) ? typical : measured;
+      final e = iso.coverage(x, y) * r;
+      if (e >= _interiorCoverage) {
+        (interior[bg] ??= []).add(px.paintedAt(x, y));
+      } else {
+        (edge[bg] ??= []).add(px.effectiveText(x, y, e.clamp(0.25, 1.0)));
+      }
+    }
+    s.excluded += samples.length - used;
+    void consider(int fg, int bg) {
       final r = _ratio(fg, bg);
       if (r < worst) {
         worst = r;
@@ -356,7 +361,19 @@ class ContrastAudit {
         worstBg = bg;
       }
     }
-    s.samples += used.length;
+
+    for (final MapEntry(key: bg, value: fgs) in interior.entries) {
+      for (final fg in fgs) {
+        consider(fg, bg);
+      }
+    }
+    for (final MapEntry(key: bg, value: fgs) in edge.entries) {
+      if (interior.containsKey(bg)) continue;
+      for (final fg in fgs) {
+        consider(fg, bg);
+      }
+    }
+    s.samples += used;
     final region = boxes
         .map((b) => b.shift(origin))
         .reduce((a, b) => a.expandToInclude(b));
@@ -418,6 +435,10 @@ Future<List<String>> textContrastFailures(WidgetTester tester) async {
   return audit.problems;
 }
 
+/// Cobertura a partir de la cual un píxel es interior del glifo: su color
+/// dibujado es el color efectivo del texto, sin suavizado que deshacer.
+const _interiorCoverage = 0.99;
+
 class _Word {
   _Word(this.text, this.start, this.end);
   final String text;
@@ -464,6 +485,8 @@ class _Pixels {
   }
 
   int background(int x, int y) => _rgb(bg, x, y);
+
+  int paintedAt(int x, int y) => _rgb(painted, x, y);
 
   /// Cobertura del glifo visible en pantalla (0 = tapado), con la máscara
   /// negra o blanca que más se aleja del fondo en ese píxel; indica cuál usó.
@@ -615,12 +638,6 @@ InlineSpan _recolored(InlineSpan span, Color color) {
   );
 }
 
-bool _near(int a, int b, int tolerance) => [
-  16,
-  8,
-  0,
-].every((sh) => (((a >> sh) & 255) - ((b >> sh) & 255)).abs() <= tolerance);
-
 double _lum(int rgb) {
   double c(int v) {
     final s = v / 255;
@@ -638,6 +655,10 @@ double _ratio(int a, int b) {
   final la = _lum(a), lb = _lum(b);
   return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
 }
+
+/// Presentación del contraste truncada a centésimas (la decisión ya se tomó
+/// con el valor exacto): un valor que falla nunca se muestra igual al mínimo.
+String _shown(double ratio) => ((ratio * 100).floor() / 100).toStringAsFixed(2);
 
 String _hex(int rgb) =>
     '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -120,8 +121,9 @@ void main() {
     );
     final out = await textContrastFailures(t);
     expect(out, hasLength(1));
-    expect(out.single, contains('1.92:1'));
-    expect(out.single, contains('fondo #FFFFFF'));
+    // 1,9196:1, presentado truncado a centésimas.
+    expect(out.single, contains('1.91:1'));
+    expect(out.single, contains('texto #BBBBBB, fondo #FFFFFF'));
   });
 
   testWidgets('aura blanco/negro: se conserva el mínimo local cercano a 1:1', (
@@ -286,6 +288,73 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'texto translúcido: una variación real de pocos niveles no se aprueba por '
+    'tolerancia (4,48:1)',
+    (t) async {
+      // Reproducción independiente de la revisión de 03b4bb2: la tolerancia de
+      // tres niveles hacia la mediana devolvía OK con 4,51:1.
+      const bg = Color(0xfff95afd), stroke = Color(0xff3a2288);
+      expect(ratio(stroke, bg), closeTo(4.4828, 0.0001));
+      await fixture(
+        t,
+        SizedBox(
+          width: 200,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xfffe57f8), Color(0xfffe57f8), bg, bg],
+                stops: [0, .8, .801, 1],
+              ),
+            ),
+            child: Text(
+              'MMMMMMMMMM',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 20,
+                height: 1.45,
+                color: const Color(0xff191873).withValues(alpha: .85),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Comprobación independiente sobre la captura: hay interiores de glifo
+      // #3A2288 sobre #F95AFD.
+      final (data, width) = (await t.runAsync(() async {
+        final image = await captureImage(
+          find.byType(MaterialApp).evaluate().single,
+        );
+        final d = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+        final w = image.width;
+        image.dispose();
+        return (d, w);
+      }))!;
+      var interior = 0;
+      for (var y = 0; y < 70; y++) {
+        for (var x = 330; x < 365; x++) {
+          final i = (y * width + x) * 4;
+          if (data.getUint8(i) == 0x3a &&
+              data.getUint8(i + 1) == 0x22 &&
+              data.getUint8(i + 2) == 0x88) {
+            interior++;
+          }
+        }
+      }
+      expect(interior, greaterThan(100));
+
+      final audit = ContrastAudit();
+      await audit.measure(t);
+      expect(audit.unevaluated, isEmpty, reason: audit.log());
+      expect(audit.failures, hasLength(1), reason: audit.log());
+      final worst = double.parse(
+        RegExp(r': ([\d.]+):1').firstMatch(audit.failures.single)!.group(1)!,
+      );
+      expect(worst, lessThan(4.5), reason: audit.failures.single);
+      expect(audit.failures.single, contains('fondo #F95AFD'));
+    },
+  );
 
   group('regiones no evaluables se informan', () {
     testWidgets('texto tapado por otra capa queda sin evaluar', (t) async {
