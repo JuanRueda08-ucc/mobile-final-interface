@@ -28,6 +28,10 @@ Un teléfono puede cubrir varios perfiles si cumple sus condiciones (Área 07 §
 
 Observación: solo se detectó un iPhone emparejado por Bluetooth con el equipo de desarrollo. No aplica a ningún perfil, porque iOS queda fuera de V1 (Área 01 §13) y no puede ejecutar la variante Android.
 
+## Estado tras VIG-003 (2026-10-05)
+
+VIG-003 compiló el APK debug `com.juanrueda.vigia` 0.1.0 (1) con minSdk 26 y targetSdk 36. Su instalación, su arranque físico y la compatibilidad en equipos siguen **pendientes**, porque no hay D1. VIG-003 no se cierra hasta instalar ese APK, o uno equivalente reconstruido desde el mismo lockfile, en D1 y comprobar el arranque (Área 08 VIG-003, «Cierre»).
+
 ## Datos que se registrarán por equipo (Área 07 §5)
 
 Cuando se asigne un equipo, su fila incluirá:

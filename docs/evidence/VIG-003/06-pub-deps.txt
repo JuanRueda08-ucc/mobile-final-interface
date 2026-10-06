@@ -1,0 +1,39 @@
+# flutter pub deps --style=compact
+Dart SDK 3.13.5
+Flutter SDK 3.47.6
+vigia 0.1.0+1
+
+dependencies:
+- cupertino_icons 1.0.9
+- flutter 0.0.0 [characters collection material_color_utilities meta vector_math sky_engine]
+- monitoring_engine 0.1.0 [flutter plugin_platform_interface]
+
+dev dependencies:
+- flutter_lints 6.0.0 [lints]
+- flutter_test 0.0.0 [flutter test_api matcher path fake_async clock stack_trace vector_math leak_tracker_flutter_testing collection meta stream_channel]
+
+transitive dependencies:
+- async 2.13.1 [collection meta]
+- boolean_selector 2.1.2 [source_span string_scanner]
+- characters 1.4.1
+- clock 1.1.3
+- collection 1.19.1
+- fake_async 1.3.3 [clock collection]
+- leak_tracker 11.0.2 [clock collection meta path vm_service]
+- leak_tracker_flutter_testing 3.0.10 [flutter leak_tracker leak_tracker_testing matcher meta]
+- leak_tracker_testing 3.0.2 [leak_tracker matcher meta]
+- lints 6.1.0
+- matcher 0.12.20 [async meta stack_trace term_glyph test_api]
+- material_color_utilities 0.13.0 [collection]
+- meta 1.18.3
+- path 1.9.1
+- plugin_platform_interface 2.1.8 [meta]
+- sky_engine 0.0.0
+- source_span 1.10.2 [collection path term_glyph]
+- stack_trace 1.12.2 [path]
+- stream_channel 2.1.4 [async]
+- string_scanner 1.4.1 [source_span]
+- term_glyph 1.2.2
+- test_api 0.7.12 [async boolean_selector collection meta source_span stack_trace stream_channel string_scanner term_glyph]
+- vector_math 2.4.0
+- vm_service 15.3.0

@@ -1,0 +1,4 @@
+# JDK del daemon de Gradle lanzado por 'flutter build apk --debug -v' (daemons detenidos antes con gradlew --stop)
+# Extractos literales del log detallado; APK resultante SHA-256 44153886f652ce5939b4c4eb520a67f1fa4df85843f3ceabab5d5fb87bf137a0
+[   +3 ms] executing: [D:\dev\vigia\android/] D:\dev\vigia\android\gradlew.bat --full-stacktrace --info -Pverbose=true -Ptarget-platform=android-arm,android-arm64,android-x64 -Ptarget=lib\main.dart -P
+[ +100 ms] Starting process 'Gradle build daemon'. Working directory: D:\dev\gradle-home\daemon\9.3.1 Command: D:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe [...] -cp D:\dev\gradle-home\wrapper\dists\gradle-9.3.1-all\9ot9r568e8zfvvd4mn8rbu1j0\gradle-9.3.1\lib\gradle-daemon-main-9.3.1.jar -javaagent:D:\dev\gradle-home\wrapper\dists\gradle-9.3.1-all\9ot9r568e8zfvvd4mn8rbu1j0\gradle-9.3.1\lib\agents\gradle-instrumentation-agent-9.3.1.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.3.1

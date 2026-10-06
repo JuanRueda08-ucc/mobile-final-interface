@@ -1,0 +1,4 @@
+Running Gradle task 'assembleDebug'...                          
+Picked up JAVA_TOOL_OPTIONS: -Djdk.net.unixdomain.tmpdir=D:\dev\tmp
+Running Gradle task 'assembleDebug'...                             44,8s
+√ Built build\app\outputs\flutter-apk\app-debug.apk

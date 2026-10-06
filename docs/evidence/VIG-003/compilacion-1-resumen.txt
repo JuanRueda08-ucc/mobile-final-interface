@@ -1,0 +1,9 @@
+# compilacion-1 · 2026-10-05T22:54:50-05:00
+## pubspec.lock antes: 30245718cbdb6ec9bd1fb04aa7cd1dc3a31963e1cf62f919be3c1dacb24ccc14
+flutter pub get --enforce-lockfile: salida 0
+flutter build apk --debug: salida 0, 197 s
+APK: build/app/outputs/flutter-apk/app-debug.apk · 150494442 bytes · SHA-256 44153886f652ce5939b4c4eb520a67f1fa4df85843f3ceabab5d5fb87bf137a0
+## pubspec.lock después: 30245718cbdb6ec9bd1fb04aa7cd1dc3a31963e1cf62f919be3c1dacb24ccc14
+compilacion-1-gradle-debugRuntimeClasspath.txt: SHA-256 936cd6b6b908bef0f266a204486e108dd60a21281735663b119582e5cc887646; versiones dinámicas '+': 0
+compilacion-1-gradle-plugin-releaseRuntimeClasspath.txt: SHA-256 0eee993889197bb3dd27f976f7db6f4782ed8747cf726094f82c5fa53035ba6f; versiones dinámicas '+': 0
+compilacion-1-gradle-releaseRuntimeClasspath.txt: SHA-256 81070b664d869097d093adb0000dfdb68740998ee875285c5d25010d397da896; versiones dinámicas '+': 0

@@ -86,3 +86,17 @@ Cada caso copia las fuentes a un directorio temporal, altera **solo la copia** c
 - Valida la coherencia documental, no el funcionamiento de la app.
 - Un `OK` no aprueba criterios, ensayos QA, gates ni RL.
 - Las pruebas usan mutaciones simuladas y no cubren cualquier alteración posible de los documentos. La extracción se basa en el formato Markdown actual (viñetas `- **ID:**` y filas de tabla).
+
+## vig003_build.sh · compilación reproducible de la base Android (VIG-003)
+
+Script auxiliar de Git Bash. No forma parte del runtime de la app.
+
+```bash
+tools/vig003_build.sh <etiqueta> <directorio_evidencia>
+```
+
+1. Ejecuta `flutter pub get --enforce-lockfile` y `flutter build apk --debug`.
+2. Registra el SHA-256 de `pubspec.lock` antes y después, y el tamaño y SHA-256 del APK.
+3. Registra los árboles de dependencias Gradle (`debugRuntimeClasspath`/`releaseRuntimeClasspath` de la app y `releaseRuntimeClasspath` del plugin), con su hash y el número de versiones dinámicas «+».
+
+Requiere Flutter en el PATH y `ANDROID_HOME`/JDK configurados (ver `docs/toolchain.md`). Comparar dos ejecuciones demuestra que la resolución no cambió. No instala nada en dispositivos.

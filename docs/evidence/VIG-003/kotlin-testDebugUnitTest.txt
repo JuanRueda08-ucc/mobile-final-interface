@@ -1,0 +1,89 @@
+Picked up JAVA_TOOL_OPTIONS: -Djdk.net.unixdomain.tmpdir=D:\dev\tmp
+> Task :gradle:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :gradle:compileKotlin UP-TO-DATE
+> Task :gradle:compileJava NO-SOURCE
+> Task :gradle:compileGroovy NO-SOURCE
+> Task :gradle:pluginDescriptors UP-TO-DATE
+> Task :gradle:processResources UP-TO-DATE
+> Task :gradle:classes UP-TO-DATE
+> Task :gradle:jar UP-TO-DATE
+
+> Configure project :app
+WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.newDsl=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+w: [33m[1mDeprecated 'org.jetbrains.kotlin.android' plugin usage[0m[0m
+The 'org.jetbrains.kotlin.android' plugin in project ':app' is no longer required for Kotlin support since AGP 9.0.
+[32m[1mSolution:[0m[0m
+[32m[3mRemove both `android.builtInKotlin=true` and `android.newDsl=false` from `gradle.properties`, then migrate to built-in Kotlin.[0m[0m
+[36mSee [0m[34mhttps://kotl.in/gradle/agp-built-in-kotlin[0m[36m for more details.[0m
+
+
+> Configure project :monitoring_engine
+w: [33m[1mDeprecated 'org.jetbrains.kotlin.android' plugin usage[0m[0m
+The 'org.jetbrains.kotlin.android' plugin in project ':monitoring_engine' is no longer required for Kotlin support since AGP 9.0.
+[32m[1mSolution:[0m[0m
+[32m[3mRemove both `android.builtInKotlin=true` and `android.newDsl=false` from `gradle.properties`, then migrate to built-in Kotlin.[0m[0m
+[36mSee [0m[34mhttps://kotl.in/gradle/agp-built-in-kotlin[0m[36m for more details.[0m
+
+
+> Task :monitoring_engine:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :monitoring_engine:preBuild UP-TO-DATE
+> Task :monitoring_engine:preDebugBuild UP-TO-DATE
+> Task :monitoring_engine:generateDebugResources UP-TO-DATE
+> Task :monitoring_engine:packageDebugResources UP-TO-DATE
+> Task :monitoring_engine:processDebugNavigationResources UP-TO-DATE
+> Task :monitoring_engine:parseDebugLocalResources UP-TO-DATE
+> Task :monitoring_engine:generateDebugRFile UP-TO-DATE
+> Task :monitoring_engine:compileDebugKotlin UP-TO-DATE
+> Task :monitoring_engine:javaPreCompileDebug UP-TO-DATE
+> Task :monitoring_engine:compileDebugJavaWithJavac NO-SOURCE
+> Task :monitoring_engine:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :monitoring_engine:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :monitoring_engine:preDebugUnitTestBuild UP-TO-DATE
+> Task :monitoring_engine:writeDebugAarMetadata UP-TO-DATE
+> Task :monitoring_engine:mapDebugSourceSetPaths UP-TO-DATE
+> Task :monitoring_engine:compileDebugLibraryResources UP-TO-DATE
+> Task :monitoring_engine:checkDebugUnitTestAarMetadata
+> Task :monitoring_engine:mapDebugUnitTestSourceSetPaths
+> Task :monitoring_engine:generateDebugUnitTestResources
+> Task :monitoring_engine:extractDeepLinksDebug UP-TO-DATE
+> Task :monitoring_engine:processDebugManifest UP-TO-DATE
+> Task :monitoring_engine:processDebugUnitTestManifest
+> Task :monitoring_engine:generateDebugUnitTestAssets UP-TO-DATE
+> Task :monitoring_engine:generateDebugAssets UP-TO-DATE
+> Task :monitoring_engine:javaPreCompileDebugUnitTest
+> Task :monitoring_engine:mergeDebugAssets UP-TO-DATE
+> Task :monitoring_engine:mergeDebugUnitTestResources
+> Task :monitoring_engine:mergeDebugUnitTestAssets
+> Task :monitoring_engine:processDebugJavaRes UP-TO-DATE
+> Task :monitoring_engine:processDebugUnitTestResources
+> Task :monitoring_engine:packageDebugUnitTestForUnitTest
+> Task :monitoring_engine:generateDebugUnitTestConfig
+> Task :monitoring_engine:compileDebugUnitTestKotlin
+> Task :monitoring_engine:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :monitoring_engine:processDebugUnitTestJavaRes
+
+> Task :monitoring_engine:testDebugUnitTest
+Picked up JAVA_TOOL_OPTIONS: -Djdk.net.unixdomain.tmpdir=D:\dev\tmp
+
+MonitoringEnginePluginTest > onMethodCall_getPlatformVersion_returnsExpectedValue() STANDARD_ERROR
+    WARNING: A Java agent has been loaded dynamically (D:\dev\gradle-home\caches\modules-2\files-2.1\net.bytebuddy\byte-buddy-agent\1.12.22\9c4127080df12304336ca90c2ef3f8b7d72915c1\byte-buddy-agent-1.12.22.jar)
+    WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+    WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+    WARNING: Dynamic loading of agents will be disallowed by default in a future release
+
+OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+
+> Task :monitoring_engine:testDebugUnitTest
+
+MonitoringEnginePluginTest > onMethodCall_getPlatformVersion_returnsExpectedValue() PASSED
+
+[Incubating] Problems report is available at: file:///D:/dev/vigia/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 27s
+33 actionable tasks: 13 executed, 20 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html

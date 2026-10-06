@@ -1,0 +1,3 @@
+# dart format --set-exit-if-changed
+Formatted 7 files (0 changed) in 0.03 seconds.
+salida 0

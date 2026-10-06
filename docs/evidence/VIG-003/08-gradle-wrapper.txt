@@ -1,0 +1,14 @@
+# Wrapper de Gradle
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionSha256Sum=17f277867f6914d61b1aa02efab1ba7bb439ad652ca485cd8ca6842fccec6e43
+distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-all.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+
+gradle-wrapper.jar SHA-256: b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13
+Oficial gradle-9.3.1-wrapper.jar.sha256: b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13
+Oficial gradle-9.3.1-all.zip.sha256: 17f277867f6914d61b1aa02efab1ba7bb439ad652ca485cd8ca6842fccec6e43
+Jar original de la plantilla Flutter 3.47.6: 16caeaf66d57a0d1d2087fef6a97efa62de8da69afa5b908f40db35afc4342da (coincide con el wrapper oficial de Gradle 2.10); sustituido con ./gradlew wrapper --gradle-version 9.3.1 --distribution-type all --gradle-distribution-sha256-sum <oficial>

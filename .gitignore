@@ -1,0 +1,66 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Widget Preview related
+.widget_preview/
+
+# VIG-003: rutas locales, cachés y claves (Área 08 §9.2: sin claves ni datos personales en Git)
+**/local.properties
+**/.gradle/
+**/.kotlin/
+**/build/
+.pub-cache/
+*.jks
+*.keystore
+*.p12
+*.pem
+key.properties
+**/key.properties
+.env
+.env.*
+# Binarios de compilación: se registran por hash en la evidencia, no en Git (Área 08 VIG-064)
+*.apk
+*.aab
