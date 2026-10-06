@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +22,9 @@ import '../support/vigia_harness.dart';
 /// - que cada acción y cada destino de la barra caben completos y son
 ///   alcanzables por desplazamiento;
 /// - las pautas de Flutter de área táctil (≥ 48) y etiquetado;
-/// - el contraste WCAG medido sobre los píxeles dibujados de cada párrafo visible.
+/// - el contraste WCAG de cada tramo de texto, medido sobre los píxeles
+///   dibujados en todas las posiciones de desplazamiento; el registro de
+///   cobertura queda en `build/contrast_coverage/<variante>_<config>.txt`.
 void main() {
   setUpAll(loadVigiaFonts);
 
@@ -97,13 +101,54 @@ void main() {
               tester,
               meetsGuideline(labeledTapTargetGuideline),
             );
-            // Contraste medido sobre los píxeles dibujados (ver test/support/contrast.dart):
-            // sustituye a textContrastGuideline, que tomaba el suavizado como color del texto.
-            expect(await textContrastFailures(tester), isEmpty);
+            // Contraste por tramo sobre los píxeles dibujados, recorriendo todo el
+            // contenido desplazable (ver test/support/contrast.dart). Sustituye a
+            // textContrastGuideline, que tomaba el suavizado como color del texto.
+            // Ningún texto puede quedar sin evaluar.
+            final audit = await auditTextContrast(tester);
+            writeCoverageLog('${id}_${c.id}', audit);
+            expect(audit.problems, isEmpty, reason: audit.log());
           });
         }
       }
     }
+  }
+
+  // El cuerpo del aura y su CTA quedan por debajo del viewport inicial a
+  // 320 × 800 y 200 %: deben evaluarse tras desplazar.
+  for (final MapEntry(key: id, value: state) in states.entries) {
+    testWidgets('$id · 320×800 al 200 %: aura completa evaluada al desplazar', (
+      tester,
+    ) async {
+      await pumpVigia(
+        tester,
+        state,
+        const ScreenConfig(width: 320, textScale: 2.0),
+      );
+      final aura = find.byType(AuraHero);
+      if (aura.evaluate().isEmpty) return; // variante sin aura
+      final paragraphs = tester.renderObjectList<RenderParagraph>(
+        find.descendant(of: aura, matching: find.byType(RichText)),
+      );
+      final viewport = tester.getRect(find.byType(SingleChildScrollView));
+      final initiallyHidden = paragraphs.where((p) {
+        final r = MatrixUtils.transformRect(
+          p.getTransformTo(null),
+          Offset.zero & p.size,
+        );
+        return r.bottom > viewport.bottom + 0.5;
+      });
+      final audit = await auditTextContrast(tester);
+      for (final p in paragraphs) {
+        expect(
+          audit.isFullyEvaluated(p),
+          isTrue,
+          reason: '«${p.text.toPlainText()}» sin evaluar\n${audit.log()}',
+        );
+      }
+      // Documenta que la cobertura procede del desplazamiento.
+      expect(initiallyHidden, isNotEmpty);
+    });
   }
 
   testWidgets('al 200 % en 320 la barra pasa a lista vertical sin recortar', (
@@ -184,4 +229,11 @@ Future<void> pumpVigiaUnsettled(WidgetTester tester) async {
     VigiaApp(inicioState: InicioDemoVariant.sinHistorial.state),
   );
   await tester.pump();
+}
+
+/// Guarda el registro de cobertura del contraste de una combinación.
+void writeCoverageLog(String name, ContrastAudit audit) {
+  final file = File('build/contrast_coverage/$name.txt')
+    ..createSync(recursive: true);
+  file.writeAsStringSync(audit.log());
 }
