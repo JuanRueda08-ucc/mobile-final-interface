@@ -89,14 +89,48 @@ Cada caso copia las fuentes a un directorio temporal, altera **solo la copia** c
 
 ## vig003_build.sh · compilación reproducible de la base Android (VIG-003)
 
-Script auxiliar de Git Bash. No forma parte del runtime de la app.
+Script auxiliar de Git Bash (usa `bash` de Git for Windows, no el de WSL). No forma parte del runtime de la app.
 
 ```bash
 tools/vig003_build.sh <etiqueta> <directorio_evidencia>
 ```
 
-1. Ejecuta `flutter pub get --enforce-lockfile` y `flutter build apk --debug`.
-2. Registra el SHA-256 de `pubspec.lock` antes y después, y el tamaño y SHA-256 del APK.
-3. Registra los árboles de dependencias Gradle (`debugRuntimeClasspath`/`releaseRuntimeClasspath` de la app y `releaseRuntimeClasspath` del plugin), con su hash y el número de versiones dinámicas «+».
+**Requisitos:** Flutter en el PATH y `ANDROID_HOME` (ver `docs/toolchain.md`).
 
-Requiere Flutter en el PATH y `ANDROID_HOME`/JDK configurados (ver `docs/toolchain.md`). Comparar dos ejecuciones demuestra que la resolución no cambió. No instala nada en dispositivos.
+**JDK:** el script **no** depende de `flutter config --jdk-dir` (que no afecta a las llamadas directas a `gradlew`) ni del Java del proceso invocador.
+- Usa `VIG003_JDK_HOME`, por defecto `D:\Program Files\Eclipse Adoptium\jdk-21`, y exige que su `java -version` informe Temurin 21.0.10.
+- Fija `JAVA_HOME` y antepone su `bin` al `PATH` solo dentro de su proceso. No cambia variables persistentes ni configuración global.
+
+**Pasos.** Cada paso depende del anterior, salvo las tres consultas entre sí:
+
+| Paso | Si falla |
+|---|---|
+| 1. Comprobar el JDK requerido | salida **3**; no se ejecuta nada más |
+| 2. `flutter pub get --enforce-lockfile` | salida **4**; no se compila |
+| 3. `flutter build apk --debug` (registra el APK solo si tiene éxito) | salida **5**; sin APK ni consultas Gradle |
+| 4. `gradlew -version`: `Launcher JVM` debe ser 21.0.10 | salida **7**; sin consultas |
+| 5. Consultas de dependencias Gradle: `:app` `debugRuntimeClasspath` y `releaseRuntimeClasspath`, `:monitoring_engine` `releaseRuntimeClasspath` | salida **6** si falla alguna |
+
+- La salida es 0 solo si todo termina correctamente; 2 indica un uso incorrecto.
+- El resumen (`<etiqueta>-resumen.txt`) indica el paso fallido y su código.
+- Un árbol solo se guarda como evidencia (`<etiqueta>-gradle-<nombre>.txt`) si su consulta terminó con 0. Si falla, el diagnóstico queda en `<etiqueta>-gradle-<nombre>.FALLIDA.txt` y no se presenta como resolución.
+- Antes de empezar se retiran los archivos de evidencia previos con la misma etiqueta.
+
+Comparar dos ejecuciones demuestra que la resolución no cambió. El script no instala nada en dispositivos.
+
+### Pruebas simuladas (`tools/test_vig003_build.py`)
+
+```bash
+python -m unittest tools/test_vig003_build.py -v
+```
+
+Ejecutan el script real en un directorio temporal con `flutter`, `gradlew`, Java 8 y JDK 21 **falsos**: no compilan nada. El invocador no tiene `JAVA_HOME` y tiene Java 8 primero en el PATH.
+
+Comprueban, con el código de salida y el registro de invocaciones (para verificar que no se ejecutan pasos dependientes de uno fallido):
+- éxito;
+- JDK ausente y JDK de otra versión;
+- fallo de `pub get`, de la compilación y de `gradlew -version`;
+- fallo de cada una de las tres consultas;
+- retirada de un árbol válido anterior al repetir con fallo;
+- uso incorrecto;
+- que las llamadas directas a `gradlew` usan el JDK 21 seleccionado.

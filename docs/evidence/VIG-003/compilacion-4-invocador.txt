@@ -1,0 +1,1 @@
+invocador: JAVA_HOME=<sin definir>; java del PATH: /c/Program Files (x86)/Common Files/Oracle/Java/java8path/java (java version "1.8.0_503")

@@ -28,7 +28,9 @@ Ninguna dependencia futura de IA, cámara o almacenamiento (Pigeon, CameraX, Med
 | Kotlin Gradle Plugin / stdlib | **2.4.0** (plantilla). Los scripts de Gradle usan el Kotlin embebido 2.2.21 | Ídem | Verificado por compilación | VIG-003/02, compilacion-*-gradle-* |
 | compileSdk / targetSdk | **36 / 36**, fijados explícitamente en `android/app/build.gradle.kts`. El APK reporta `compileSdkVersion='36'` y `targetSdkVersion:'36'` | App | Verificado por compilación. Requisitos de Play: revalidar en VIG-069 | VIG-003/07 |
 | minSdk | **26** (el APK reporta `minSdkVersion:'26'`; app y plugin) | App y plugin | **Candidato**: compila, pero sin D3 no se declara probado (Área 07 §5) | VIG-003/07 |
-| Android SDK · Platform android-36 · Build-Tools 36.1.0 · Platform-Tools 37.0.1 · cmdline-tools 23.0 | Ver VIG-002 | `D:\dev\android-sdk` | Instalado/verificado. Usados en la compilación | VIG-002/07 |
+| Android SDK · Platform android-36 · Platform-Tools 37.0.1 · cmdline-tools 23.0 | Ver VIG-002 | `D:\dev\android-sdk` | Instalado/verificado. La plataforma android-36 es la que usa la compilación | VIG-002/07, VIG-003/11 |
+| Build-Tools **36.1.0** | 36.1.0 | `D:\dev\android-sdk\build-tools\36.1.0` | **Instalado (VIG-002), no utilizado** por la compilación observada | VIG-002/07, VIG-003/11 |
+| Build-Tools **36.0.0** (utilizado) | 36.0.0: versión por defecto de AGP 9.1.0 (no fijada en el proyecto) | `D:\dev\android-sdk\build-tools\36.0.0`, instalado **automáticamente por AGP** durante la compilación 1 de VIG-003, bajo la licencia ya aceptada del SDK | **Verificado por compilación**: el modelo efectivo de AGP informa `buildToolsVersion=36.0.0` en `:app` y `:monitoring_engine` | VIG-003/11; histórico: `compilacion-1-flutter-build-apk-debug.txt`, líneas 4–10 |
 | NDK | 28.2.13676358 (`flutter.ndkVersion`, que Flutter pasa a Gradle) | `D:\dev\android-sdk\ndk\28.2.13676358` | Instalado. Uso efectivo en la compilación no verificado por separado | VIG-002/07 |
 | CMake | 4.1.2 | `D:\dev\android-sdk\cmake\4.1.2` | Instalado. No lo usa la base actual | VIG-002/07 |
 | `pubspec.lock` (app) | `cupertino_icons` 1.0.9 · `flutter_lints` 6.0.0 · `plugin_platform_interface` 2.1.8 · `monitoring_engine` 0.1.0 (path) | `pubspec.lock` (versionado; SHA-256 `30245718…cc14`) | Verificado: sin cambios tras dos compilaciones con `--enforce-lockfile` | VIG-003/06, compilacion-*-resumen |
@@ -50,14 +52,21 @@ Esto no es una declaración de soporte general de Gradle 9.3.1. Lo único compro
 **Mecanismo actual:**
 1. `flutter config --jdk-dir "D:\Program Files\Eclipse Adoptium\jdk-21"` (configuración de Flutter del usuario, aplicada en VIG-002).
 2. Cuando Flutter compila (`flutter build`), lanza `android\gradlew.bat`, y el daemon de Gradle arranca con `D:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe`. Esto consta en el log detallado de la compilación, con los daemons detenidos antes ([evidencia VIG-003/10](evidence/VIG-003/10-jdk-gradle-desde-flutter.txt)).
-3. Cuando se invoca `android/gradlew` directamente, Gradle usa `JAVA_HOME`, que en usuario y máquina apunta al mismo Temurin 21. `gradlew -version` reporta `Launcher JVM: 21.0.10 (Eclipse Adoptium 21.0.10+7-LTS)` y `Daemon JVM: D:\Program Files\Eclipse Adoptium\jdk-21 (no Daemon JVM specified, using current Java home)` ([evidencia VIG-003/02](evidence/VIG-003/02-gradle-version-jdk.txt)).
+3. Cuando se invoca `android/gradlew` directamente, **`jdk-dir` no interviene**: el wrapper usa `JAVA_HOME` y, si no está definido, el primer `java` del PATH. En esta máquina ese `java` es Java 8. La revisión de Codex lo reprodujo: sin `JAVA_HOME`, `:app:dependencies` falla con «Gradle requires JVM 17 or later to run … JVM 8». Con el `JAVA_HOME` de usuario y máquina (Temurin 21) funciona. `gradlew -version` reporta `Launcher JVM: 21.0.10 (Eclipse Adoptium 21.0.10+7-LTS)` y `Daemon JVM: D:\Program Files\Eclipse Adoptium\jdk-21 (no Daemon JVM specified, using current Java home)` ([evidencia VIG-003/02](evidence/VIG-003/02-gradle-version-jdk.txt)).
 4. El proyecto no fija `org.gradle.java.home` ni criterios de toolchain del daemon. Si cambiara `JAVA_HOME` o `jdk-dir`, cambiaría el JDK.
+5. **`tools/vig003_build.sh` no depende de ninguno de los dos.**
+   - Selecciona explícitamente el Temurin 21 verificado (`VIG003_JDK_HOME`, por defecto `D:\Program Files\Eclipse Adoptium\jdk-21`) y comprueba que `java -version` informa Temurin 21.0.10 antes de empezar; si no, falla con salida 3.
+   - Fija `JAVA_HOME` y antepone su `bin` al `PATH` solo dentro de su proceso.
+   - Antes de las consultas verifica con `gradlew -version` que `Launcher JVM` es 21.0.10; si no, falla con salida 7.
+
+   Ejecución real sin `JAVA_HOME` y con Java 8 primero en el PATH del invocador: [compilacion-4-invocador.txt](evidence/VIG-003/compilacion-4-invocador.txt) y [compilacion-4-resumen.txt](evidence/VIG-003/compilacion-4-resumen.txt).
 
 **Evidencia nueva y evidencia histórica:**
 - **Histórica (VIG-002, evidencias 03 y 06):** solo `flutter doctor -v` y `java -version`. Probaban qué JDK tiene configurado Flutter, pero **no** el que usa Gradle.
-- **Nueva (VIG-003, evidencias 02 y 10):** ejecución real de Gradle, tanto lanzado por Flutter como directamente.
+- **Nueva (VIG-003, evidencias 02 y 10):** ejecución real de Gradle, tanto lanzado por Flutter como directamente, con el `JAVA_HOME` de Temurin 21 presente.
+- **Corrección tras la revisión de VIG-003 (`compilacion-4-*`):** llamadas directas con el JDK seleccionado por el script, aunque el invocador no tenga `JAVA_HOME`.
 
-**Java 8:** sigue siendo el primer `java` del PATH. No se usa ni en el camino de Flutter ni en el de Gradle descritos arriba. No se desinstaló ni se movió.
+**Java 8:** sigue siendo el primer `java` del PATH. No se usa en el camino de Flutter (`jdk-dir`) ni en el de Gradle cuando `JAVA_HOME` apunta a Temurin 21 o cuando se usa `tools/vig003_build.sh`. Un `gradlew` directo **sin** `JAVA_HOME` sí lo tomaría y fallaría. No se desinstaló ni se movió.
 
 ## Cambios de configuración del sistema
 

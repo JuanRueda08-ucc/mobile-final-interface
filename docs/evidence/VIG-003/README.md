@@ -18,6 +18,18 @@ Capturada el 2026-10-05 (America/Bogota) en `D:\dev\vigia`, rama `task/VIG-003-b
 | `kotlin-testDebugUnitTest.txt` | `./gradlew :monitoring_engine:testDebugUnitTest` | 1 prueba Kotlin superada |
 | `compilacion-1-*`, `compilacion-2-*` | `tools/vig003_build.sh` (pub get `--enforce-lockfile`, `flutter build apk --debug`, árboles de dependencias Gradle). La compilación 2 se hizo tras `flutter clean` | Mismo SHA-256 de `pubspec.lock`, árboles Gradle idénticos, 0 versiones dinámicas «+» y mismo SHA-256 del APK |
 
+### Correcciones tras la revisión de VIG-003 (2026-10-06)
+
+Generadas con la versión corregida de `tools/vig003_build.sh`. Los archivos históricos (`compilacion-1-*`, `compilacion-2-*` y los numerados 00–10) no se han modificado.
+
+| Archivo | Contenido | Resultado |
+|---|---|---|
+| `11-build-tools.txt` | Build-Tools instaladas y modelo efectivo de AGP (leído con un init script transitorio, fuera del repositorio) | Instaladas 36.0.0 y 36.1.0; AGP usa `buildToolsVersion=36.0.0` en `:app` y `:monitoring_engine` |
+| `compilacion-3-*` | Ejecución real **sin** la mitigación AF_UNIX de la sesión | **Fallo real** del entorno de la sesión («Unable to establish loopback connection») durante la compilación. El script lo propaga: paso `build`, salida 5, sin APK ni consultas Gradle |
+| `compilacion-4-invocador.txt` | Entorno del proceso invocador | Sin `JAVA_HOME`; primer `java` del PATH = Java 8 (`1.8.0_503`) |
+| `compilacion-4-*` | Ejecución real completa (mitigación AF_UNIX solo de sesión) | Salida 0. JDK seleccionado Temurin 21.0.10; `gradlew -version`: Launcher y Daemon JVM 21.0.10; mismo `pubspec.lock`, mismo APK y árboles idénticos a las compilaciones 1 y 2 |
+| `jdk-ausente-resumen.txt` | Ejecución real con `VIG003_JDK_HOME` inexistente | Salida 3 en el paso `jdk`, antes de cualquier otro paso |
+
 **APK** (no versionado en Git): `build/app/outputs/flutter-apk/app-debug.apk`, 150 494 442 bytes, SHA-256 `44153886f652ce5939b4c4eb520a67f1fa4df85843f3ceabab5d5fb87bf137a0`. Es un APK debug firmado con la clave de depuración local, no un artefacto de distribución.
 
 **No ejecutado:** instalación y arranque en dispositivo (no hay D1), compilación release, auditoría del manifiesto de variantes reales (VIG-004).

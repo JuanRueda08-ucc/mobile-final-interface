@@ -1,0 +1,21 @@
+# Build-Tools: instaladas y usadas (VIG-003, 2026-10-06T07:45:30-05:00)
+
+## Directorios en D:\dev\android-sdk\build-tools
+36.0.0
+36.1.0
+36.0.0: Pkg.Revision=36.0.0
+36.1.0: Pkg.Revision=36.1.0
+
+## Modelo efectivo de AGP (init script transitorio fuera del repo; gradlew --offline help)
+VIG003_ANDROID_MODEL project=:app buildToolsVersion=36.0.0 compileSdk=android-36 ndkVersion=28.2.13676358
+VIG003_ANDROID_MODEL project=:monitoring_engine buildToolsVersion=36.0.0 compileSdk=android-36 ndkVersion=28.2.13676358
+salida gradlew: 0
+
+## Evidencia histórica (sin modificar): compilacion-1-flutter-build-apk-debug.txt
+4:Checking the license for package Android SDK Build-Tools 36 in D:\dev\android-sdk\licenses
+5:License for package Android SDK Build-Tools 36 accepted.
+6:Preparing "Install Android SDK Build-Tools 36 v.36.0.0".
+7:"Install Android SDK Build-Tools 36 v.36.0.0" ready.
+8:Installing Android SDK Build-Tools 36 in D:\dev\android-sdk\build-tools\36.0.0
+9:"Install Android SDK Build-Tools 36 v.36.0.0" complete.
+10:"Install Android SDK Build-Tools 36 v.36.0.0" finished.
