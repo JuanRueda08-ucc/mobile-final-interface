@@ -67,6 +67,14 @@ final class InicioMotorDesconocido extends InicioState {
   const InicioMotorDesconocido({required super.isDemo});
 }
 
+/// Estado real del arranque mientras no exista conexión con el motor
+/// (fase 1): el estado del motor **no está comprobado**, así que no se puede
+/// preparar ni iniciar una sesión (RF05, UX01.CA3). No es un dato simulado y
+/// no se presenta como «sin historial» ni como motor disponible.
+final class InicioMotorNoComprobado extends InicioState {
+  const InicioMotorNoComprobado() : super(isDemo: false);
+}
+
 /// Acciones de Inicio. En la fase 1 no tienen destino funcional (avisos).
 enum InicioAction {
   prepararSesion,

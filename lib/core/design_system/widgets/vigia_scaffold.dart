@@ -4,6 +4,7 @@ import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
 import 'vigia_button.dart';
+import 'vigia_text.dart';
 
 /// Rótulo visible de simulación (RF32): «DEMO — datos simulados».
 class DemoLabel extends StatelessWidget {
@@ -107,10 +108,11 @@ class VigiaScaffold extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                        VigiaSpace.screenH,
+                      // Con texto ampliado el margen lateral baja de 20 a 16 para ganar ancho.
+                      padding: EdgeInsets.fromLTRB(
+                        isLargeText(context) ? 16 : VigiaSpace.screenH,
                         VigiaSpace.screenTop,
-                        VigiaSpace.screenH,
+                        isLargeText(context) ? 16 : VigiaSpace.screenH,
                         VigiaSpace.screenBottom,
                       ),
                       child: Column(
@@ -271,10 +273,15 @@ class _NavItem extends StatelessWidget {
       style: VigiaType.navLabel.copyWith(color: fg),
     );
     final icon = VigiaIconView(destination.icon, size: 22, color: fg);
+    // Un solo nodo semántico por destino: etiqueta, estado seleccionado y la
+    // misma acción que el toque. `excludeSemantics` evita el doble anuncio del
+    // texto y del InkWell, pero también ocultaría su acción, así que `onTap`
+    // se expone aquí para que TalkBack pueda activar el destino.
     return Semantics(
       button: true,
       selected: selected,
       label: destination.label,
+      onTap: onTap,
       excludeSemantics: true,
       child: PressScale(
         child: Material(

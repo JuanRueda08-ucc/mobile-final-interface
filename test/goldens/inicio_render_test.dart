@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/demo/inicio_demo.dart';
+import 'package:vigia/features/inicio/inicio_state.dart';
 
 import '../support/vigia_harness.dart';
 
@@ -30,11 +31,17 @@ void main() {
     const ScreenConfig(width: 320, height: 2400, textScale: 2.0, dark: true),
   ];
 
-  for (final v in InicioDemoVariant.values) {
+  // Cinco variantes DEMO y el estado real del arranque (motor no comprobado).
+  final states = <String, InicioState>{
+    for (final v in InicioDemoVariant.values) v.id: v.state,
+    'real_motor_no_comprobado': const InicioMotorNoComprobado(),
+  };
+
+  for (final MapEntry(key: id, value: state) in states.entries) {
     for (final c in configs) {
-      final name = 'P03_${v.id}__${c.id}';
+      final name = 'P03_${id}__${c.id}';
       testWidgets(name, (tester) async {
-        await pumpVigia(tester, v.state, c);
+        await pumpVigia(tester, state, c);
         await expectLater(
           find.byType(MaterialApp),
           matchesGoldenFile('inicio/$name.png'),

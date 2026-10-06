@@ -4,10 +4,19 @@ import 'package:vigia/demo/inicio_demo.dart';
 import 'package:vigia/features/inicio/inicio_state.dart';
 
 void main() {
-  test('sin VIGIA_DEMO_INICIO se usa el estado real, sin rótulo DEMO', () {
-    final s = resolveInicioState(demoDefine: '');
-    expect(s, isA<InicioSinHistorial>());
-    expect(s.isDemo, isFalse);
+  test(
+    'sin VIGIA_DEMO_INICIO: motor no comprobado, real y sin rótulo DEMO',
+    () {
+      final s = resolveInicioState(demoDefine: '');
+      expect(s, isA<InicioMotorNoComprobado>());
+      expect(s, isNot(isA<InicioSinHistorial>()));
+      expect(s.isDemo, isFalse);
+    },
+  );
+
+  test('la app de pruebas arranca sin dart-define (estado real)', () {
+    expect(inicioDemoDefine, isEmpty);
+    expect(resolveInicioState(), isA<InicioMotorNoComprobado>());
   });
 
   test(

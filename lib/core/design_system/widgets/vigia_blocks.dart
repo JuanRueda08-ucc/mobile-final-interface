@@ -4,6 +4,7 @@ import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
 import 'vigia_button.dart';
+import 'vigia_text.dart';
 
 /// Tonos de tarjeta de estado de B5.2 (`TNX`). Cada tono tiene texto e icono
 /// propios, además del color (RF29.CA1: los avisos no dependen solo del color).
@@ -46,7 +47,9 @@ class StatusCard extends StatelessWidget {
       container: true,
       liveRegion: true,
       child: Container(
-        padding: const EdgeInsets.all(VigiaSpace.cardPadding),
+        padding: EdgeInsets.all(
+          isLargeText(context) ? 16 : VigiaSpace.cardPadding,
+        ),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(VigiaRadius.card),
@@ -67,12 +70,15 @@ class StatusCard extends StatelessWidget {
             final texts = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tag, style: VigiaType.cardTag.copyWith(color: fg)),
+                VigiaText(tag, style: VigiaType.cardTag.copyWith(color: fg)),
                 const SizedBox(height: 4),
-                Text(title, style: VigiaType.cardTitle.copyWith(color: fg)),
+                VigiaText(
+                  title,
+                  style: VigiaType.cardTitle.copyWith(color: fg),
+                ),
                 if (text != null) ...[
                   const SizedBox(height: 4),
-                  Text(text!, style: VigiaType.body.copyWith(color: fg)),
+                  VigiaText(text!, style: VigiaType.body.copyWith(color: fg)),
                 ],
               ],
             );
@@ -144,8 +150,11 @@ class KeyValueRow extends StatelessWidget {
           spacing: 12,
           runSpacing: 2,
           children: [
-            Text(label, style: VigiaType.kvKey.copyWith(color: p.inkSecondary)),
-            Text(value, style: VigiaType.kvValue.copyWith(color: p.ink)),
+            VigiaText(
+              label,
+              style: VigiaType.kvKey.copyWith(color: p.inkSecondary),
+            ),
+            VigiaText(value, style: VigiaType.kvValue.copyWith(color: p.ink)),
           ],
         ),
       ),
@@ -163,7 +172,7 @@ class VigiaParagraph extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
-    return Text(
+    return VigiaText(
       text,
       style: secondary
           ? VigiaType.small.copyWith(color: p.inkSecondary)
@@ -185,7 +194,7 @@ class VigiaSectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Semantics(
         header: true,
-        child: Text(text, style: VigiaType.h3.copyWith(color: p.ink)),
+        child: VigiaText(text, style: VigiaType.h3.copyWith(color: p.ink)),
       ),
     );
   }
@@ -220,7 +229,9 @@ class PaperSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
     return Container(
-      padding: const EdgeInsets.all(VigiaSpace.cardPadding),
+      padding: EdgeInsets.all(
+        isLargeText(context) ? 16 : VigiaSpace.cardPadding,
+      ),
       decoration: BoxDecoration(
         color: p.paper,
         borderRadius: BorderRadius.circular(VigiaRadius.card),
@@ -228,7 +239,7 @@ class PaperSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
+          VigiaText(
             tag,
             style: VigiaType.small.copyWith(
               color: p.paperSecondary,
@@ -236,7 +247,10 @@ class PaperSummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(title, style: VigiaType.paperTitle.copyWith(color: p.onPaper)),
+          VigiaText(
+            title,
+            style: VigiaType.paperTitle.copyWith(color: p.onPaper),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 24,
@@ -253,7 +267,7 @@ class PaperSummaryCard extends StatelessWidget {
                         style: VigiaType.metric.copyWith(color: p.onPaper),
                       ),
                       const SizedBox(height: 2),
-                      Text(
+                      VigiaText(
                         m.label,
                         style: VigiaType.small.copyWith(
                           color: p.paperSecondary,

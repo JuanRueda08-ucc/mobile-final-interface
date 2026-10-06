@@ -46,7 +46,7 @@ La ruta del repositorio debe ser ASCII y sin espacios (actualmente `D:\dev\vigia
 
 ### Datos DEMO frente a datos reales
 
-- Sin opciones, la app usa el **estado real**. En la fase 1 todavía no existen el motor ni el historial, así que Inicio muestra «sin historial» **sin** rótulo DEMO, porque no presenta nada simulado.
+- Sin opciones, la app usa el **estado real**. En la fase 1 la app todavía no se conecta con el motor, así que Inicio muestra **«Estado del motor no comprobado»** y mantiene **Preparar sesión bloqueado**, sin rótulo DEMO (no presenta nada simulado). No muestra «sin historial» como si el motor estuviera disponible.
 - Las variantes de revisión se eligen al ejecutar o compilar (los datos están en `lib/demo/inicio_demo.dart` y siempre llevan el rótulo DEMO):
 
   ```bash
@@ -57,9 +57,17 @@ La ruta del repositorio debe ser ASCII y sin espacios (actualmente `D:\dev\vigia
 
 ### Decisiones de adaptación (texto al 200 %)
 
+- **Texto sin cortes arbitrarios** (`VigiaText`, `lib/core/design_system/hyphenation.dart`):
+  - siempre se corta entre palabras;
+  - solo si una palabra no cabe sola en el ancho disponible, se parte por una frontera silábica del español con guion visible (p. ej. «Prepa- / ra», «in- / terrumpida»);
+  - el tamaño de letra no se reduce;
+  - los lectores de pantalla reciben el texto original.
+- **Espacios con texto ≥ 150 %:** márgenes laterales de 20 a 16, relleno del aura y las tarjetas de 24/20 a 16 y sin el tope de 270 en el texto del aura.
 - **Barra principal:** B5.2 limitaba sus etiquetas al 135 %, lo que incumple RNF03.CA1 y UX22.CA1 (OI-04). Aquí escalan sin tope. Si los tres destinos no caben en una fila, la barra pasa a una lista vertical dentro de la misma pastilla.
-- **Tarjeta de estado:** si una palabra no cabe junto al icono, el icono pasa encima del texto. En 320 px y al 200 % la palabra «interrumpida» (44 px) sigue sin caber en el ancho disponible y se parte. El texto no se reduce: es un límite registrado de esa combinación extrema.
+- **Tarjeta de estado:** si una palabra no cabe junto al icono, el icono pasa encima del texto. Si aun así no cabe (p. ej. «interrumpida» a 44 px en 320), se parte por sílaba con guion.
 - **Filas clave–valor:** se mantienen como bloques separados por 16, como en B5.2.
+- **Geometría del aura:** sigue el CSS de B5.2. `left`, `right` y `width` en % se refieren al ancho del bloque; `top` y `bottom` en %, a su **altura** (`AuraGeometry`).
+- **Barra principal y lectores de pantalla:** cada destino es un único nodo semántico, con etiqueta, estado seleccionado y la misma acción que el toque.
 
 ## Comandos (fase 1)
 
@@ -73,11 +81,16 @@ flutter build apk --debug
 python tools/spec_registry.py check
 ```
 
-- **`test/inicio/inicio_layout_test.dart`:** comprueba las 60 combinaciones (5 variantes × claro/oscuro × 320/360/412 × texto 100/200 %):
+- **`test/inicio/inicio_layout_test.dart`:** comprueba 72 combinaciones (5 variantes DEMO + estado real × claro/oscuro × 320/360/412 × texto 100/200 %):
   - sin desbordes ni texto cortado;
   - botones ≥ 48 y alcanzables;
   - barra completa;
-  - pautas de Flutter de área táctil, etiquetado y contraste.
+  - pautas de Flutter de área táctil y etiquetado;
+  - contraste WCAG medido sobre los píxeles dibujados (`test/support/contrast.dart`). Sustituye a `textContrastGuideline`, que tomaba el suavizado de las letras como color del texto: informó 3,19:1 para un texto `#595954` sobre `#FBFAF7` que tiene 6,75:1.
+- **`test/inicio/inicio_200_test.dart`:** a 320 × 800 y 200 %, en los seis estados y ambos temas:
+  - ningún corte de línea entre dos letras sin guion;
+  - cada guion en frontera silábica;
+  - cada texto legible desplazando.
 
   También comprueba el aura con movimiento normal y reducido.
 - **Renderizados:** los genera el motor de dibujo de Flutter en `flutter test` (no un teléfono): 360×800 al 100 % y 320×2400 al 200 %, en claro y oscuro.

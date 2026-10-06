@@ -8,16 +8,17 @@ const String inicioDemoDefine = String.fromEnvironment('VIGIA_DEMO_INICIO');
 ///
 /// - Con `VIGIA_DEMO_INICIO` se usa la variante DEMO indicada (datos simulados,
 ///   rotulados).
-/// - Sin ella se usa el estado real. En la fase 1 no existen todavía el motor
-///   ni el historial persistente, así que el estado real verificable es
-///   «sin historial» y **no** lleva rótulo DEMO, porque no muestra datos
-///   simulados.
+/// - Sin ella se usa el estado real. En la fase 1 la app no se conecta todavía
+///   con el motor, así que el estado del motor **no está comprobado**: Inicio
+///   lo muestra explícitamente y mantiene bloqueada la preparación
+///   ([InicioMotorNoComprobado]). No se presenta «sin historial» como si el
+///   motor estuviera disponible. Ese estado real no lleva rótulo DEMO.
 ///
 /// Un valor de variante desconocido no se sustituye en silencio: lanza
 /// [ArgumentError] con los valores admitidos.
 InicioState resolveInicioState({String demoDefine = inicioDemoDefine}) {
   if (demoDefine.isEmpty) {
-    return const InicioSinHistorial(isDemo: false);
+    return const InicioMotorNoComprobado();
   }
   final variant = InicioDemoVariant.parse(demoDefine);
   if (variant == null) {

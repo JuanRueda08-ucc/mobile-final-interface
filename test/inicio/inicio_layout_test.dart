@@ -6,10 +6,12 @@ import 'package:vigia/core/design_system/widgets/aura_hero.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/core/design_system/widgets/vigia_scaffold.dart';
 import 'package:vigia/demo/inicio_demo.dart';
+import 'package:vigia/features/inicio/inicio_state.dart';
 
+import '../support/contrast.dart';
 import '../support/vigia_harness.dart';
 
-/// Matriz de la fase 1: 5 variantes × claro/oscuro × 320/360/412 × texto 100/200 %.
+/// Matriz de la fase 1: 5 variantes DEMO + estado real × claro/oscuro × 320/360/412 × texto 100/200 %.
 ///
 /// En cada combinación comprueba:
 /// - que no hay errores de dibujo (desbordes de Flex) ni texto cortado o con
@@ -17,20 +19,27 @@ import '../support/vigia_harness.dart';
 /// - que ningún texto se sale del ancho de pantalla;
 /// - que cada acción y cada destino de la barra caben completos y son
 ///   alcanzables por desplazamiento;
-/// - las pautas de Flutter de área táctil (≥ 48), etiquetado y contraste de texto.
+/// - las pautas de Flutter de área táctil (≥ 48) y etiquetado;
+/// - el contraste WCAG medido sobre los píxeles dibujados de cada párrafo visible.
 void main() {
   setUpAll(loadVigiaFonts);
 
   const widths = [320.0, 360.0, 412.0];
   const scales = [1.0, 2.0];
 
-  for (final v in InicioDemoVariant.values) {
+  // Las cinco variantes DEMO y el estado real del arranque (motor no comprobado).
+  final states = <String, InicioState>{
+    for (final v in InicioDemoVariant.values) v.id: v.state,
+    'real_motor_no_comprobado': const InicioMotorNoComprobado(),
+  };
+
+  for (final MapEntry(key: id, value: state) in states.entries) {
     for (final dark in [false, true]) {
       for (final w in widths) {
         for (final scale in scales) {
           final c = ScreenConfig(width: w, textScale: scale, dark: dark);
-          testWidgets('${v.id} · ${c.id}', (tester) async {
-            await pumpVigia(tester, v.state, c);
+          testWidgets('$id · ${c.id}', (tester) async {
+            await pumpVigia(tester, state, c);
             expect(tester.takeException(), isNull);
 
             for (final p in tester.renderObjectList<RenderParagraph>(
@@ -88,7 +97,9 @@ void main() {
               tester,
               meetsGuideline(labeledTapTargetGuideline),
             );
-            await expectLater(tester, meetsGuideline(textContrastGuideline));
+            // Contraste medido sobre los píxeles dibujados (ver test/support/contrast.dart):
+            // sustituye a textContrastGuideline, que tomaba el suavizado como color del texto.
+            expect(await textContrastFailures(tester), isEmpty);
           });
         }
       }

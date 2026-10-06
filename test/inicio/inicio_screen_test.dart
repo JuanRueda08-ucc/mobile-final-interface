@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vigia/app/inicio_source.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/core/design_system/widgets/vigia_scaffold.dart';
 import 'package:vigia/demo/inicio_demo.dart';
@@ -40,12 +42,41 @@ void main() {
         expect(find.text(DemoLabel.text), findsOneWidget, reason: v.id);
       }
     });
+  });
 
-    testWidgets('el estado real sin historial no lo muestra', (tester) async {
-      await pumpVigia(tester, const InicioSinHistorial(isDemo: false), _cfg);
-      expect(find.text(DemoLabel.text), findsNothing);
-      expect(find.text('Aún no tienes sesiones'), findsOneWidget);
-    });
+  group('arranque real sin VIGIA_DEMO_INICIO (P2)', () {
+    testWidgets(
+      'muestra «motor no comprobado», sin DEMO y con Preparar bloqueado',
+      (tester) async {
+        final handle = tester.ensureSemantics();
+        await pumpVigia(tester, resolveInicioState(), _cfg);
+
+        expect(find.text('Estado del motor no comprobado'), findsOneWidget);
+        expect(find.text(DemoLabel.text), findsNothing);
+        // No se presenta «sin historial» como si el motor estuviera disponible.
+        expect(find.text('Aún no tienes sesiones'), findsNothing);
+        expect(find.text('Prepara tu sesión'), findsNothing);
+        expect(_enabled(tester, 'Preparar sesión'), isFalse);
+
+        // Ni el toque ni la acción semántica activan la preparación.
+        final prep = _button('Preparar sesión');
+        expect(
+          tester.getSemantics(prep),
+          isSemantics(isButton: true, isEnabled: false, hasEnabledState: true),
+        );
+        expect(
+          tester
+              .getSemantics(prep)
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isFalse,
+        );
+        await tester.tap(prep, warnIfMissed: false);
+        await tester.pump();
+        expect(find.byKey(const Key('vigia-notice')), findsNothing);
+        handle.dispose();
+      },
+    );
   });
 
   testWidgets('sin historial: aura, Preparar sesión y tarjeta de historial', (
@@ -174,6 +205,46 @@ void main() {
       );
     },
   );
+
+  testWidgets('Historial y Ajustes se activan con SemanticsAction.tap (P1)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pumpVigia(tester, InicioDemoVariant.sinHistorial.state, _cfg);
+    final nav = find.byType(VigiaBottomNav);
+    for (final (label, notice) in [
+      ('Historial', InicioScreen.historialNotice),
+      ('Ajustes', InicioScreen.ajustesNotice),
+    ]) {
+      final node = tester.getSemantics(
+        find.descendant(of: nav, matching: find.text(label)),
+      );
+      final data = node.getSemanticsData();
+      expect(data.label, label);
+      expect(data.hasAction(SemanticsAction.tap), isTrue, reason: label);
+      // Un solo nodo con esa etiqueta dentro de la barra: sin anuncio duplicado.
+      expect(
+        find
+            .descendant(of: nav, matching: find.bySemanticsLabel(label))
+            .evaluate()
+            .length,
+        1,
+        reason: label,
+      );
+      tester.binding.performSemanticsAction(
+        SemanticsActionEvent(
+          type: SemanticsAction.tap,
+          nodeId: node.id,
+          viewId: tester.view.viewId,
+        ),
+      );
+      await tester.pump();
+      expect(find.text(notice), findsOneWidget, reason: label);
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.text(notice), findsNothing);
+    }
+    handle.dispose();
+  });
 
   testWidgets(
     'ninguna variante usa términos prohibidos ni contador de ejemplo',

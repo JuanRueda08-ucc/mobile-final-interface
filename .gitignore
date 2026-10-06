@@ -64,3 +64,6 @@ key.properties
 # Binarios de compilación: se registran por hash en la evidencia, no en Git (Área 08 VIG-064)
 *.apk
 *.aab
+
+# Diferencias generadas por flutter test al comparar goldens
+**/goldens/failures/

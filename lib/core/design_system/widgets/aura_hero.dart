@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart';
 import '../theme.dart';
 import '../tokens.dart';
 import 'vigia_button.dart';
+import 'vigia_text.dart';
 
 /// Bloque principal con aura pastel (`HERO` de B5.2).
 ///
@@ -77,6 +78,9 @@ class _AuraHeroState extends State<AuraHero>
   @override
   Widget build(BuildContext context) {
     final reduce = MediaQuery.disableAnimationsOf(context);
+    // Con texto ampliado se gana ancho: relleno 16 y sin el tope de 270 del texto.
+    final large = isLargeText(context);
+    final pad = large ? 16.0 : VigiaSpace.heroPadding;
     final angle = 165 * math.pi / 180;
     final dir = Alignment(math.sin(angle), -math.cos(angle));
     return ClipRRect(
@@ -105,10 +109,10 @@ class _AuraHeroState extends State<AuraHero>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(VigiaSpace.heroPadding),
+              padding: EdgeInsets.all(pad),
               child: _HeroLayout(
                 // Altura mínima del bloque menos el relleno superior e inferior.
-                minHeight: widget.minHeight - 2 * VigiaSpace.heroPadding,
+                minHeight: widget.minHeight - 2 * pad,
                 gap: 16,
                 body: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +128,7 @@ class _AuraHeroState extends State<AuraHero>
                           color: VigiaAura.ctaBg,
                           borderRadius: BorderRadius.circular(VigiaRadius.tag),
                         ),
-                        child: Text(
+                        child: VigiaText(
                           widget.tag!,
                           style: VigiaType.pill.copyWith(
                             color: VigiaAura.ctaInk,
@@ -135,7 +139,7 @@ class _AuraHeroState extends State<AuraHero>
                     ],
                     Semantics(
                       header: true,
-                      child: Text(
+                      child: VigiaText(
                         widget.title,
                         style: VigiaType.heroTitle(widget.titleSize)
                             .copyWith(color: VigiaAura.onAura),
@@ -143,8 +147,10 @@ class _AuraHeroState extends State<AuraHero>
                     ),
                     const SizedBox(height: 8),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 270),
-                      child: Text(
+                      constraints: BoxConstraints(
+                        maxWidth: large ? double.infinity : 270,
+                      ),
+                      child: VigiaText(
                         widget.text,
                         style: VigiaType.body.copyWith(
                           color: VigiaAura.onAuraSecondary,
@@ -176,6 +182,33 @@ class _AuraHeroState extends State<AuraHero>
   }
 }
 
+/// Geometría de reposo del aura (fotograma 0 %), como en el CSS de B5.2.
+///
+/// - `l1`: `left:-12%; top:-28%; width:78%; aspect-ratio:1`;
+/// - `l2`: `right:-18%; top:-8%; width:62%`;
+/// - `core`: `left:calc(50% - 62px); bottom:6%; 124×108`.
+///
+/// En CSS, `left`, `right` y `width` en % se refieren al ancho del contenedor y
+/// `top`/`bottom` en % a su **altura** h. Los `translate(%)` de las animaciones se
+/// refieren al tamaño de la propia mancha (se aplican en `_AuraBlobs`).
+class AuraGeometry {
+  const AuraGeometry({required this.l1, required this.l2, required this.core});
+
+  factory AuraGeometry.of(Size box) {
+    final w = box.width, h = box.height;
+    final d1 = 0.78 * w, d2 = 0.62 * w;
+    return AuraGeometry(
+      l1: Rect.fromLTWH(-0.12 * w, -0.28 * h, d1, d1),
+      l2: Rect.fromLTWH(w + 0.18 * w - d2, -0.08 * h, d2, d2),
+      core: Rect.fromLTWH(w / 2 - 62, h - 0.06 * h - 108, 124, 108),
+    );
+  }
+
+  final Rect l1;
+  final Rect l2;
+  final Rect core;
+}
+
 /// Manchas del aura posicionadas en proporción al bloque, como en B5.2.
 class _AuraBlobs extends StatelessWidget {
   const _AuraBlobs({required this.phase, required this.c0, required this.c1});
@@ -190,15 +223,16 @@ class _AuraBlobs extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final w = box.maxWidth, h = box.maxHeight;
-        final d1 = 0.78 * w, d2 = 0.62 * w;
+        final g = AuraGeometry.of(Size(w, h));
+        final d1 = g.l1.width, d2 = g.l2.width;
         double lerp(double a, double b) => a + (b - a) * phase;
         return Stack(
           clipBehavior: Clip.none,
           children: [
             // l1 · vgA1: translate(12 %, 6 %) scale(1,04) a mitad de ciclo.
             Positioned(
-              left: -0.12 * w,
-              top: -0.28 * d1,
+              left: g.l1.left,
+              top: g.l1.top,
               width: d1,
               height: d1,
               child: Transform.translate(
@@ -211,8 +245,8 @@ class _AuraBlobs extends StatelessWidget {
             ),
             // l2 · vgA2: translate(−10 %, 8 %).
             Positioned(
-              right: -0.18 * w,
-              top: -0.08 * d2,
+              left: g.l2.left,
+              top: g.l2.top,
               width: d2,
               height: d2,
               child: Transform.translate(
@@ -222,10 +256,10 @@ class _AuraBlobs extends StatelessWidget {
             ),
             // core · vgC: escala 0,96 → 1,04, desplazamiento (3 %, −4 %) y forma orgánica.
             Positioned(
-              left: w / 2 - 62,
-              bottom: 0.06 * h,
-              width: 124,
-              height: 108,
+              left: g.core.left,
+              top: g.core.top,
+              width: g.core.width,
+              height: g.core.height,
               child: Transform.translate(
                 offset: Offset(lerp(0, 0.03 * 124), lerp(0, -0.04 * 108)),
                 child: Transform.scale(

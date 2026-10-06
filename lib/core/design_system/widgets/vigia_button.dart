@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
+import 'vigia_text.dart';
 
 /// Variantes de botón de B5.2 (`mkBtn`, `heroBtn` y el botón de `PAPER`).
 enum VigiaButtonKind {
@@ -78,16 +79,18 @@ class VigiaButton extends StatelessWidget {
     final iconToShow =
         icon ?? (kind == VigiaButtonKind.onAura ? VigiaIcon.arrow : null);
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isLargeText(context) ? 16 : 22,
+        vertical: 12,
+      ),
       child: Row(
         mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Flexible(
-            child: Text(
+            child: VigiaText(
               label,
               textAlign: TextAlign.center,
-              softWrap: true,
               style: VigiaType.button.copyWith(color: fg),
             ),
           ),

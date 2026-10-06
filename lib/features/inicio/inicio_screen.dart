@@ -150,6 +150,23 @@ class _InicioScreenState extends State<InicioScreen> {
             onPressed: () => _act(InicioAction.prepararSesion),
           ),
         ];
+      case InicioMotorNoComprobado():
+        return [
+          const StatusCard(
+            tone: StatusTone.neutral,
+            icon: VigiaIcon.lock,
+            tag: 'Estado del motor',
+            title: 'Estado del motor no comprobado',
+            text:
+                'Esta versión del prototipo todavía no se conecta con el motor de '
+                'monitoreo. No se puede preparar ni iniciar una sesión.',
+          ),
+          const VigiaButton(label: 'Preparar sesión', onPressed: null),
+          const VigiaParagraph(
+            'No disponible hasta comprobar el estado del motor.',
+            secondary: true,
+          ),
+        ];
       case InicioMotorDesconocido():
         return [
           const StatusCard(
