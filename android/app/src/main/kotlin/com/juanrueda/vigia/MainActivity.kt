@@ -1,5 +1,58 @@
 package com.juanrueda.vigia
 
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.os.Handler
+import android.os.Looper
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity()
+/**
+ * Fase 2 (demostración): reproduce un tono local con ToneGenerator para la
+ * prueba de sonido de Preparación y las alertas simuladas de Monitoreo.
+ *
+ * Devuelve solo el resultado técnico (played/cause). No afirma que alguien lo
+ * oyera, no usa micrófono, red ni archivos. El AlertDispatcher del motor real
+ * (Área 04 §10) queda fuera de esta fase.
+ */
+class MainActivity : FlutterActivity() {
+    private val handler = Handler(Looper.getMainLooper())
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vigia/demo_sound")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "play") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                result.success(play(call.argument<String>("kind") ?: "test"))
+            }
+    }
+
+    private fun play(kind: String): Map<String, Any?> {
+        val audio = getSystemService(AUDIO_SERVICE) as AudioManager
+        if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
+            return mapOf("played" to false, "cause" to "El volumen multimedia está en cero.")
+        }
+        val (tone, millis) = when (kind) {
+            "closure" -> ToneGenerator.TONE_CDMA_HIGH_L to 1200
+            "warning" -> ToneGenerator.TONE_PROP_BEEP2 to 700
+            else -> ToneGenerator.TONE_PROP_BEEP to 600
+        }
+        return try {
+            val generator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+            val started = generator.startTone(tone, millis)
+            if (started) {
+                handler.postDelayed({ generator.release() }, millis + 200L)
+                mapOf("played" to true)
+            } else {
+                generator.release()
+                mapOf("played" to false, "cause" to "Android no inició la reproducción.")
+            }
+        } catch (e: RuntimeException) {
+            mapOf("played" to false, "cause" to "No se pudo reproducir el sonido.")
+        }
+    }
+}
