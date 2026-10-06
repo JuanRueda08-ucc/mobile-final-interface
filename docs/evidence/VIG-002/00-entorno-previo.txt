@@ -1,0 +1,19 @@
+# Estado previo del entorno (antes de cambios de VIG-002)
+Fecha: 2026-10-05T19:33:08.3806743-05:00
+OS: Microsoft Windows 11 Home Single Language 10.0.26200
+Unidad C: libre 2.1 GB
+Unidad D: libre 84.2 GB
+Unidad D: sistema de archivos NTFS, tipo Fixed
+JAVA_HOME proceso: D:\Program Files\Eclipse Adoptium\jdk-21
+JAVA_HOME usuario: D:\Program Files\Eclipse Adoptium\jdk-21
+JAVA_HOME maquina: D:\Program Files\Eclipse Adoptium\jdk-21\
+ANDROID_HOME usuario: 
+ANDROID_SDK_ROOT usuario: 
+PUB_CACHE usuario: 
+GRADLE_USER_HOME usuario: 
+FLUTTER_ROOT usuario: 
+java en PATH (orden): C:\Program Files (x86)\Common Files\Oracle\Java\java8path\java.exe; D:\Program Files\Eclipse Adoptium\jdk-21\bin\java.exe; C:\ProgramData\Oracle\Java\javapath\java.exe
+flutter/dart/adb/sdkmanager en PATH: no encontrados
+
+PATH de usuario (respaldo literal antes de modificar):
+C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Python313\Scripts\;C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Python313\;C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Launcher\;D:\Program Files\Eclipse Adoptium\jdk-21\bin;C:\Users\Edwin Rueda\AppData\Local\Microsoft\WindowsApps;C:\Users\Edwin Rueda\AppData\Local\Programs\Microsoft VS Code\bin;D:\FormateadorAPA;D:\FormateadorAPA\Library\bin;D:\FormateadorAPA\Scripts;C:\Users\Edwin Rueda\AppData\Roaming\npm;C:\Users\Edwin Rueda\.local\bin;D:\Program Files\cursor\resources\app\bin

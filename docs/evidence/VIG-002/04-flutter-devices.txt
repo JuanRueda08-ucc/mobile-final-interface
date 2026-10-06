@@ -1,0 +1,13 @@
+# flutter devices
+Fecha: 2026-10-05T21:31:03.2971284-05:00
+
+Found 3 connected devices:
+  Windows (desktop) • windows • windows-x64    • Microsoft Windows [Versi¢n 10.0.26200.9550]
+  Chrome (web)      • chrome  • web-javascript • Google Chrome 148.0.7778.218
+  Edge (web)        • edge    • web-javascript • Microsoft Edge 154.0.4258.53
+
+Run "flutter emulators" to list and start any available device emulators.
+
+If you expected another device to be detected, please run "flutter doctor" to diagnose potential issues. You may also try increasing the time to wait for connected devices with the "--device-timeout" flag. Visit https://flutter.dev/setup/ for troubleshooting tips.
+
+Codigo de salida: 0

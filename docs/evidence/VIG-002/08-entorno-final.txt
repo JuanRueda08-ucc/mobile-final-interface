@@ -1,0 +1,24 @@
+# Variables de usuario y espacio tras la instalacion
+Fecha: 2026-10-05T21:31:13.2797372-05:00
+
+ANDROID_HOME usuario: D:\dev\android-sdk
+ANDROID_SDK_ROOT usuario: 
+PUB_CACHE usuario: D:\dev\pub-cache
+GRADLE_USER_HOME usuario: D:\dev\gradle-home
+JAVA_HOME usuario: D:\Program Files\Eclipse Adoptium\jdk-21
+FLUTTER_ROOT usuario: 
+
+PATH de usuario:
+D:\dev\flutter\bin;C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Python313\Scripts\;C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Python313\;C:\Users\Edwin Rueda\AppData\Local\Programs\Python\Launcher\;D:\Program Files\Eclipse Adoptium\jdk-21\bin;C:\Users\Edwin Rueda\AppData\Local\Microsoft\WindowsApps;C:\Users\Edwin Rueda\AppData\Local\Programs\Microsoft VS Code\bin;D:\FormateadorAPA;D:\FormateadorAPA\Library\bin;D:\FormateadorAPA\Scripts;C:\Users\Edwin Rueda\AppData\Roaming\npm;C:\Users\Edwin Rueda\.local\bin;D:\Program Files\cursor\resources\app\bin;D:\dev\android-sdk\platform-tools;D:\dev\android-sdk\cmdline-tools\latest\bin
+
+Unidad C: libre 4.6 GB
+Unidad D: libre 76.2 GB
+
+Tamano en D:\dev (GB):
+android-sdk    2,59
+downloads      1,94
+flutter        3,25
+gradle-home    0,00
+pub-cache      0,11
+
+Codigo de salida: 0
