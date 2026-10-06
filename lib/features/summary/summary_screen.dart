@@ -66,7 +66,7 @@ class _SummaryScreenState extends ConsumerState<SummaryScreen> with NoticeHost {
             titleSize: full ? 44 : 32,
             tag: 'Cobertura',
             title: s.coverageText,
-            text: 'Cobertura de medición · ${s.sessionId}',
+            text: 'Cobertura de medición de esta sesión',
           ),
           KeyValueRow(label: 'Sesión', value: s.sessionId),
           KeyValueRow(

@@ -14,6 +14,19 @@ import 'package:vigia/features/preparation/preparation_controller.dart';
 import 'fake_sound.dart';
 import 'vigia_harness.dart';
 
+/// Reloj de prueba: tiempo monotónico de `package:clock` (controlado por
+/// `testWidgets`) y hora civil fija desde las 08:12, para que «Inicio
+/// confirmado» y «Cierre confirmado» sean reproducibles en los renderizados.
+class FixedWallClock implements MonotonicClock {
+  final _inner = PackageClock();
+
+  @override
+  Duration get elapsed => _inner.elapsed;
+
+  @override
+  DateTime wallNow() => DateTime(2026, 10, 6, 8, 12).add(_inner.elapsed);
+}
+
 /// Retraso de confirmación del motor simulado (igual al de producción).
 const demoConfirm = Duration(milliseconds: 700);
 
@@ -37,7 +50,7 @@ Future<FakeSoundPlayer> pumpDemo(
       mode: mode,
       themeMode: c.dark ? ThemeMode.dark : ThemeMode.light,
       overrides: [
-        monotonicClockProvider.overrideWith((ref) => PackageClock()),
+        monotonicClockProvider.overrideWith((ref) => FixedWallClock()),
         alertSoundPlayerProvider.overrideWithValue(sound),
       ],
     ),

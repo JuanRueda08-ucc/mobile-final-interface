@@ -246,6 +246,7 @@ class DistributionBar extends StatelessWidget {
               child: total <= 0
                   ? null
                   : Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         for (var i = 0; i < segments.length; i++)
                           if (segments[i].weight > 0) ...[
