@@ -15,12 +15,21 @@ import io.flutter.plugin.common.MethodChannel
  * Devuelve solo el resultado técnico (played/cause). No afirma que alguien lo
  * oyera, no usa micrófono, red ni archivos. El AlertDispatcher del motor real
  * (Área 04 §10) queda fuera de esta fase.
+ *
+ * Fase 3: el canal `vigia/app` informa el applicationId real del proceso para
+ * que Dart compruebe, antes de abrir el historial, que el recorrido DEMO corre
+ * en com.juanrueda.vigia.demo y no en la app normal.
  */
 class MainActivity : FlutterActivity() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vigia/app")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "applicationId") result.success(packageName)
+                else result.notImplemented()
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vigia/demo_sound")
             .setMethodCallHandler { call, result ->
                 if (call.method != "play") {
