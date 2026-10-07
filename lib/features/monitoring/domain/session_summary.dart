@@ -12,6 +12,10 @@ import 'session_model.dart';
 /// - Cobertura: evaluable ÷ (evaluable + no evaluable), sin pausas ni tiempo
 ///   desconocido en el denominador (UX14). Sin denominador: No disponible.
 /// - Episodios: identificadores únicos; los sonidos no suman episodios.
+///
+/// Fase 3: el historial guarda estos totales una sola vez, al confirmar el
+/// cierre, y P07, P09 e Inicio los leen de ahí ([SessionSummary.new] con los
+/// valores guardados).
 final class SessionSummary {
   const SessionSummary({
     required this.sessionId,
@@ -21,7 +25,7 @@ final class SessionSummary {
     required this.notEvaluable,
     required this.paused,
     required this.unknown,
-    required this.episodeIds,
+    required this.episodes,
     required this.warnings,
     required this.closures,
     required this.soundsPlayed,
@@ -90,7 +94,7 @@ final class SessionSummary {
             notEvaluable: notEvaluable,
             paused: paused,
             unknown: Duration.zero,
-            episodeIds: episodes,
+            episodes: episodes.length,
             warnings: warnings,
             closures: closures,
             soundsPlayed: played,
@@ -111,14 +115,18 @@ final class SessionSummary {
   final Duration notEvaluable;
   final Duration paused;
   final Duration unknown;
-  final Set<String> episodeIds;
+
+  /// Episodios distintos (IDs únicos, RF21.CA2).
+  final int episodes;
   final int warnings;
   final int closures;
   final int soundsPlayed;
   final int soundsFailed;
   final int pauses;
 
-  int get episodes => episodeIds.length;
+  /// Tiempo realmente monitoreado: evaluable + no evaluable, sin pausas ni
+  /// tiempo desconocido.
+  Duration get monitored => evaluable + notEvaluable;
 
   Duration get represented => evaluable + notEvaluable + paused + unknown;
 
@@ -150,3 +158,17 @@ String formatClock(Duration d) {
 /// «08:12».
 String formatTimeOfDay(DateTime t) =>
     '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+/// «06/10/2026 08:12».
+String formatDateTime(DateTime t) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${two(t.day)}/${two(t.month)}/${t.year} ${formatTimeOfDay(t)}';
+}
+
+/// «+05:12» desde el inicio de la sesión (minutos y segundos; horas si las hay).
+String formatOffset(Duration d) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  final h = d.inHours;
+  final ms = '${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+  return h > 0 ? '+$h:$ms' : '+$ms';
+}
