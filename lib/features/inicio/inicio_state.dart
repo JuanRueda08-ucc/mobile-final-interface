@@ -1,8 +1,9 @@
 /// Estado que muestra Inicio (P03, UX §2.3 y §3).
 ///
-/// Solo es un modelo: no contiene datos. Los datos reales vendrán del motor y
-/// del historial (fases 2 y 3); los de revisión están en `lib/demo/`, marcados
-/// con [isDemo], y se muestran con el rótulo «DEMO — datos simulados».
+/// Solo es un modelo: no contiene datos. En el recorrido DEMO se deriva de la
+/// sesión y del historial guardado; los de revisión están en `lib/demo/`.
+/// Todos los estados DEMO llevan [isDemo] y el rótulo «DEMO — datos
+/// simulados».
 sealed class InicioState {
   const InicioState({required this.isDemo});
 
@@ -54,12 +55,24 @@ final class InicioRegistroInterrumpido extends InicioState {
     required this.sourceTag,
     required this.confirmedStart,
     required this.lastConfirmedRecord,
+    this.sessionId,
   });
 
   /// Etiqueta de la tarjeta (en DEMO: «DS02 · simulado»).
   final String sourceTag;
+
+  /// Sesión guardada que Revisar registro abre; nula en la vista de revisión.
+  final String? sessionId;
   final String confirmedStart;
   final String lastConfirmedRecord;
+}
+
+/// El historial aún no responde (lectura o guardado en curso) o falló su
+/// lectura (ER13). No se presenta como «Aún no tienes sesiones» (UX15.CA1).
+final class InicioHistorialPendiente extends InicioState {
+  const InicioHistorialPendiente({required super.isDemo, required this.failed});
+
+  final bool failed;
 }
 
 /// Estado del motor todavía desconocido (RF20.CA2, UX01.CA3, ER10).

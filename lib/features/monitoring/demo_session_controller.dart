@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/alert_sound.dart';
 import '../../core/clock/monotonic_clock.dart';
+import '../../data/demo_history/demo_history_repository.dart';
+import '../../data/demo_history/history_providers.dart';
 import '../preparation/preparation_controller.dart';
+import '../settings/preferences_controller.dart';
 import 'domain/demo_script.dart';
 import 'domain/session_model.dart';
 import 'domain/session_summary.dart';
@@ -151,13 +154,17 @@ final demoConfirmDelayProvider = Provider<Duration>(
 /// - los eventos salen del guion reproducible [DemoScript] solo mientras la
 ///   sesión está activa (RF16.CA2); al pausar o pedir el cierre se cancelan;
 /// - el cierre se confirma una sola vez (RF18.CA3).
+///
+/// Fase 3: cada hecho se guarda en el historial DEMO ([DemoHistoryRepository])
+/// en el orden en que ocurre, y el cierre confirmado guarda fin y totales una
+/// sola vez. La sesión no se reanuda al reabrir la app: lo que quedó sin
+/// cierre se marca interrumpido al abrir el historial (RF19).
 class DemoSessionController extends Notifier<DemoSessionState> {
   Timer? _scriptTimer;
   Timer? _confirmTimer;
 
   /// Cambia con cada sesión y con cada orden: invalida callbacks tardíos.
   var _generation = 0;
-  var _sessions = 0;
   var _episodes = 0;
   var _sequence = 0;
 
@@ -169,18 +176,25 @@ class DemoSessionController extends Notifier<DemoSessionState> {
   /// Tiempo activo hasta el que ya se aplicó el guion.
   var _scriptCursor = Duration.zero;
 
-  /// Último resumen de esta ejecución (en memoria; persistencia en fase 3).
-  SessionSummary? _lastSummary;
+  // Guardado en el historial.
+  int? _sessionNumber;
+  String? _savedId;
+  var _savedCount = 0;
+  SessionLifecycle? _savedLifecycle;
+  SessionSummary? _closingSummary;
 
   MonotonicClock get _clock => ref.read(monotonicClockProvider);
+
+  /// Patrón guardado en Ajustes. No cambia durante la sesión: Sonido está
+  /// bloqueado mientras haya una sesión vigente (UX §4.2).
+  String get _patternId => ref.read(preferencesProvider).value.soundPatternId;
 
   @override
   DemoSessionState build() {
     ref.onDispose(_cancelTimers);
+    listenSelf((_, next) => _save(next));
     return const DemoSessionState();
   }
-
-  SessionSummary? get lastSummary => _lastSummary;
 
   // ── Órdenes ──────────────────────────────────────────────────────────
 
@@ -188,11 +202,13 @@ class DemoSessionController extends Notifier<DemoSessionState> {
   /// y no crea nada si fallan. Devuelve `false` si la orden no se aceptó.
   bool requestStart() {
     if (state.isVigente) return false; // una sola sesión vigente
+    // Con un registro que no se pudo guardar no se empieza otra sesión
+    // (Área 06 §3: no reemplazar evidencia pendiente).
+    if (ref.read(historySyncProvider).failure != null) return false;
     final prep = ref.read(preparationProvider);
     if (!prep.ready) return false;
     final calibrationId = prep.reference!.id;
     ref.read(preparationProvider.notifier).consume();
-    _sessions++;
     _episodes = 0;
     _sequence = 0;
     final gen = ++_generation;
@@ -265,7 +281,11 @@ class DemoSessionController extends Notifier<DemoSessionState> {
 
   void _confirmStart() {
     final now = _clock.elapsed;
-    final id = 'S-DEMO-${_sessions.toString().padLeft(4, '0')}';
+    // El número viene del historial: no se repite entre ejecuciones.
+    final number = _sessionNumber = ref
+        .read(demoHistoryRepositoryProvider)
+        .reserveSessionNumber();
+    final id = 'S-DEMO-${number.toString().padLeft(4, '0')}';
     var s = state.copyWith(
       lifecycle: SessionLifecycle.active,
       clearPending: true,
@@ -352,7 +372,7 @@ class DemoSessionController extends Notifier<DemoSessionState> {
       clearPending: true,
       events: events,
     );
-    _lastSummary = SessionSummary.fromEvents(
+    _closingSummary = SessionSummary.fromEvents(
       sessionId: s.sessionId!,
       startedAt: s.startedWall!,
       finishedAt: _clock.wallNow(),
@@ -464,7 +484,9 @@ class DemoSessionController extends Notifier<DemoSessionState> {
   Future<void> _playAlert(AlertSoundKind kind) async {
     final gen = _generation;
     final epoch = _alertEpoch;
-    final r = await ref.read(alertSoundPlayerProvider).play(kind);
+    final r = await ref
+        .read(alertSoundPlayerProvider)
+        .play(kind, patternId: _patternId);
     if (gen != _generation || epoch != _alertEpoch || !ref.mounted) return;
     if (state.lifecycle != SessionLifecycle.active) return;
     final now = _clock.elapsed;
@@ -484,6 +506,50 @@ class DemoSessionController extends Notifier<DemoSessionState> {
         ),
       ],
     );
+  }
+
+  // ── Historial ────────────────────────────────────────────────────────
+
+  /// Lleva al historial lo nuevo de [s]: el inicio confirmado, los hechos
+  /// añadidos, el cambio de ciclo y, una sola vez, el cierre confirmado.
+  void _save(DemoSessionState s) {
+    final id = s.sessionId;
+    if (id == null) return;
+    final sync = ref.read(historySyncProvider.notifier);
+    if (id != _savedId) {
+      // Sesión nueva: sus hechos empiezan en cero.
+      _savedId = id;
+      _savedCount = s.events.length;
+      _savedLifecycle = s.lifecycle;
+      final start = SessionStartRecord(
+        sessionId: id,
+        sessionNumber: _sessionNumber!,
+        startedAt: s.startedWall!,
+        calibrationId: s.calibrationId!,
+      );
+      final events = s.events;
+      sync.run((r) => r.recordStart(start, events));
+      return;
+    }
+    final fresh = s.events.sublist(_savedCount);
+    if (_savedLifecycle == SessionLifecycle.finalized) return;
+    if (s.lifecycle == SessionLifecycle.finalized) {
+      _savedCount = s.events.length;
+      _savedLifecycle = s.lifecycle;
+      final summary = _closingSummary!;
+      final end = s.stopRequestedAt! - s.startedAt!;
+      sync.run((r) => r.finalize(id, fresh, summary, end));
+      return;
+    }
+    if (fresh.isEmpty && s.lifecycle == _savedLifecycle) return;
+    _savedCount = s.events.length;
+    _savedLifecycle = s.lifecycle;
+    final lifecycle = switch (s.lifecycle) {
+      SessionLifecycle.paused => StoredLifecycle.paused,
+      SessionLifecycle.stopping => StoredLifecycle.stopping,
+      _ => StoredLifecycle.active,
+    };
+    sync.run((r) => r.appendEvents(id, fresh, lifecycle));
   }
 
   SessionEvent _event(
@@ -515,9 +581,3 @@ final demoSessionProvider =
     NotifierProvider<DemoSessionController, DemoSessionState>(
       DemoSessionController.new,
     );
-
-/// Último resumen de esta ejecución, o `null`.
-final lastSummaryProvider = Provider<SessionSummary?>((ref) {
-  ref.watch(demoSessionProvider);
-  return ref.read(demoSessionProvider.notifier).lastSummary;
-});

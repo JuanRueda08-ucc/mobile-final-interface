@@ -5,11 +5,16 @@ import 'package:vigia/core/audio/alert_sound.dart';
 /// Reproductor de prueba: registra las peticiones y devuelve [next].
 class FakeSoundPlayer implements AlertSoundPlayer {
   final calls = <AlertSoundKind>[];
+  final patterns = <String>[];
   SoundPlayback next = const SoundPlayback.played();
 
   @override
-  Future<SoundPlayback> play(AlertSoundKind kind) async {
+  Future<SoundPlayback> play(
+    AlertSoundKind kind, {
+    String patternId = 'patron_1',
+  }) async {
     calls.add(kind);
+    patterns.add(patternId);
     return next;
   }
 }
@@ -20,7 +25,10 @@ class DeferredAlertPlayer implements AlertSoundPlayer {
   final pending = <Completer<SoundPlayback>>[];
 
   @override
-  Future<SoundPlayback> play(AlertSoundKind kind) {
+  Future<SoundPlayback> play(
+    AlertSoundKind kind, {
+    String patternId = 'patron_1',
+  }) {
     if (kind == AlertSoundKind.test) {
       return Future.value(const SoundPlayback.played());
     }

@@ -3,33 +3,48 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/calibration/calibration_screen.dart';
+import '../features/history/history_screen.dart';
+import '../features/history/session_detail_screen.dart';
 import '../features/inicio/inicio_screen.dart';
 import '../features/monitoring/demo_session_controller.dart';
 import '../features/monitoring/domain/session_model.dart';
 import '../features/monitoring/monitoring_screen.dart';
 import '../features/preparation/preparation_controller.dart';
 import '../features/preparation/preparation_screen.dart';
+import '../features/settings/settings_screen.dart';
+import '../features/settings/sound_screen.dart';
 import '../features/summary/summary_screen.dart';
 import '../core/design_system/tokens.dart';
 import 'app_config.dart';
 
-/// Rutas del recorrido (UX §2.2): Preparación, Calibración y Monitoreo no
-/// muestran la barra principal.
+/// Rutas (UX §2): Inicio, Historial y Ajustes con barra principal; el
+/// recorrido (Preparación, Calibración, Monitoreo) sin ella.
 abstract final class VigiaRoutes {
   static const inicio = '/';
   static const preparacion = '/preparacion';
   static const calibracion = '/preparacion/calibracion';
   static const monitoreo = '/monitoreo';
-  static const resumen = '/resumen';
+  static const historial = '/historial';
+  static const ajustes = '/ajustes';
+  static const sonido = '/ajustes/sonido';
+
+  /// P07 de una sesión guardada.
+  static String resumen(String sessionId) => '/resumen/$sessionId';
+
+  /// P09 de una sesión guardada.
+  static String detalle(String sessionId) => '/historial/$sessionId';
 }
 
 /// Guardas compartidas (UX §4.2: «Las rutas directas también deben aplicar
 /// estos bloqueos»). Devuelve la ruta a la que redirigir, o `null`.
+///
+/// Detalle de sesión (P09) y Sonido (P13) se abren también con sesión
+/// vigente, pero muestran «Sesión en curso» en vez de su contenido (UX11.CA2,
+/// B5.2 `vBLK`).
 @visibleForTesting
 String? vigiaRedirect({
   required AppMode mode,
   required DemoSessionState session,
-  required bool hasSummary,
   required bool canCalibrate,
   required String location,
 }) {
@@ -50,15 +65,17 @@ String? vigiaRedirect({
   }
   if (location == VigiaRoutes.monitoreo) {
     if (vigente) return null;
-    // Cierre confirmado: abre Resumen; no se reabre el monitoreo cerrado
+    // Cierre confirmado: abre su Resumen; no se reabre el monitoreo cerrado
     // (FL07.4, UX12.CA3).
-    if (session.lifecycle == SessionLifecycle.finalized && hasSummary) {
-      return VigiaRoutes.resumen;
+    if (session.lifecycle == SessionLifecycle.finalized) {
+      return VigiaRoutes.resumen(session.sessionId!);
     }
     return VigiaRoutes.inicio;
   }
-  if (location == VigiaRoutes.resumen) {
-    return hasSummary ? null : VigiaRoutes.inicio;
+  if (location.startsWith('/resumen/') ||
+      location.startsWith(VigiaRoutes.historial) ||
+      location.startsWith(VigiaRoutes.ajustes)) {
+    return null;
   }
   return VigiaRoutes.inicio;
 }
@@ -82,9 +99,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => vigiaRedirect(
       mode: mode,
       session: ref.read(demoSessionProvider),
-      // Lectura directa: dentro de la notificación del cambio de ciclo, un
-      // proveedor derivado podría no estar invalidado todavía.
-      hasSummary: ref.read(demoSessionProvider.notifier).lastSummary != null,
       canCalibrate: ref.read(preparationProvider).canCalibrate,
       location: state.matchedLocation,
     ),
@@ -106,9 +120,42 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(
-            path: 'resumen',
-            pageBuilder: (context, state) =>
-                _page(state, const SummaryScreen()),
+            path: 'resumen/:id',
+            pageBuilder: (context, state) => _page(
+              state,
+              SummaryScreen(sessionId: state.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: 'historial',
+            // Destinos de la barra: sin animación de entrada, como B5.2.
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const HistoryScreen(),
+            ),
+            routes: [
+              GoRoute(
+                path: ':id',
+                pageBuilder: (context, state) => _page(
+                  state,
+                  SessionDetailScreen(sessionId: state.pathParameters['id']!),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'ajustes',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: const SettingsScreen(),
+            ),
+            routes: [
+              GoRoute(
+                path: 'sonido',
+                pageBuilder: (context, state) =>
+                    _page(state, const SoundScreen()),
+              ),
+            ],
           ),
         ],
       ),

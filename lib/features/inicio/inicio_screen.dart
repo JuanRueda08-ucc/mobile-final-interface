@@ -10,6 +10,7 @@ import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
+import '../../data/demo_history/history_providers.dart';
 import '../preparation/preparation_controller.dart';
 import 'inicio_providers.dart';
 import 'inicio_state.dart';
@@ -18,10 +19,12 @@ import 'inicio_state.dart';
 ///
 /// - Con `VIGIA_DEMO=true` sus acciones abren el recorrido demostrativo:
 ///   Preparar sesión, Volver al monitoreo (consulta el estado; no crea otro
-///   inicio) y Ver último resumen.
-/// - Con `VIGIA_DEMO_INICIO` es una vista de revisión: sus acciones muestran
-///   un aviso, porque la variante no es una sesión iniciada.
-/// - Historial, Ajustes y Revisar registro llegan en la fase 3 (aviso).
+///   inicio), Ver último resumen y Revisar registro (detalle guardado), y la
+///   barra abre Historial y Ajustes.
+/// - Con `VIGIA_DEMO_INICIO` es una vista de revisión: sus acciones y la barra
+///   muestran un aviso, porque la variante no es una sesión iniciada.
+/// - Sin definiciones (motor no comprobado) no hay historial ni ajustes que
+///   abrir en este prototipo: la barra muestra un aviso.
 class InicioScreen extends ConsumerStatefulWidget {
   const InicioScreen({super.key});
 
@@ -37,16 +40,20 @@ class InicioScreen extends ConsumerStatefulWidget {
     InicioAction.verUltimoResumen:
         'Vista de revisión de Inicio: este resumen es una variante simulada, '
         'sin sesión que abrir.',
-    InicioAction.revisarRegistro: 'Detalle del registro todavía no está disponible en este prototipo (fase 3).',
+    InicioAction.revisarRegistro:
+        'Vista de revisión de Inicio: este registro interrumpido es una '
+        'variante simulada, sin detalle guardado que abrir.',
     InicioAction.consultarEstado:
         'Vista de revisión de Inicio: no hay motor que consultar; el estado '
         'mostrado es una variante simulada.',
   };
 
   static const historialNotice =
-      'Historial todavía no está disponible en este prototipo (fase 3).';
+      'Historial no está disponible sin motor ni recorrido DEMO en este '
+      'prototipo.';
   static const ajustesNotice =
-      'Ajustes todavía no está disponible en este prototipo (fase 3).';
+      'Ajustes no está disponible sin motor ni recorrido DEMO en este '
+      'prototipo.';
 
   static const heroText =
       'Prepara el teléfono con el vehículo detenido y el soporte fijo.';
@@ -56,7 +63,7 @@ class InicioScreen extends ConsumerStatefulWidget {
 }
 
 class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
-  void _act(InicioAction a) {
+  void _act(InicioAction a, {String? sessionId}) {
     if (ref.read(appModeProvider) is DemoMode) {
       switch (a) {
         case InicioAction.prepararSesion:
@@ -68,9 +75,12 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
           context.go(VigiaRoutes.monitoreo);
           return;
         case InicioAction.verUltimoResumen:
-          context.go(VigiaRoutes.resumen);
+          context.go(VigiaRoutes.resumen(sessionId!));
           return;
-        case InicioAction.revisarRegistro || InicioAction.consultarEstado:
+        case InicioAction.revisarRegistro:
+          context.go(VigiaRoutes.detalle(sessionId!));
+          return;
+        case InicioAction.consultarEstado:
           break;
       }
     }
@@ -78,7 +88,12 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
   }
 
   void _nav(int index) {
+    final mode = ref.read(appModeProvider);
     switch (index) {
+      case 1 when mode is DemoMode:
+        context.go(VigiaRoutes.historial);
+      case 2 when mode is DemoMode:
+        context.go(VigiaRoutes.ajustes);
       case 1:
         showNotice(InicioScreen.historialNotice);
       case 2:
@@ -133,6 +148,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
         :final sourceTag,
         :final confirmedStart,
         :final lastConfirmedRecord,
+        :final sessionId,
       ):
         return [
           StatusCard(
@@ -142,6 +158,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
             title: 'Sesión interrumpida',
             text: 'No hay cierre confirmado. No se reinició la cámara.',
           ),
+          if (sessionId != null) KeyValueRow(label: 'Sesión', value: sessionId),
           KeyValueRow(label: 'Inicio confirmado', value: confirmedStart),
           KeyValueRow(
             label: 'Último registro confirmado',
@@ -156,7 +173,8 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
           VigiaButton(
             label: 'Revisar registro',
             kind: VigiaButtonKind.secondary,
-            onPressed: () => _act(InicioAction.revisarRegistro),
+            onPressed: () =>
+                _act(InicioAction.revisarRegistro, sessionId: sessionId),
           ),
           VigiaButton(
             label: 'Preparar sesión',
@@ -217,8 +235,34 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
               PaperMetric(episodes, 'Episodios'),
             ],
             actionLabel: 'Ver último resumen',
-            onAction: () => _act(InicioAction.verUltimoResumen),
+            onAction: () =>
+                _act(InicioAction.verUltimoResumen, sessionId: sessionId),
           ),
+        ];
+      case InicioHistorialPendiente(:final failed):
+        return [
+          _prepareHero(),
+          if (failed) ...[
+            const StatusCard(
+              tone: StatusTone.alert,
+              icon: VigiaIcon.close,
+              tag: 'Error',
+              title: 'No se pudo cargar el historial',
+              text: 'Esto no significa que no existan sesiones.',
+            ),
+            VigiaButton(
+              label: 'Reintentar',
+              kind: VigiaButtonKind.secondary,
+              onPressed: () => ref.invalidate(latestStoredSessionProvider),
+            ),
+          ] else
+            const StatusCard(
+              tone: StatusTone.pending,
+              icon: VigiaIcon.clock,
+              tag: 'Historial',
+              title: 'Cargando historial',
+              text: 'Leyendo los registros guardados en el teléfono.',
+            ),
         ];
       case InicioSinHistorial():
         return [

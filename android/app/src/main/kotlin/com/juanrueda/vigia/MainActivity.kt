@@ -36,19 +36,49 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                result.success(play(call.argument<String>("kind") ?: "test"))
+                result.success(
+                    play(
+                        call.argument<String>("kind") ?: "test",
+                        call.argument<String>("pattern") ?: "patron_1",
+                    ),
+                )
             }
     }
 
-    private fun play(kind: String): Map<String, Any?> {
+    /**
+     * Patrones incluidos (P13): tonos de ToneGenerator para prueba,
+     * advertencia y cierre ocular prolongado. Un patrón desconocido no se
+     * sustituye por otro: se informa como fallo.
+     */
+    private val patterns = mapOf(
+        "patron_1" to Triple(
+            ToneGenerator.TONE_PROP_BEEP,
+            ToneGenerator.TONE_PROP_BEEP2,
+            ToneGenerator.TONE_CDMA_HIGH_L,
+        ),
+        "patron_2" to Triple(
+            ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD,
+            ToneGenerator.TONE_CDMA_ALERT_INCALL_LITE,
+            ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK,
+        ),
+        "patron_3" to Triple(
+            ToneGenerator.TONE_PROP_ACK,
+            ToneGenerator.TONE_SUP_INTERCEPT,
+            ToneGenerator.TONE_CDMA_ABBR_ALERT,
+        ),
+    )
+
+    private fun play(kind: String, pattern: String): Map<String, Any?> {
         val audio = getSystemService(AUDIO_SERVICE) as AudioManager
         if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
             return mapOf("played" to false, "cause" to "El volumen multimedia está en cero.")
         }
+        val tones = patterns[pattern]
+            ?: return mapOf("played" to false, "cause" to "Patrón de sonido desconocido.")
         val (tone, millis) = when (kind) {
-            "closure" -> ToneGenerator.TONE_CDMA_HIGH_L to 1200
-            "warning" -> ToneGenerator.TONE_PROP_BEEP2 to 700
-            else -> ToneGenerator.TONE_PROP_BEEP to 600
+            "closure" -> tones.third to 1200
+            "warning" -> tones.second to 700
+            else -> tones.first to 600
         }
         return try {
             val generator = ToneGenerator(AudioManager.STREAM_MUSIC, 100)

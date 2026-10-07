@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/clock/monotonic_clock.dart';
+import 'package:vigia/data/demo_history/demo_history_database.dart';
+import 'package:vigia/data/demo_history/demo_history_repository.dart';
+import 'package:vigia/data/demo_history/history_providers.dart';
+import 'package:vigia/features/monitoring/domain/session_summary.dart';
 import 'package:vigia/features/calibration/calibration_controller.dart';
 import 'package:vigia/features/monitoring/demo_session_controller.dart';
 import 'package:vigia/features/monitoring/domain/session_model.dart';
@@ -10,20 +14,34 @@ import 'package:vigia/features/preparation/preparation_controller.dart';
 import 'package:vigia/features/preparation/preparation_state.dart';
 
 import '../support/fake_sound.dart';
+import '../support/history_harness.dart';
 
 /// Pruebas del dominio demostrativo: preparación, calibración y sesión, con
 /// tiempo y temporizadores controlados (`fakeAsync`).
 void main() {
   late FakeSoundPlayer sound;
+  late DemoHistoryDatabase db;
+  late DriftDemoHistoryRepository repo;
 
   ProviderContainer container() => ProviderContainer(
     overrides: [
       monotonicClockProvider.overrideWith((ref) => PackageClock()),
       alertSoundPlayerProvider.overrideWithValue(sound),
+      demoHistoryRepositoryProvider.overrideWithValue(repo),
     ],
   );
 
-  setUp(() => sound = FakeSoundPlayer());
+  setUp(() async {
+    sound = FakeSoundPlayer();
+    (db, repo) = await openMemoryHistory();
+  });
+  tearDown(() => db.close());
+
+  /// Resumen guardado de la última sesión, leído del historial.
+  SessionSummary savedSummary(ProviderContainer c, FakeAsync async) {
+    final id = c.read(demoSessionProvider).sessionId!;
+    return flushed(async, repo.session(id))!.summary!;
+  }
 
   /// Deja la preparación lista: referencia aceptada y sonido confirmado.
   void makeReady(ProviderContainer c, FakeAsync async) {
@@ -297,7 +315,12 @@ void main() {
       final a = run();
       sound = FakeSoundPlayer();
       final b = run();
-      expect(a, b);
+      // Mismo guion; el ID cambia porque ambas sesiones comparten historial y
+      // un número de sesión no se reutiliza.
+      String plain(String e) => e.replaceAll(RegExp(r'S-DEMO-\d{4}'), 'S');
+      expect(a.map(plain), b.map(plain));
+      expect(a.join(), contains('S-DEMO-0001'));
+      expect(b.join(), contains('S-DEMO-0002'));
       expect(sound.calls, [
         AlertSoundKind.test, // prueba de preparación
         AlertSoundKind.warning,
@@ -364,7 +387,7 @@ void main() {
         async.elapse(const Duration(seconds: 50));
         session(c).requestFinish();
         async.elapse(confirm);
-        final s = c.read(lastSummaryProvider)!;
+        final s = savedSummary(c, async);
         expect(s.sessionId, 'S-DEMO-0001');
         // Guion: 2 s inicializando, 4 s no disponible y 3 s limitada.
         expect(s.notEvaluable, const Duration(seconds: 9));
@@ -389,7 +412,7 @@ void main() {
         async.elapse(const Duration(seconds: 20));
         session(c).requestFinish(); // cierre desde Pausada
         async.elapse(confirm);
-        final s = c.read(lastSummaryProvider)!;
+        final s = savedSummary(c, async);
         expect(s.paused, const Duration(seconds: 20));
         expect(s.notEvaluable, const Duration(seconds: 2));
         expect(s.evaluable, const Duration(milliseconds: 8700));
@@ -422,7 +445,7 @@ void main() {
         );
         session(c).requestFinish();
         async.elapse(confirm);
-        final s = c.read(lastSummaryProvider)!;
+        final s = savedSummary(c, async);
         expect(s.episodes, 1);
         expect(s.soundsFailed, 1);
       });
@@ -460,6 +483,7 @@ void main() {
             overrides: [
               monotonicClockProvider.overrideWith((ref) => PackageClock()),
               alertSoundPlayerProvider.overrideWithValue(deferred),
+              demoHistoryRepositoryProvider.overrideWithValue(repo),
             ],
           );
           makeReady(c, async);

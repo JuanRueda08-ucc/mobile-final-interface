@@ -5,6 +5,7 @@ import 'package:vigia/features/monitoring/demo_session_controller.dart';
 import 'package:vigia/features/preparation/preparation_controller.dart';
 
 import 'demo_harness.dart';
+import 'fase3_states.dart';
 
 /// Estados principales del recorrido demostrativo y cómo alcanzarlos.
 final Map<String, Future<void> Function(WidgetTester)> demoStates = {
@@ -103,4 +104,5 @@ final Map<String, Future<void> Function(WidgetTester)> demoStates = {
     await t.tap(find.byKey(const Key('vigia-back')));
     await settle(t);
   },
+  ...fase3States,
 };

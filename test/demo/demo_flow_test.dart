@@ -173,12 +173,13 @@ void main() {
     _expectDemoLabel();
     expect(find.text('Resumen de la sesión'), findsOneWidget);
     expect(find.text(id), findsWidgets);
-    final summary = demoContainer(tester).read(lastSummaryProvider)!;
+    // El resumen mostrado es el guardado en el historial.
+    final summary = (await demoHistory.session(id))!.summary!;
     expect(find.text(summary.coverageText), findsOneWidget);
     expect(summary.episodes, 1);
     expect(summary.pauses, 1);
 
-    // Volver al inicio: Inicio con el último resumen de esta ejecución.
+    // Volver al inicio: Inicio con el último resumen guardado.
     await tapLabel(tester, 'Volver al inicio');
     expect(find.byType(InicioScreen), findsOneWidget);
     expect(find.text('Último resumen'), findsOneWidget);
@@ -215,7 +216,11 @@ void main() {
       VigiaRoutes.preparacion,
       VigiaRoutes.calibracion,
       VigiaRoutes.monitoreo,
-      VigiaRoutes.resumen,
+      VigiaRoutes.resumen('S-DEMO-0001'),
+      VigiaRoutes.historial,
+      VigiaRoutes.detalle('S-DEMO-0001'),
+      VigiaRoutes.ajustes,
+      VigiaRoutes.sonido,
     ]) {
       demoRouter(tester).go(r);
       await settle(tester);

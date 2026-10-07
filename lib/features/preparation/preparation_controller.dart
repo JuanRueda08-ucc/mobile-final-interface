@@ -2,17 +2,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/alert_sound.dart';
 import '../../core/clock/monotonic_clock.dart';
+import '../../data/demo_history/history_providers.dart';
+import '../settings/preferences_controller.dart';
 import 'preparation_state.dart';
 
 /// Controlador de Preparación (P04). Pide acciones y representa su estado; no
 /// crea sesiones (eso lo hace el controlador de sesión al confirmar el
 /// inicio).
 class PreparationController extends Notifier<PreparationState> {
-  var _calibrations = 0;
   var _soundAttempt = 0;
 
   @override
-  PreparationState build() => const PreparationState();
+  PreparationState build() {
+    // Cambiar el patrón exige repetir la prueba de sonido (RF29.CA3, UX21.CA1):
+    // una confirmación anterior no vale para otro patrón.
+    ref.listen(preferencesProvider.select((p) => p.value.soundPatternId), (
+      _,
+      _,
+    ) {
+      _soundAttempt++;
+      state = state.copyWith(
+        sound: SoundCheck.pending,
+        clearSoundFailure: true,
+      );
+    });
+    return const PreparationState();
+  }
 
   /// Entrar en Preparación desde Inicio: la prueba de sonido vuelve a ser
   /// obligatoria (UX04.CA3). La referencia aceptada se conserva si sigue
@@ -41,8 +56,11 @@ class PreparationController extends Notifier<PreparationState> {
   /// si en ese momento falta permiso, cámara o modelo (FL03, entrada).
   String? acceptCalibration() {
     if (!state.canCalibrate) return null;
-    _calibrations++;
-    final id = 'C-DEMO-${_calibrations.toString().padLeft(4, '0')}';
+    // Número desde el historial: no repite referencias de sesiones guardadas.
+    final n = ref
+        .read(demoHistoryRepositoryProvider)
+        .reserveCalibrationNumber();
+    final id = 'C-DEMO-${n.toString().padLeft(4, '0')}';
     state = state.copyWith(
       reference: CalibrationReference(
         id: id,
@@ -62,7 +80,10 @@ class PreparationController extends Notifier<PreparationState> {
     state = state.copyWith(sound: SoundCheck.playing, clearSoundFailure: true);
     final r = await ref
         .read(alertSoundPlayerProvider)
-        .play(AlertSoundKind.test);
+        .play(
+          AlertSoundKind.test,
+          patternId: ref.read(preferencesProvider).value.soundPatternId,
+        );
     if (!ref.mounted || attempt != _soundAttempt) return;
     state = r.played
         ? state.copyWith(sound: SoundCheck.played)
