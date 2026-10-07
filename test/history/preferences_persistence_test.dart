@@ -3,9 +3,13 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/app/bootstrap.dart';
+import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/app/router.dart';
+import 'package:vigia/app/app_config.dart';
 import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/clock/monotonic_clock.dart';
 import 'package:vigia/data/demo_history/demo_history_database.dart';
@@ -344,6 +348,102 @@ void main() {
       });
     });
 
+    /// Aviso de la preferencia [f] tal como lo mostraría Ajustes.
+    String? failureText(ProviderContainer c, PreferenceField f) {
+      final st = c.read(preferencesProvider);
+      final failure = st.failures[f];
+      return failure == null ? null : preferenceFailureText(failure, st.value);
+    }
+
+    test('Oscuro falla y Reducido se guarda: el aviso es del tema', () {
+      fakeAsync((a) {
+        final c = ready(a);
+        final prefs = c.read(preferencesProvider.notifier);
+        prefs.setTheme(ThemePreference.light);
+        release(a, 0); // punto de partida guardado: Claro
+        prefs.setTheme(ThemePreference.dark);
+        prefs.setReducedMotion(true);
+        release(a, 1, fail: true);
+        release(a, 2);
+        const expected = StoredPreferences(
+          theme: ThemePreference.light,
+          reducedMotion: true,
+        );
+        expect(value(c), expected);
+        expect(c.read(preferencesProvider).failures.keys, [
+          PreferenceField.theme,
+        ]);
+        expect(
+          failureText(c, PreferenceField.theme),
+          'No se pudo guardar el tema oscuro. El tema sigue en Claro.',
+        );
+        expect(failureText(c, PreferenceField.reducedMotion), isNull);
+        expect(closeAndReread(c, a), expected);
+      });
+    });
+
+    test('Reducido falla y Oscuro se guarda: el aviso es del movimiento', () {
+      fakeAsync((a) {
+        final c = ready(a);
+        final prefs = c.read(preferencesProvider.notifier);
+        prefs.setReducedMotion(true);
+        prefs.setTheme(ThemePreference.dark);
+        release(a, 0, fail: true);
+        release(a, 1);
+        const expected = StoredPreferences(theme: ThemePreference.dark);
+        expect(value(c), expected);
+        expect(c.read(preferencesProvider).failures.keys, [
+          PreferenceField.reducedMotion,
+        ]);
+        expect(
+          failureText(c, PreferenceField.reducedMotion),
+          'No se pudo guardar el movimiento reducido. El movimiento sigue '
+          'según Android.',
+        );
+        expect(failureText(c, PreferenceField.theme), isNull);
+        expect(closeAndReread(c, a), expected);
+      });
+    });
+
+    test('un fallo seguido de otro cambio guardado de la misma preferencia no '
+        'deja aviso que contradiga el valor vigente', () {
+      fakeAsync((a) {
+        final c = ready(a);
+        final prefs = c.read(preferencesProvider.notifier);
+        // Cambio repetido mientras el primero se guarda.
+        prefs.setTheme(ThemePreference.dark);
+        prefs.setTheme(ThemePreference.light);
+        release(a, 0, fail: true);
+        expect(c.read(preferencesProvider).failures, isEmpty);
+        release(a, 1);
+        expect(value(c).theme, ThemePreference.light);
+        expect(c.read(preferencesProvider).failures, isEmpty);
+        expect(c.read(preferencesProvider).save, PreferenceSave.saved);
+
+        // Cambio repetido después de ver el aviso.
+        prefs.setSoundPattern('patron_2');
+        release(a, 2, fail: true);
+        expect(
+          failureText(c, PreferenceField.soundPattern),
+          'No se pudo guardar el Patrón 2. Las alertas siguen con el '
+          'Patrón 1.',
+        );
+        prefs.setSoundPattern('patron_3');
+        expect(c.read(preferencesProvider).failures, isEmpty);
+        release(a, 3);
+        expect(value(c).soundPatternId, 'patron_3');
+        expect(c.read(preferencesProvider).failures, isEmpty);
+        expect(c.read(preferencesProvider).save, PreferenceSave.saved);
+        expect(
+          closeAndReread(c, a),
+          const StoredPreferences(
+            theme: ThemePreference.light,
+            soundPatternId: 'patron_3',
+          ),
+        );
+      });
+    });
+
     test('un tema que no se guarda vuelve al guardado', () {
       fakeAsync((a) {
         final c = ready(a);
@@ -396,5 +496,60 @@ void main() {
         a.flushMicrotasks();
       });
     });
+  });
+
+  testWidgets('Ajustes: Oscuro falla y Reducido se guarda; el aviso nombra el '
+      'tema y no el último cambio', (tester) async {
+    final db = DemoHistoryDatabase(NativeDatabase(file));
+    final inner = await DriftDemoHistoryRepository.open(db);
+    await inner.savePreferences(
+      const StoredPreferences(theme: ThemePreference.light),
+    );
+    final gated = _GatedRepo(inner);
+    await tester.pumpWidget(
+      VigiaApp(
+        mode: const DemoMode(),
+        overrides: [
+          ...demoOverrides(gated, await inner.loadPreferences()),
+          monotonicClockProvider.overrideWith((ref) => PackageClock()),
+          alertSoundPlayerProvider.overrideWithValue(FakeSoundPlayer()),
+        ],
+      ),
+    );
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(Navigator).first),
+    );
+    container.read(routerProvider).go(VigiaRoutes.ajustes);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Oscuro'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Reducido'));
+    await tester.tap(find.text('Reducido'));
+    await tester.pump();
+    gated.gates[0].completeError(StateError('tema rechazado'));
+    await tester.pumpAndSettle();
+    gated.gates[1].complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No se pudo guardar el tema oscuro. El tema sigue en Claro.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('último cambio'), findsNothing);
+    expect(
+      find.textContaining('No se pudo guardar el movimiento'),
+      findsNothing,
+    );
+    expect(
+      await inner.loadPreferences(),
+      const StoredPreferences(
+        theme: ThemePreference.light,
+        reducedMotion: true,
+      ),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await db.close();
   });
 }

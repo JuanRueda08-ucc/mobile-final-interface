@@ -10,7 +10,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 |---|---|---|
 | 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex y subida a `origin/main` | hasta `f4f62bc` |
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
-| 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada; revisada por Codex con dos hallazgos (P1, P2), ya corregidos. **Pendiente de nueva revisión**. Solo local, sin subir | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956` y el commit de correcciones que sigue |
+| 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada y subida a `origin/main` por petición del usuario. Revisada por Codex: P1/P2 corregidos en `7c91f46`; el aviso de fallo de preferencias se corrige en el commit `fix:` que sigue. **Pendiente de aprobación de Codex** | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46` y el commit `fix:` que sigue (local) |
 | 4. Comprobación final y entrega | No iniciada; requiere autorización expresa | — |
 
 Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 4 no empieza ni se sube la fase 3 hasta que Codex la revise.
@@ -64,6 +64,32 @@ Regresiones:
 - `build/review/fase2_review_test.dart`: no compila. Sus reproductores falsos no aceptan el parámetro `patternId` que la fase 3 añadió a `AlertSoundPlayer.play`. No se modificó ese archivo de Codex.
 - No se repitieron, por indicación: la suite completa, el contraste, los renderizados ni las compilaciones Android.
 
+## Corrección del aviso de fallo de preferencias (pendiente de revisión)
+
+**Hallazgo de Codex.** Claro → Oscuro → Reducido mientras se guarda → falla Oscuro → se guarda Reducido. Los datos terminaban bien, pero Ajustes decía que había fallado «el último cambio», que sí se guardó.
+
+**Corrección** (`PreferencesController` y `settings_screen.dart`):
+
+- cada cambio lleva la preferencia que toca (tema, movimiento reducido o patrón) y el valor pedido;
+- el fallo se guarda por preferencia, y solo si nadie volvió a cambiarla después;
+- se borra si esa preferencia se cambia o se guarda otra vez, y al empezar una serie nueva de cambios;
+- el aviso se construye con el valor vigente, por ejemplo «No se pudo guardar el tema oscuro. El tema sigue en Claro.»;
+- la serialización, la persistencia y la reversión de `7c91f46` no cambian.
+
+**Pruebas** (`test/history/preferences_persistence_test.dart`):
+
+- Oscuro falla y Reducido se guarda: el aviso es del tema y el movimiento reducido queda guardado (memoria y SQLite reabierto);
+- Reducido falla y Oscuro se guarda: el aviso es del movimiento;
+- un fallo seguido de otro cambio guardado de la misma preferencia, tanto mientras se guarda como después del aviso: no queda aviso que contradiga el valor vigente;
+- prueba de widget de Ajustes con el caso de Codex.
+
+**Resultados reales:**
+
+- `flutter analyze`: sin problemas.
+- `test/history` y `test/demo/fase3_flow_test.dart`, junto con `build/review/fase3_correcciones_review_test.dart` completo: pasan 71 pruebas.
+- **Detección.** Con el `lib/` anterior (guardado temporalmente con `git stash`), la reproducción de Codex «mensaje identifica fallo anterior» falla mostrando «No se pudo guardar el último cambio…». Con la corrección pasa. Las pruebas propias usan la API nueva (`failures`) y no compilan con el código anterior.
+- No se repitieron, por indicación: matrices, contraste, renderizados ni compilaciones Android. Los APK existentes siguen siendo anteriores a `7c91f46`.
+
 ## Comprobado (fase 3)
 
 - `flutter analyze`: sin problemas.
@@ -97,7 +123,7 @@ Regresiones:
 
 ## Siguiente acción
 
-Nueva revisión de Codex de las correcciones de la fase 3, sobre el commit que sigue a `9d54956`. Antes de entregar o subir:
+Aprobación de Codex de la fase 3, incluido el commit `fix:` del aviso de preferencias, que es local hasta que el usuario pida subirlo. Antes de la entrega:
 - recompilar el APK DEMO;
 - compilar y comprobar de nuevo el APK normal.
 

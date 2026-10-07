@@ -112,15 +112,14 @@ class SettingsScreen extends ConsumerWidget {
               tag: 'Guardado',
               title: 'Preferencia guardada',
             ),
-          if (prefs.save == PreferenceSave.failed)
-            const StatusCard(
+          // Un aviso por preferencia que no se guardó, con su valor vigente.
+          for (final f in prefs.failures.values)
+            StatusCard(
               tone: StatusTone.alert,
               icon: VigiaIcon.close,
               tag: 'Error',
               title: 'Preferencia no guardada',
-              text:
-                  'No se pudo guardar el último cambio: se mantiene la '
-                  'preferencia anterior.',
+              text: preferenceFailureText(f, v),
             ),
           const VigiaSectionTitle('Más ajustes'),
           VigiaButton(
