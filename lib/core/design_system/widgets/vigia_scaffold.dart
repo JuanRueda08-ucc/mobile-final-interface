@@ -77,7 +77,12 @@ class VigiaScaffold extends StatelessWidget {
     final p = VigiaColors.of(context);
     final heading = Semantics(
       header: true,
-      child: Text(title, style: VigiaType.appBarTitle.copyWith(color: p.ink)),
+      // Con texto ampliado, una palabra que no cabe se parte por sílabas con
+      // guion (p. ej. «Calibra-ción» a 320/200 %), no dejando una letra sola.
+      child: VigiaText(
+        title,
+        style: VigiaType.appBarTitle.copyWith(color: p.ink),
+      ),
     );
     return Scaffold(
       backgroundColor: p.bg,

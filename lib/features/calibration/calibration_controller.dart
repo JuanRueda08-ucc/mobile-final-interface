@@ -60,22 +60,37 @@ class CalibrationController extends Notifier<CalibrationState> {
   var _attempts = 0;
 
   @override
-  CalibrationState build() => const CalibrationInstructions();
+  CalibrationState build() {
+    // Si falta permiso, cámara o modelo durante la adquisición, el intento se
+    // detiene sin referencia (FL03, entrada).
+    ref.listen(preparationProvider.select((p) => p.canCalibrate), (_, can) {
+      if (!can && state is CalibrationAcquiring) {
+        state = const CalibrationInstructions();
+      }
+    });
+    return const CalibrationInstructions();
+  }
+
+  bool get _canCalibrate => ref.read(preparationProvider).canCalibrate;
 
   /// Abrir Calibración desde Preparación.
   void open() => state = const CalibrationInstructions();
 
-  /// «Comenzar» o «Reintentar»: nueva adquisición (FL03.2, FL03.7).
+  /// «Comenzar» o «Reintentar»: nueva adquisición (FL03.2, FL03.7). Exige
+  /// permiso, cámara y modelo, también si se llega por ruta directa.
   void begin() {
-    if (state is CalibrationAcquiring) return;
+    if (state is CalibrationAcquiring || !_canCalibrate) return;
     state = CalibrationAcquiring(++_attempts);
   }
 
   /// Resultado simulado aceptado: guarda la referencia para el montaje actual.
+  /// Si las condiciones ya no lo permiten, el intento termina sin referencia.
   void simulateAccepted() {
     if (state is! CalibrationAcquiring) return;
     final id = ref.read(preparationProvider.notifier).acceptCalibration();
-    state = CalibrationAccepted(id);
+    state = id == null
+        ? const CalibrationInstructions()
+        : CalibrationAccepted(id);
   }
 
   /// Resultado simulado rechazado: no guarda ninguna referencia.

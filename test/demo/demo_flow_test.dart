@@ -6,12 +6,16 @@ import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/core/design_system/widgets/vigia_scaffold.dart';
 import 'package:vigia/demo/inicio_demo.dart';
+import 'package:vigia/features/calibration/calibration_controller.dart';
+import 'package:vigia/features/calibration/calibration_screen.dart';
 import 'package:vigia/features/inicio/inicio_screen.dart';
 import 'package:vigia/features/inicio/inicio_state.dart';
 import 'package:vigia/features/monitoring/demo_session_controller.dart';
 import 'package:vigia/features/monitoring/domain/session_model.dart';
 import 'package:vigia/features/monitoring/monitoring_screen.dart';
+import 'package:vigia/features/preparation/preparation_controller.dart';
 import 'package:vigia/features/preparation/preparation_screen.dart';
+import 'package:vigia/features/preparation/preparation_state.dart';
 import 'package:vigia/features/summary/summary_screen.dart';
 
 import '../support/demo_harness.dart';
@@ -507,5 +511,53 @@ void main() {
         expect(tester.hasRunningAnimations, isFalse);
       },
     );
+  });
+
+  for (final (name, sim) in [
+    ('permiso', const SimulatedConditions(permission: false)),
+    ('cámara', const SimulatedConditions(camera: false)),
+    ('modelo', const SimulatedConditions(model: false)),
+  ]) {
+    testWidgets('ruta directa a Calibración sin $name vuelve a Preparación', (
+      tester,
+    ) async {
+      await pumpDemo(tester, _cfg);
+      await tapLabel(tester, 'Preparar sesión');
+      final c = demoContainer(tester);
+      c.read(preparationProvider.notifier).setSimulated(sim);
+      await settle(tester);
+      demoRouter(tester).go(VigiaRoutes.calibracion);
+      await settle(tester);
+      expect(find.byType(CalibrationScreen), findsNothing);
+      expect(find.byType(PreparationScreen), findsOneWidget);
+      expect(c.read(preparationProvider).reference, isNull);
+    });
+
+    testWidgets('perder $name durante la calibración la detiene sin '
+        'referencia', (tester) async {
+      await pumpDemo(tester, _cfg);
+      await driveToCalibration(tester, acquiring: true);
+      final c = demoContainer(tester);
+      c.read(preparationProvider.notifier).setSimulated(sim);
+      await settle(tester);
+      expect(find.byType(CalibrationScreen), findsNothing);
+      expect(find.byType(PreparationScreen), findsOneWidget);
+      c.read(calibrationProvider.notifier).simulateAccepted();
+      expect(c.read(preparationProvider).reference, isNull);
+    });
+  }
+
+  testWidgets('título «Calibración» a 320/200 % no deja una letra sola', (
+    tester,
+  ) async {
+    await pumpDemo(tester, const ScreenConfig(width: 320, textScale: 2));
+    await driveToCalibration(tester);
+    final title = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? '')
+        .firstWhere((d) => d.replaceAll(RegExp(r'[-\n]'), '') == 'Calibración');
+    for (final line in title.split('\n')) {
+      expect(line.replaceAll('-', '').length, greaterThan(1), reason: title);
+    }
   });
 }

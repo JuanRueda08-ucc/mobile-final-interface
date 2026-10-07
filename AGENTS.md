@@ -2,6 +2,8 @@
 
 Aplican a Claude Code y a Codex. `CLAUDE.md` importa este archivo. Autor del proyecto: Juan José Rueda Viveros.
 
+**Al retomar el trabajo en una sesión nueva**, lee primero `docs/estado-prototipo.md`: estado verificado, commits, pendientes y siguiente acción.
+
 ## Plan activo (actualización expresa del usuario, 2026-10-06)
 
 Para la entrega académica, el usuario sustituyó la secuencia de tareas del Área 08 por este **plan por fases**, que es el **plan activo**:

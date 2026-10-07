@@ -37,8 +37,10 @@ class PreparationController extends Notifier<PreparationState> {
   }
 
   /// Guarda la referencia de una calibración aceptada (RF06.CA1), vinculada
-  /// al montaje actual. Devuelve su identificador.
-  String acceptCalibration() {
+  /// al montaje actual. Devuelve su identificador, o `null` sin guardar nada
+  /// si en ese momento falta permiso, cámara o modelo (FL03, entrada).
+  String? acceptCalibration() {
+    if (!state.canCalibrate) return null;
     _calibrations++;
     final id = 'C-DEMO-${_calibrations.toString().padLeft(4, '0')}';
     state = state.copyWith(

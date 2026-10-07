@@ -7,6 +7,7 @@ import '../features/inicio/inicio_screen.dart';
 import '../features/monitoring/demo_session_controller.dart';
 import '../features/monitoring/domain/session_model.dart';
 import '../features/monitoring/monitoring_screen.dart';
+import '../features/preparation/preparation_controller.dart';
 import '../features/preparation/preparation_screen.dart';
 import '../features/summary/summary_screen.dart';
 import '../core/design_system/tokens.dart';
@@ -29,6 +30,7 @@ String? vigiaRedirect({
   required AppMode mode,
   required DemoSessionState session,
   required bool hasSummary,
+  required bool canCalibrate,
   required String location,
 }) {
   if (location == VigiaRoutes.inicio) return null;
@@ -39,7 +41,12 @@ String? vigiaRedirect({
   final vigente = session.isVigente;
   if (location.startsWith(VigiaRoutes.preparacion)) {
     // Con sesión vigente no se prepara otra ni se recalibra (UX §4.2).
-    return vigente ? VigiaRoutes.inicio : null;
+    if (vigente) return VigiaRoutes.inicio;
+    // Calibrar exige permiso, cámara y modelo, como el botón de P04.
+    if (location == VigiaRoutes.calibracion && !canCalibrate) {
+      return VigiaRoutes.preparacion;
+    }
+    return null;
   }
   if (location == VigiaRoutes.monitoreo) {
     if (vigente) return null;
@@ -58,10 +65,15 @@ String? vigiaRedirect({
 
 final routerProvider = Provider<GoRouter>((ref) {
   final mode = ref.watch(appModeProvider);
-  // Las guardas se reevalúan cuando cambia el ciclo de la sesión.
+  // Las guardas se reevalúan cuando cambia el ciclo de la sesión o la
+  // posibilidad de calibrar.
   final refresh = ValueNotifier<int>(0);
   ref.listen(
     demoSessionProvider.select((s) => (s.lifecycle, s.sessionId)),
+    (_, _) => refresh.value++,
+  );
+  ref.listen(
+    preparationProvider.select((p) => p.canCalibrate),
     (_, _) => refresh.value++,
   );
   final router = GoRouter(
@@ -73,6 +85,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Lectura directa: dentro de la notificación del cambio de ciclo, un
       // proveedor derivado podría no estar invalidado todavía.
       hasSummary: ref.read(demoSessionProvider.notifier).lastSummary != null,
+      canCalibrate: ref.read(preparationProvider).canCalibrate,
       location: state.matchedLocation,
     ),
     routes: [

@@ -161,6 +161,11 @@ class DemoSessionController extends Notifier<DemoSessionState> {
   var _episodes = 0;
   var _sequence = 0;
 
+  /// Cambia al confirmar una pausa y al pedir el cierre: la respuesta de un
+  /// tono anterior ya no registra eventos, aunque la sesión se reanude antes
+  /// de que llegue.
+  var _alertEpoch = 0;
+
   /// Tiempo activo hasta el que ya se aplicó el guion.
   var _scriptCursor = Duration.zero;
 
@@ -229,6 +234,7 @@ class DemoSessionController extends Notifier<DemoSessionState> {
     final now = _clock.elapsed;
     if (l == SessionLifecycle.active) _advanceScript(now);
     _scriptTimer?.cancel();
+    _alertEpoch++;
     var s = state;
     final events = [...s.events];
     final episode = s.openEpisode;
@@ -295,6 +301,7 @@ class DemoSessionController extends Notifier<DemoSessionState> {
     final now = _clock.elapsed;
     _advanceScript(now);
     _scriptTimer?.cancel();
+    _alertEpoch++;
     final s = state;
     final events = [...s.events];
     final episode = s.openEpisode;
@@ -452,15 +459,14 @@ class DemoSessionController extends Notifier<DemoSessionState> {
   }
 
   /// Alerta sonora local. Su fallo es visible y no crea episodios ni cambia
-  /// la medición (UX §7, ER08).
+  /// la medición (UX §7, ER08). Una respuesta que llega después de una pausa
+  /// confirmada o de pedir el cierre se descarta.
   Future<void> _playAlert(AlertSoundKind kind) async {
     final gen = _generation;
+    final epoch = _alertEpoch;
     final r = await ref.read(alertSoundPlayerProvider).play(kind);
-    if (gen != _generation || !ref.mounted) return;
-    if (state.lifecycle != SessionLifecycle.active &&
-        state.lifecycle != SessionLifecycle.paused) {
-      return;
-    }
+    if (gen != _generation || epoch != _alertEpoch || !ref.mounted) return;
+    if (state.lifecycle != SessionLifecycle.active) return;
     final now = _clock.elapsed;
     final s = state;
     state = s.copyWith(

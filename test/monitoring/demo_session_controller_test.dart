@@ -173,6 +173,40 @@ void main() {
         });
       },
     );
+
+    for (final (name, sim) in [
+      ('permiso', const SimulatedConditions(permission: false)),
+      ('cámara', const SimulatedConditions(camera: false)),
+      ('modelo', const SimulatedConditions(model: false)),
+    ]) {
+      test('sin $name no se calibra ni se acepta referencia', () {
+        fakeAsync((async) {
+          final c = container();
+          final prep = c.read(preparationProvider.notifier);
+          final cal = c.read(calibrationProvider.notifier);
+          prep.setSimulated(sim);
+          cal.begin();
+          expect(c.read(calibrationProvider), isA<CalibrationInstructions>());
+          cal.simulateAccepted();
+          expect(prep.acceptCalibration(), isNull);
+          expect(c.read(preparationProvider).reference, isNull);
+        });
+      });
+
+      test('perder $name durante la adquisición la detiene sin referencia', () {
+        fakeAsync((async) {
+          final c = container();
+          final prep = c.read(preparationProvider.notifier);
+          final cal = c.read(calibrationProvider.notifier);
+          cal.begin();
+          expect(c.read(calibrationProvider), isA<CalibrationAcquiring>());
+          prep.setSimulated(sim);
+          expect(c.read(calibrationProvider), isA<CalibrationInstructions>());
+          cal.simulateAccepted();
+          expect(c.read(preparationProvider).reference, isNull);
+        });
+      });
+    }
   });
 
   group('Sesión demostrativa', () {
@@ -393,5 +427,58 @@ void main() {
         expect(s.soundsFailed, 1);
       });
     });
+
+    for (final (name, after) in [
+      (
+        'pausar',
+        (DemoSessionController s, FakeAsync a) {
+          s.requestPause();
+          a.elapse(confirm);
+        },
+      ),
+      (
+        'pausar y reanudar',
+        (DemoSessionController s, FakeAsync a) {
+          s.requestPause();
+          a.elapse(confirm);
+          s.requestResume();
+          a.elapse(confirm);
+        },
+      ),
+      (
+        'finalizar',
+        (DemoSessionController s, FakeAsync a) {
+          s.requestFinish();
+          a.elapse(confirm);
+        },
+      ),
+    ]) {
+      test('respuesta tardía de una alerta se descarta tras $name', () {
+        fakeAsync((async) {
+          final deferred = DeferredAlertPlayer();
+          final c = ProviderContainer(
+            overrides: [
+              monotonicClockProvider.overrideWith((ref) => PackageClock()),
+              alertSoundPlayerProvider.overrideWithValue(deferred),
+            ],
+          );
+          makeReady(c, async);
+          expect(session(c).requestStart(), isTrue);
+          async.elapse(confirm);
+          async.elapse(const Duration(seconds: 8)); // advertencia con tono
+          expect(deferred.pending, hasLength(1));
+          after(session(c), async);
+          final before = st(c).events.length;
+          deferred.pending.first.complete(const SoundPlayback.played());
+          async.flushMicrotasks();
+          expect(st(c).events, hasLength(before));
+          expect(
+            st(c).events.where((e) => e.type == SessionEventType.soundPlayed),
+            isEmpty,
+          );
+          c.dispose();
+        });
+      });
+    }
   });
 }
