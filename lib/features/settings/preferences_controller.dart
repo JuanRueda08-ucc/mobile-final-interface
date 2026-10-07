@@ -10,65 +10,106 @@ final initialPreferencesProvider = Provider<StoredPreferences>(
   (ref) => const StoredPreferences(),
 );
 
-/// Resultado de la última escritura de preferencias.
+/// Resultado de las escrituras de preferencias.
 enum PreferenceSave { idle, saving, saved, failed }
 
 final class PreferencesState {
   const PreferencesState(this.value, {this.save = PreferenceSave.idle});
 
-  /// Preferencias vigentes: se aplican aunque la escritura falle (B5.2 P12:
-  /// «El tema se aplica ahora, pero no quedó guardado»).
+  /// Preferencias que ve y aplica la app: las guardadas más los cambios de
+  /// tema o movimiento que todavía se están guardando.
   final StoredPreferences value;
+
+  /// `saving` mientras quede alguna escritura; al terminar, `failed` si alguna
+  /// de ellas falló y `saved` si no.
   final PreferenceSave save;
+}
+
+/// Cambio pedido: se aplica sobre las preferencias vigentes cuando le toca.
+final class _Change {
+  const _Change(this.apply, {required this.optimistic});
+
+  final StoredPreferences Function(StoredPreferences) apply;
+
+  /// Tema y movimiento se ven en el acto; el patrón, solo una vez guardado.
+  final bool optimistic;
 }
 
 /// Tema, patrón de sonido y movimiento reducido (RF29, P12–P13), guardados en
 /// la fila única de preferencias del historial DEMO.
+///
+/// Las escrituras se hacen una tras otra, en el orden pedido. Cada una aplica
+/// **su** cambio sobre las últimas preferencias guardadas, así que un cambio
+/// posterior no pisa con una copia antigua otro ya aceptado. Si una escritura
+/// falla, su cambio se retira (también un tema que ya se veía) y se informa;
+/// lo guardado antes se conserva. Al terminar, memoria, interfaz y SQLite
+/// coinciden.
 class PreferencesController extends Notifier<PreferencesState> {
-  var _attempt = 0;
+  /// Últimas preferencias confirmadas por SQLite (o las iniciales).
+  late StoredPreferences _saved;
+
+  /// Cambios pedidos y aún no resueltos, en orden.
+  final _pending = <_Change>[];
+  Future<void> _tail = Future.value();
+  var _batchFailed = false;
 
   @override
-  PreferencesState build() =>
-      PreferencesState(ref.read(initialPreferencesProvider));
+  PreferencesState build() {
+    _saved = ref.read(initialPreferencesProvider);
+    return PreferencesState(_saved);
+  }
 
-  void setTheme(ThemePreference theme) =>
-      _update(state.value.copyWith(theme: theme));
+  Future<bool> setTheme(ThemePreference theme) =>
+      _enqueue(_Change((p) => p.copyWith(theme: theme), optimistic: true));
 
-  void setReducedMotion(bool reduced) =>
-      _update(state.value.copyWith(reducedMotion: reduced));
-
-  /// Guarda el patrón de las alertas. A diferencia del tema, solo cambia si
-  /// quedó guardado: un fallo deja las alertas con el patrón anterior. La
-  /// prueba de sonido de Preparación vuelve a ser obligatoria (RF29.CA3): lo
-  /// aplica `PreparationController`.
-  Future<bool> setSoundPattern(String patternId) => _update(
-    state.value.copyWith(soundPatternId: patternId),
-    applyBeforeSave: false,
+  Future<bool> setReducedMotion(bool reduced) => _enqueue(
+    _Change((p) => p.copyWith(reducedMotion: reduced), optimistic: true),
   );
 
-  Future<bool> _update(
-    StoredPreferences next, {
-    bool applyBeforeSave = true,
-  }) async {
-    final attempt = ++_attempt;
-    final previous = state.value;
-    state = PreferencesState(
-      applyBeforeSave ? next : previous,
-      save: PreferenceSave.saving,
-    );
+  /// Guarda el patrón de las alertas. Solo cambia si quedó guardado: un fallo
+  /// deja las alertas con el patrón anterior. Al cambiar, la prueba de sonido
+  /// de Preparación vuelve a ser obligatoria (RF29.CA3): lo aplica
+  /// `PreparationController`.
+  Future<bool> setSoundPattern(String patternId) => _enqueue(
+    _Change((p) => p.copyWith(soundPatternId: patternId), optimistic: false),
+  );
+
+  Future<bool> _enqueue(_Change change) {
+    _pending.add(change);
+    _publish();
+    final result = _tail.then((_) => _write(change));
+    _tail = result;
+    return result;
+  }
+
+  Future<bool> _write(_Change change) async {
+    final next = change.apply(_saved);
     var ok = true;
     try {
       await ref.read(demoHistoryRepositoryProvider).savePreferences(next);
     } catch (_) {
       ok = false;
     }
-    if (ref.mounted && attempt == _attempt) {
-      state = PreferencesState(
-        ok || applyBeforeSave ? next : previous,
-        save: ok ? PreferenceSave.saved : PreferenceSave.failed,
-      );
-    }
+    if (ok) _saved = next;
+    _batchFailed |= !ok;
+    _pending.remove(change);
+    if (ref.mounted) _publish();
     return ok;
+  }
+
+  void _publish() {
+    var view = _saved;
+    for (final c in _pending) {
+      if (c.optimistic) view = c.apply(view);
+    }
+    final PreferenceSave save;
+    if (_pending.isNotEmpty) {
+      save = PreferenceSave.saving;
+    } else {
+      save = _batchFailed ? PreferenceSave.failed : PreferenceSave.saved;
+      _batchFailed = false;
+    }
+    state = PreferencesState(view, save: save);
   }
 }
 

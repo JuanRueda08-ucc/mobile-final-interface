@@ -95,7 +95,8 @@ Si falla la escritura del cierre, el Resumen muestra «Registro incompleto» y n
 | P12 | Ajustes | Tema Claro/Oscuro/Sistema, movimiento (Según Android / Reducido) y Sonido. Con sesión vigente solo se cambia el tema |
 | P13 | Sonido | Patrón 1, 2 o 3: probar y guardar. Salir sin guardar pregunta «Descartar cambios / Seguir editando». Bloqueado con sesión vigente |
 
-- **Tema.** Se aplica en el acto y se guarda. Si la escritura falla, se aplica igual y avisa «Preferencia no guardada».
+- **Tema.** Se ve en el acto y se guarda. Si la escritura falla, vuelve la preferencia guardada y avisa «Preferencia no guardada». B5.2 la dejaba aplicada sin guardar; aquí memoria y SQLite no divergen.
+- **Escrituras seguidas.** Los cambios de tema, movimiento y patrón se guardan uno tras otro, en el orden pedido. Cada uno se aplica sobre las últimas preferencias guardadas, de modo que un cambio posterior no pisa otro ya aceptado.
 - **Movimiento reducido.** La preferencia se suma a la de Android: si Android pide reducir el movimiento, se reduce siempre.
 - **Sonido.**
   - El patrón cambia solo si se guardó.

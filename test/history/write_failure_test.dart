@@ -117,8 +117,8 @@ void main() {
     });
   });
 
-  test('tema no guardado se aplica igual; patrón no guardado no cambia ni '
-      'reinicia la prueba de sonido', () {
+  test('tema y patrón no guardados no cambian; el patrón no reinicia la '
+      'prueba de sonido', () {
     fakeAsync((async) {
       final c = container();
       ready(c, async);
@@ -127,7 +127,7 @@ void main() {
 
       prefs.setTheme(ThemePreference.dark);
       async.flushMicrotasks();
-      expect(c.read(preferencesProvider).value.theme, ThemePreference.dark);
+      expect(c.read(preferencesProvider).value.theme, ThemePreference.system);
       expect(c.read(preferencesProvider).save, PreferenceSave.failed);
 
       prefs.setSoundPattern('patron_2');

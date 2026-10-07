@@ -408,6 +408,10 @@ class DriftDemoHistoryRepository implements DemoHistoryRepository {
       .into(_db.preferences)
       .insertOnConflictUpdate(
         PreferencesCompanion.insert(
+          // Fila única explícita: sin ella, SQLite trata `singleton` (INTEGER
+          // PRIMARY KEY) como rowid y propone 2 en la segunda escritura, que
+          // el CHECK rechaza antes de llegar al conflicto.
+          singleton: const Value(1),
           theme: p.theme.name,
           soundPatternId: p.soundPatternId,
           reducedMotion: p.reducedMotion,

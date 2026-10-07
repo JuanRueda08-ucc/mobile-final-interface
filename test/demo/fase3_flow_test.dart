@@ -21,6 +21,7 @@ import 'package:vigia/features/monitoring/monitoring_screen.dart';
 import 'package:vigia/features/preparation/preparation_controller.dart';
 import 'package:vigia/features/preparation/preparation_screen.dart';
 import 'package:vigia/features/preparation/preparation_state.dart';
+import 'package:vigia/features/settings/preferences_controller.dart';
 import 'package:vigia/features/settings/settings_screen.dart';
 import 'package:vigia/features/settings/sound_screen.dart';
 import 'package:vigia/features/summary/summary_screen.dart';
@@ -342,6 +343,31 @@ void main() {
       );
     });
   });
+
+  for (final dark in [false, true]) {
+    testWidgets('Sonido: «Guardar» por semántica tras otra preferencia ya '
+        'guardada (${dark ? 'oscuro' : 'claro'})', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpDemo(tester, ScreenConfig(width: 360, dark: dark));
+      await _go(tester, VigiaRoutes.ajustes);
+      // Primera escritura: crea la fila de preferencias.
+      tester.semantics.tap(find.semantics.byLabel('Reducido'));
+      await settle(tester);
+      tester.semantics.tap(find.semantics.byLabel('Sonido'));
+      await settle(tester);
+      tester.semantics.tap(find.semantics.byLabel(RegExp('^Patrón 2')));
+      await settle(tester);
+      await tester.ensureVisible(find.text('Guardar'));
+      await tester.pump();
+      tester.semantics.tap(find.semantics.byLabel('Guardar'));
+      await settle(tester);
+      expect(find.text('Patrón guardado'), findsOneWidget);
+      final saved = await demoHistory.loadPreferences();
+      expect((saved.soundPatternId, saved.reducedMotion), ('patron_2', true));
+      expect(demoContainer(tester).read(preferencesProvider).value, saved);
+      handle.dispose();
+    });
+  }
 
   group('Separación DEMO / modo normal', () {
     testWidgets('modo normal: sin historial abierto ni rutas de fase 3', (

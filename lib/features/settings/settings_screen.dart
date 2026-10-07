@@ -14,8 +14,9 @@ import 'preferences_controller.dart';
 
 /// P12 · Ajustes (FL11, RF29; B5.2 `vP12`).
 ///
-/// - Tema Claro, Oscuro o Sistema: se aplica en el acto y se guarda (RF29.CA1).
-///   Si la escritura falla, se aplica igual y se informa que no quedó guardado.
+/// - Tema Claro, Oscuro o Sistema: se ve en el acto y se guarda (RF29.CA1).
+///   Si la escritura falla, vuelve la preferencia guardada y se informa (B5.2
+///   la dejaba aplicada sin guardar; aquí memoria y SQLite no divergen).
 /// - Movimiento reducido: preferencia guardada que se suma a la de Android;
 ///   si Android pide reducir el movimiento, se reduce siempre.
 /// - Sonido abre P13.
@@ -117,7 +118,9 @@ class SettingsScreen extends ConsumerWidget {
               icon: VigiaIcon.close,
               tag: 'Error',
               title: 'Preferencia no guardada',
-              text: 'Se aplica ahora, pero no quedó guardada.',
+              text:
+                  'No se pudo guardar el último cambio: se mantiene la '
+                  'preferencia anterior.',
             ),
           const VigiaSectionTitle('Más ajustes'),
           VigiaButton(
