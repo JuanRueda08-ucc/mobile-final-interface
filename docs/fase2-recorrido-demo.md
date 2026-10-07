@@ -1,6 +1,6 @@
 # Vigía · Fase 2: recorrido demostrativo
 
-Guía breve para ejecutar, comprobar y presentar el recorrido de la fase 2 del plan activo (`AGENTS.md`):
+Guía breve para ejecutar, comprobar y presentar el recorrido de la fase 2 del plan activo (`AGENTS.md`). Desde la fase 3, la app DEMO se instala como `com.juanrueda.vigia.demo` («Vigía DEMO») y guarda sus sesiones: ver `docs/fase3-historial-ajustes.md`.
 
 **Inicio → Preparación → Calibración → Monitoreo → Pausa/reanudación → Finalizar → Resumen → Inicio.**
 
@@ -51,7 +51,7 @@ El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Si Gradle falla
 7. **Pausar.** Aparece «Pausando…» y después «Monitoreo pausado / Evaluación suspendida», con el mismo ID. El tiempo monitoreado se detiene. **Reanudar**: la medición vuelve a inicializarse.
 8. **Volver (‹).** Abre D05. Con **Volver al inicio**, Inicio muestra «Sesión en curso» con el mismo ID y Preparar bloqueado. **Volver al monitoreo** abre la misma sesión.
 9. **Finalizar.** Abre D02. **Continuar sesión** la conserva. **Finalizar** muestra «Finalizando…» y abre el **Resumen (P07)**, calculado desde los eventos de esa sesión: cobertura, tiempos, episodios y avisos sonoros.
-10. **Volver al inicio.** Inicio muestra el último resumen de esta ejecución.
+10. **Volver al inicio.** Inicio muestra el último resumen guardado (fase 3).
 
 ## Qué es simulado y qué no
 
@@ -66,7 +66,7 @@ El APK queda en `build/app/outputs/flutter-apk/app-release.apk`. Si Gradle falla
   - el tono local (`ToneGenerator` por el canal `vigia/demo_sound`);
   - el tiempo monotónico de la sesión;
   - la lógica de bloqueos, órdenes, identidad y resumen.
-- **En memoria:** la referencia, la sesión y el resumen se pierden al cerrar la app. La persistencia y el Historial llegan en la fase 3.
+- **Guardado (fase 3):** la sesión, sus hechos y su resumen se guardan en el historial DEMO; la referencia de calibración sigue en memoria. Ver `docs/fase3-historial-ajustes.md`.
 - **Sin permisos:** no se pide ningún permiso de Android, y no hay red, micrófono, GPS ni cuentas.
 
 ## Comprobación
