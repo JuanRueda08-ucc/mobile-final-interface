@@ -10,7 +10,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 |---|---|---|
 | 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex y subida a `origin/main` | hasta `f4f62bc` |
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
-| 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada y subida a `origin/main` por petición del usuario. Revisada por Codex: P1/P2 corregidos en `7c91f46`; el aviso de fallo de preferencias se corrige en el commit `fix:` que sigue. **Pendiente de aprobación de Codex** | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46` y el commit `fix:` que sigue (local) |
+| 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada y subida a `origin/main` hasta `f86c6ed` por petición del usuario. Revisada por Codex: P1/P2 corregidos en `7c91f46`, el aviso de Ajustes en `f86c6ed` y los avisos de Sonido (P13) en el commit `fix:` que sigue. **Pendiente de aprobación de Codex** | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed` y el commit `fix:` de P13 (local) |
 | 4. Comprobación final y entrega | No iniciada; requiere autorización expresa | — |
 
 Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 4 no empieza ni se sube la fase 3 hasta que Codex la revise.
@@ -90,6 +90,37 @@ Regresiones:
 - **Detección.** Con el `lib/` anterior (guardado temporalmente con `git stash`), la reproducción de Codex «mensaje identifica fallo anterior» falla mostrando «No se pudo guardar el último cambio…». Con la corrección pasa. Las pruebas propias usan la API nueva (`failures`) y no compilan con el código anterior.
 - No se repitieron, por indicación: matrices, contraste, renderizados ni compilaciones Android. Los APK existentes siguen siendo anteriores a `7c91f46`.
 
+## Corrección de los avisos de Sonido (P13) (pendiente de revisión)
+
+**Hallazgos de Codex.** `sound_screen.dart` actualizaba su aviso con la respuesta de cada guardado, aunque una petición posterior ya la hubiera sustituido. Eso causaba dos problemas:
+
+- el fallo decía «Las alertas siguen usando el patrón anterior», sin nombrar ningún patrón;
+- con Patrón 3 → Patrón 1 pendiente → falla el 3, aparecía «Patrón no guardado» para la selección vigente.
+
+**Corrección:**
+
+- P13 ya no guarda el resultado de cada respuesta.
+- El aviso de error sale de `PreferencesState.failures`, que ya descarta un fallo si se pidió otro patrón después. Su texto usa el patrón confirmado: «No se pudo guardar el Patrón 3. Las alertas siguen con el Patrón 2.»
+- «Patrón guardado» solo aparece si el patrón confirmado es el último que pidió la pantalla y no queda otro cambio de patrón pendiente. Para eso el estado expone `pending`, las preferencias con escrituras en curso.
+- La cola, la persistencia y la invalidación de la prueba de sonido no cambian.
+
+**Pruebas de pantalla nuevas** (`test/history/preferences_persistence_test.dart`, grupo «Sonido (P13)»):
+
+- el fallo nombra el patrón pedido y el confirmado;
+- un fallo antiguo no se muestra si ya se pidió otro patrón, y al confirmarse ese aparece «Patrón guardado»;
+- un éxito antiguo no anuncia como guardada una selección posterior pendiente.
+
+**Resultados reales:**
+
+- `dart format`; `flutter analyze`: sin problemas.
+- `test/history/preferences_persistence_test.dart`: pasan las 15 pruebas.
+- `test/history` y `test/demo/fase3_flow_test.dart`: pasan las 40 pruebas.
+- `build/review/fase3_avisos_review_test.dart` completo: pasan 4/4.
+- **Código anterior**, en una copia temporal (`git worktree` de `f86c6ed` en `D:\dev\tmp`, ya eliminada; sin `git stash`):
+  - los dos casos P13 de Codex fallan: mensaje genérico y aviso obsoleto;
+  - de las 3 pruebas nuevas, fallan 2. La del éxito antiguo pasa también con el código anterior, que ya ocultaba ese aviso mientras la selección difería; se mantiene como protección.
+- No se repitieron, por indicación: matrices, contraste, renderizados ni compilaciones Android. Los APK existentes siguen siendo anteriores a `7c91f46`.
+
 ## Comprobado (fase 3)
 
 - `flutter analyze`: sin problemas.
@@ -123,7 +154,7 @@ Regresiones:
 
 ## Siguiente acción
 
-Aprobación de Codex de la fase 3, incluido el commit `fix:` del aviso de preferencias, que es local hasta que el usuario pida subirlo. Antes de la entrega:
+Aprobación de Codex de la fase 3, incluido el commit `fix:` de los avisos de Sonido (P13), que es local hasta que el usuario pida subirlo. Antes de la entrega:
 - recompilar el APK DEMO;
 - compilar y comprobar de nuevo el APK normal.
 

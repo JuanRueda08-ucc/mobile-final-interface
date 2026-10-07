@@ -12,6 +12,7 @@ import 'package:vigia/app/router.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/clock/monotonic_clock.dart';
+import 'package:vigia/core/design_system/widgets/vigia_option.dart';
 import 'package:vigia/data/demo_history/demo_history_database.dart';
 import 'package:vigia/data/demo_history/demo_history_repository.dart';
 import 'package:vigia/features/monitoring/demo_session_controller.dart';
@@ -551,5 +552,116 @@ void main() {
     );
     await tester.pumpWidget(const SizedBox());
     await db.close();
+  });
+
+  group('Sonido (P13): avisos de guardado', () {
+    late DemoHistoryDatabase db;
+    late DriftDemoHistoryRepository inner;
+    late _GatedRepo gated;
+
+    /// P13 con el Patrón 2 ya guardado y escrituras liberadas por la prueba.
+    Future<void> mountSound(WidgetTester tester) async {
+      db = DemoHistoryDatabase(NativeDatabase(file));
+      inner = await DriftDemoHistoryRepository.open(db);
+      await inner.savePreferences(
+        const StoredPreferences(soundPatternId: 'patron_2'),
+      );
+      gated = _GatedRepo(inner);
+      await tester.pumpWidget(
+        VigiaApp(
+          mode: const DemoMode(),
+          overrides: [
+            ...demoOverrides(gated, await inner.loadPreferences()),
+            monotonicClockProvider.overrideWith((ref) => PackageClock()),
+            alertSoundPlayerProvider.overrideWithValue(FakeSoundPlayer()),
+          ],
+        ),
+      );
+      await tester.pump();
+      ProviderScope.containerOf(tester.element(find.byType(Navigator).first))
+          .read(routerProvider)
+          .go(VigiaRoutes.sonido);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tap(WidgetTester tester, String label) async {
+      await tester.ensureVisible(find.text(label).last);
+      await tester.pump();
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> finish(WidgetTester tester) async {
+      await tester.pumpWidget(const SizedBox());
+      await db.close();
+    }
+
+    testWidgets('el fallo nombra el patrón pedido y el confirmado', (
+      tester,
+    ) async {
+      await mountSound(tester);
+      await tap(tester, 'Patrón 3');
+      await tap(tester, 'Guardar');
+      gated.gates[0].completeError(StateError('patrón rechazado'));
+      await tester.pumpAndSettle();
+      expect(find.text('Patrón no guardado'), findsOneWidget);
+      expect(
+        find.text(
+          'No se pudo guardar el Patrón 3. Las alertas siguen con el '
+          'Patrón 2.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Patrón guardado'), findsNothing);
+      expect(find.text('Patrón 2 (guardado)'), findsOneWidget);
+      expect((await inner.loadPreferences()).soundPatternId, 'patron_2');
+      await finish(tester);
+    });
+
+    testWidgets('un fallo antiguo no se muestra si ya se pidió otro patrón', (
+      tester,
+    ) async {
+      await mountSound(tester);
+      await tap(tester, 'Patrón 3');
+      await tap(tester, 'Guardar');
+      await tap(tester, 'Patrón 1');
+      await tap(tester, 'Guardar');
+      gated.gates[0].completeError(StateError('Patrón 3 rechazado'));
+      await tester.pumpAndSettle();
+      expect(find.text('Patrón no guardado'), findsNothing);
+      expect(find.text('Patrón guardado'), findsNothing);
+      // La selección vigente sigue siendo la pedida.
+      expect(
+        tester
+            .widget<VigiaOption>(find.widgetWithText(VigiaOption, 'Patrón 1'))
+            .selected,
+        isTrue,
+      );
+      gated.gates[1].complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Patrón guardado'), findsOneWidget);
+      expect(find.text('Patrón 1 (guardado)'), findsOneWidget);
+      expect(find.text('Patrón no guardado'), findsNothing);
+      expect((await inner.loadPreferences()).soundPatternId, 'patron_1');
+      await finish(tester);
+    });
+
+    testWidgets('un éxito antiguo no anuncia guardada una selección posterior '
+        'pendiente', (tester) async {
+      await mountSound(tester);
+      await tap(tester, 'Patrón 3');
+      await tap(tester, 'Guardar');
+      await tap(tester, 'Patrón 1');
+      await tap(tester, 'Guardar');
+      gated.gates[0].complete(); // Patrón 3 guardado; Patrón 1 pendiente
+      await tester.pumpAndSettle();
+      expect(find.text('Patrón 3 (guardado)'), findsOneWidget);
+      expect(find.text('Patrón guardado'), findsNothing);
+      gated.gates[1].complete();
+      await tester.pumpAndSettle();
+      expect(find.text('Patrón 1 (guardado)'), findsOneWidget);
+      expect(find.text('Patrón guardado'), findsOneWidget);
+      await finish(tester);
+    });
   });
 }

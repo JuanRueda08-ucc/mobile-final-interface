@@ -25,6 +25,11 @@ enum _Test { idle, playing, ok, failed }
 ///
 /// Bloqueado con sesión vigente (UX §4.2). Salir con cambios sin guardar
 /// ofrece Descartar cambios / Seguir editando (UX §4.1).
+///
+/// Los avisos de guardado salen del estado del controlador, no de la
+/// respuesta de cada petición: una respuesta antigua (de éxito o de fallo) no
+/// describe una selección posterior, y un fallo que el controlador ya descartó
+/// no vuelve a mostrarse.
 class SoundScreen extends ConsumerStatefulWidget {
   const SoundScreen({super.key});
 
@@ -38,8 +43,8 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
   String? _testFailure;
   var _testAttempt = 0;
 
-  /// Resultado del último Guardar de esta pantalla: `true`, `false` o nulo.
-  bool? _saved;
+  /// Último patrón que esta pantalla pidió guardar.
+  String? _requested;
 
   Future<void> _play(String patternId) async {
     final attempt = ++_testAttempt;
@@ -54,11 +59,10 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
     });
   }
 
-  Future<void> _save(String patternId) async {
-    final ok = await ref
-        .read(preferencesProvider.notifier)
-        .setSoundPattern(patternId);
-    if (mounted) setState(() => _saved = ok);
+  void _save(String patternId) {
+    setState(() => _requested = patternId);
+    // El resultado se lee del estado del controlador (ver build).
+    ref.read(preferencesProvider.notifier).setSoundPattern(patternId);
   }
 
   Future<void> _back(bool dirty) async {
@@ -80,11 +84,17 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
   @override
   Widget build(BuildContext context) {
     final vigente = ref.watch(demoSessionProvider.select((s) => s.isVigente));
-    final saved = ref.watch(
-      preferencesProvider.select((p) => p.value.soundPatternId),
-    );
+    final prefs = ref.watch(preferencesProvider);
+    // Patrón confirmado: el patrón solo cambia en el estado al guardarse.
+    final saved = prefs.value.soundPatternId;
     final selected = _selected ?? saved;
     final dirty = !vigente && selected != saved;
+    final failure = prefs.failures[PreferenceField.soundPattern];
+    final patternPending = prefs.pending.contains(PreferenceField.soundPattern);
+    // «Guardado» solo para la última petición, ya confirmada y sin otra
+    // petición de patrón pendiente.
+    final confirmed =
+        _requested != null && _requested == saved && !patternPending && !dirty;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -111,7 +121,6 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                         selected: p.id == selected,
                         onSelected: () => setState(() {
                           _selected = p.id;
-                          _saved = null;
                           _testAttempt++; // descarta una prueba anterior
                           _test = _Test.idle;
                         }),
@@ -141,7 +150,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                     title: 'No se pudo reproducir el sonido',
                     text: _testFailure ?? 'Vuelve a intentarlo.',
                   ),
-                if (_saved == true && !dirty)
+                if (confirmed)
                   const StatusCard(
                     tone: StatusTone.plain,
                     icon: VigiaIcon.check,
@@ -151,13 +160,14 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                         'Guardar un patrón no aprueba la prueba audible de una '
                         'sesión. Cada sesión necesita su propia prueba.',
                   ),
-                if (_saved == false)
-                  const StatusCard(
+                if (failure != null)
+                  StatusCard(
                     tone: StatusTone.alert,
                     icon: VigiaIcon.close,
                     tag: 'Error',
                     title: 'Patrón no guardado',
-                    text: 'Las alertas siguen usando el patrón anterior.',
+                    // Con el patrón confirmado ahora, no con una copia previa.
+                    text: preferenceFailureText(failure, prefs.value),
                   ),
                 VigiaButton(
                   label: 'Guardar',

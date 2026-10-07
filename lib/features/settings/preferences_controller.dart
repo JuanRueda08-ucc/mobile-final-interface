@@ -33,6 +33,7 @@ final class PreferencesState {
     this.value, {
     this.save = PreferenceSave.idle,
     this.failures = const {},
+    this.pending = const {},
   });
 
   /// Preferencias que ve y aplica la app: las guardadas más los cambios de
@@ -48,6 +49,10 @@ final class PreferencesState {
   /// después: así un aviso no se atribuye a otro cambio aceptado ni describe
   /// un valor que ya no está vigente.
   final Map<PreferenceField, PreferenceFailure> failures;
+
+  /// Preferencias con alguna escritura todavía sin resolver. P13 no anuncia un
+  /// patrón como guardado mientras haya otro cambio de patrón pendiente.
+  final Set<PreferenceField> pending;
 }
 
 /// Cambio pedido: se aplica sobre las preferencias vigentes cuando le toca.
@@ -169,7 +174,12 @@ class PreferencesController extends Notifier<PreferencesState> {
         : _failures.isEmpty
         ? PreferenceSave.saved
         : PreferenceSave.failed;
-    state = PreferencesState(view, save: save, failures: Map.of(_failures));
+    state = PreferencesState(
+      view,
+      save: save,
+      failures: Map.of(_failures),
+      pending: {for (final c in _pending) c.field},
+    );
   }
 }
 
