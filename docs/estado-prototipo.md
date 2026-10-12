@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) y `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-12 (fase 5A).
+**Actualizado:** 2026-10-12 (cierre de la fase 5A).
 
 ## Fases
 
@@ -12,7 +12,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex dentro de su alcance y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
-| 5A. Cámara frontal real y permisos (variante normal) | **Implementada y corregidos los tres P2 de la revisión; sigue pendiente de revisión de Codex.** Autorizada el 2026-10-12. Sin MediaPipe | `a3839e3` y el commit de corrección (ver «Fase 5A») |
+| 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. **No hay IA real**: no se analiza la imagen, no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -197,7 +197,19 @@ Regresiones:
 - **Qué significa «APK final de entrega» pendiente.** Era la recompilación prevista antes de la entrega. Ya no se requiere: el código de `lib/` y Android no cambió después de `486bf72`; los commits posteriores son solo documentales. Recompilar solo por ellos produciría otro artefacto sin aportar pruebas. Se recompilará únicamente si cambia el código o el usuario lo pide.
 - En la misma carpeta está el APK normal de `486bf72` (`vigia-normal-486bf72-release.apk`, SHA-256 `1254bdd55f6381a6628b6f01fbd94bc79e05005b892dba5fd7757f41e4ab230f`). No se probó en este recorrido.
 
-## Fase 5A · cámara frontal real y permisos (2026-10-12, pendiente de revisión)
+## Cierre de la fase 5A (aprobada)
+
+- **Dictamen:** Codex aprobó la fase 5A dentro de su alcance, que es el permiso CAMERA y la vista previa de CameraX (Preview) en la variante normal. Commits: `a3839e3`, `4a9b5a9` (corrección de los P2) y `80969c8` (descripción del rechazo permanente como inferencia).
+- **Artefacto funcional probado:** el APK normal corregido de `4a9b5a9`, `D:\dev\vigia-entrega\vigia-normal-fase5a-p2-release.apk` (SHA-256 `75a721e368ab52f3c2231c452b3e24ea44044765ae58538f5b868ec4cc750ebc`). El commit `80969c8` solo cambió documentación y comentarios (incluidos los del código Pigeon generado), así que no se recompiló.
+- **No implementado todavía:** MediaPipe, detección facial y detección de fatiga, calibración real, sesiones y alertas reales.
+- **Pendientes de la fase 5A:**
+  - teléfono D1 o cualquier cámara física (rostro real);
+  - rotación y espejo con un sensor físico;
+  - interruptor de privacidad de cámara de Android 12+;
+  - TalkBack;
+  - además, siguen cubiertos solo con dobles la cámara ocupada por otra app y la cámara desactivada por política, y el descarte del diálogo solo se comprobó en el emulador.
+
+## Fase 5A · cámara frontal real y permisos (2026-10-12; aprobada, ver «Cierre de la fase 5A»)
 
 Detalle, pruebas y limitaciones: `docs/fase5a-camara-permisos.md`.
 
@@ -248,7 +260,7 @@ El APK DEMO validado de la fase 4 (`vigia-demo-486bf72-release.apk`) se conserva
 - descarte del diálogo en un teléfono físico (comprobado solo en el emulador);
 - TalkBack.
 
-### Corrección de los P2 de la revisión de Codex (pendiente de revisión)
+### Corrección de los P2 de la revisión de Codex (aprobada)
 
 Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisión».
 
@@ -277,4 +289,4 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
 
 ## Siguiente acción
 
-Revisión de Codex de la fase 5A. No se integra MediaPipe ni se avanza a otra fase sin autorización expresa; la secuencia VIG del Área 08 sigue aplazada.
+Ninguna en curso: la fase 5A está cerrada. La 5B (MediaPipe) y cualquier otro trabajo requieren autorización expresa; la secuencia VIG del Área 08 sigue aplazada.

@@ -13,7 +13,7 @@ Para la entrega académica, el usuario sustituyó la secuencia de tareas del Ár
 3. Historial persistente y Ajustes.
 4. Revisión visual, comprobación de ejecución y APK entregable.
 
-Las fases 1–4 (prototipo DEMO) están aprobadas y publicadas. **Ampliación expresa del usuario (2026-10-12): fase 5A**, cámara frontal real y permisos en la variante normal (solo vista previa CameraX en `packages/monitoring_engine`, puente Pigeon, estados de permiso y cámara). No incluye detección facial, MediaPipe, calibración real, sesiones ni alertas de fatiga; el recorrido DEMO sigue separado y sin permiso CAMERA. Al terminarla se detiene el trabajo para la revisión de Codex antes de integrar MediaPipe. Guía: `docs/fase5a-camara-permisos.md`.
+Las fases 1–4 (prototipo DEMO) están aprobadas y publicadas. **Ampliación expresa del usuario (2026-10-12): fase 5A**, cámara frontal real y permisos en la variante normal (solo vista previa CameraX en `packages/monitoring_engine`, puente Pigeon, estados de permiso y cámara). No incluye detección facial, MediaPipe, calibración real, sesiones ni alertas de fatiga; el recorrido DEMO sigue separado y sin permiso CAMERA. **Aprobada por Codex y publicada (2026-10-12).** MediaPipe (5B) requiere una nueva autorización expresa. Guía: `docs/fase5a-camara-permisos.md`.
 
 - Solo se trabaja en la fase que el usuario haya autorizado expresamente. Al terminarla, se detiene el trabajo para la revisión de Codex. **No se avanza a otra fase por iniciativa propia.**
 - La secuencia VIG-001…VIG-072 del Área 08 (`docs/source/Vigia_08_…`) queda **aplazada**. No determina automáticamente la siguiente tarea: VIG-004 y siguientes no se ejecutan salvo petición expresa.

@@ -1,6 +1,9 @@
 # Vigía · Fase 5A: cámara frontal real y permisos
 
-**Autorizada por el usuario:** 2026-10-12. **Estado:** implementada; corregidos los tres P2 de la primera revisión de Codex (sección «Corrección de la revisión»); **sigue pendiente de revisión**. No integra MediaPipe.
+**Autorizada por el usuario:** 2026-10-12. **Estado:** **aprobada por Codex dentro de su alcance** (permiso CAMERA y CameraX Preview) y publicada en `origin/main`, tras corregir los tres P2 de la primera revisión (sección «Corrección de la revisión»).
+
+- **Artefacto funcional probado:** el APK normal corregido de `4a9b5a9` (`D:\dev\vigia-entrega\vigia-normal-fase5a-p2-release.apk`, SHA-256 `75a721e3…0ebc`). El commit posterior `80969c8` solo cambió documentación y comentarios, así que no se recompiló.
+- **No implementado:** MediaPipe, detección facial y de fatiga, calibración real, sesiones ni alertas reales.
 
 ## Alcance
 
@@ -212,7 +215,7 @@ Los flags `USER_SET`/`USER_FIXED` son lo que mostró `dumpsys package` en ese AV
 
 **Capturas:** 7, en `D:\dev\vigia-entrega\capturas\fase5a-p2\`.
 
-## No comprobado
+## No comprobado (pendientes tras el cierre)
 
 - **Teléfono D1 y cualquier cámara física:**
   - imagen real de un rostro;
