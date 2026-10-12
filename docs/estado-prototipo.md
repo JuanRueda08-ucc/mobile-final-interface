@@ -174,13 +174,13 @@ Regresiones:
 
 **Sin fallos reproducidos; no hay regresión nueva.** Una observación sin reproducir: en la segunda sesión, un primer toque en «Finalizar» durante el monitoreo no abrió el diálogo; el siguiente sí. No se repitió y no se ha atribuido a la app (puede haber coincidido con la actualización de la pantalla).
 
-**Sonido.** La aceptación técnica (se abrió y cerró la reproducción de audio en el emulador, la app informó «Reproducción de prueba correcta. Esto no confirma que lo hayas oído») **no equivale a haberlo oído**: el audio del emulador no se ha escuchado, y los tres patrones solo podrían confirmarse con oído humano o el teléfono D1. Los toques sobre «Lo escuché» fueron parte de la prueba de flujo, no una confirmación de audibilidad.
+**Sonido.** La aceptación técnica (se abrió y cerró la reproducción de audio en el emulador, la app informó «Reproducción de prueba correcta. Esto no confirma que lo hayas oído») **no equivale a haberlo oído**. Los toques sobre «Lo escuché» durante el recorrido fueron parte de la prueba de flujo, no una confirmación de audibilidad. **Audibilidad confirmada por el usuario (2026-10-12):** escuchó los tres patrones, probados desde Ajustes → Sonido, y suenan distintos. Es un testimonio del usuario, sin registro de dispositivo ni de volumen; no sustituye la prueba en el teléfono D1.
 
 **Capturas** (20) en `D:\dev\vigia-entrega\capturas\emulador\`. Corresponden al tema Oscuro del sistema o al guardado en cada momento; no sustituyen la revisión visual en claro y oscuro.
 
 ## No comprobado (fase 4)
 
-- Teléfono D1: instalación física, audio de los tres patrones, TalkBack, copia de seguridad.
+- Teléfono D1: instalación física, audio de los tres patrones en el teléfono, TalkBack, copia de seguridad.
 - Revisión visual completa en claro y oscuro desde el emulador y APK final de entrega (el de `D:\dev\vigia-entrega` es el comprobado aquí; la fase 3 sigue pendiente de aprobación de Codex).
 - Tema Claro del recorrido completo: se vio en Ajustes, pero el recorrido se ejecutó sobre el tema del momento (mayormente Oscuro).
 
