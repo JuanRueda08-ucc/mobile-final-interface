@@ -1,0 +1,1 @@
+Código generado por Pigeon desde pigeons/monitoring_api.dart. No editar a mano.

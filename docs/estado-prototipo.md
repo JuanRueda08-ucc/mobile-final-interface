@@ -1,8 +1,8 @@
 # Vigía · Estado del prototipo
 
-Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido) y `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes). Entorno: `docs/toolchain.md`.
+Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) y `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-12.
+**Actualizado:** 2026-10-12 (fase 5A).
 
 ## Fases
 
@@ -12,8 +12,9 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex dentro de su alcance y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
+| 5A. Cámara frontal real y permisos (variante normal) | **Implementada; pendiente de revisión de Codex.** Autorizada el 2026-10-12. Sin MediaPipe | commit de la fase 5A (ver «Fase 5A») |
 
-Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». **Cámara e IA reales todavía no están implementadas**: todo lo que muestra la app es simulado y lleva el rótulo «DEMO — datos simulados».
+Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. **No hay IA real**: no se analiza la imagen, no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
 ## Fase 3 (aprobada y publicada)
 
@@ -196,6 +197,59 @@ Regresiones:
 - **Qué significa «APK final de entrega» pendiente.** Era la recompilación prevista antes de la entrega. Ya no se requiere: el código de `lib/` y Android no cambió después de `486bf72`; los commits posteriores son solo documentales. Recompilar solo por ellos produciría otro artefacto sin aportar pruebas. Se recompilará únicamente si cambia el código o el usuario lo pide.
 - En la misma carpeta está el APK normal de `486bf72` (`vigia-normal-486bf72-release.apk`, SHA-256 `1254bdd55f6381a6628b6f01fbd94bc79e05005b892dba5fd7757f41e4ab230f`). No se probó en este recorrido.
 
+## Fase 5A · cámara frontal real y permisos (2026-10-12, pendiente de revisión)
+
+Detalle, pruebas y limitaciones: `docs/fase5a-camara-permisos.md`.
+
+- **Implementado:**
+  - en la variante normal, Inicio → «Comprobar cámara» → **Cámara frontal**;
+  - permiso CAMERA con explicación previa, rechazo, «Abrir ajustes» y nueva consulta al volver;
+  - vista previa CameraX (solo Preview) a través de una textura de Flutter;
+  - «Cámara disponible» solo cuando CameraX informa OPEN; «Detección de fatiga pendiente»; Calibrar e Iniciar deshabilitados.
+- **Puente Pigeon:** 29.0.8, en `packages/monitoring_engine/pigeons/monitoring_api.dart`.
+- **Dependencias Android exactas:**
+  - CameraX 1.6.2;
+  - `kotlinx-coroutines-android` 1.11.0.
+- **Ciclo de vida:** un propietario único de la cámara. Se libera al salir, en segundo plano y al desconectarse. Los tokens y generaciones descartan las respuestas tardías.
+- **Separación DEMO:** manifiestos superpuestos por variante. El APK DEMO final no contiene ninguna mención de cámara; el normal declara `CAMERA` con la cámara no obligatoria.
+
+**Resultados reales:**
+
+- `dart format`; `flutter analyze` (app y plugin): sin problemas.
+- `flutter test`: **pasan 596 pruebas**, entre ellas las 29 nuevas de `test/camera` y los 16 renderizados nuevos de `test/goldens/fase5a`. Se actualizaron 4 renderizados de P03 «motor no comprobado», porque esa pantalla cambió.
+- Plugin: `flutter test` pasa 3; `./gradlew :monitoring_engine:testDebugUnitTest` pasa 7, de ellas 6 nuevas en `CameraRulesTest`.
+- `python tools/spec_registry.py check`: OK.
+- **Detección:** sin la comprobación de respuestas antiguas, fallan 2 pruebas dirigidas.
+- **Compilación:** `flutter build apk --debug`, y `--release` de ambas variantes.
+- **Emulador** (cámara frontal `none` y, temporalmente, `emulated`, la escena sintética del emulador; no es webcam ni D1):
+  - rechazo, rechazo permanente, ajustes sin conceder y concediendo;
+  - sin cámara frontal;
+  - apertura, salida, reapertura, segundo plano, ráfagas de toques, revocación y concesión por diálogo;
+  - tema oscuro;
+  - DEMO intacto, con su historial conservado.
+  - La configuración de la AVD quedó restaurada (`hw.camera.front=none`).
+
+**APK** (compilados en release desde el mismo código que el commit de la fase 5A; firmados con la clave de depuración):
+
+| Variante | Ruta | Bytes | SHA-256 |
+|---|---|---|---|
+| Normal `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5a-release.apk` | 57 753 213 | `894c8d955b89405fb178215715eb602f5fe8308f91ac152e17fbf2caa25bf16b` |
+| DEMO `com.juanrueda.vigia.demo` | `D:\dev\vigia-entrega\vigia-demo-fase5a-release.apk` | 57 752 965 | `f71659994d8b56020c2526d9b18d9d7866a2003867ea4f7ed876e628135b14a6` |
+
+El APK DEMO validado de la fase 4 (`vigia-demo-486bf72-release.apk`) se conserva sin cambios.
+
+**Capturas:** 12, en `D:\dev\vigia-entrega\capturas\fase5a\`.
+
+**No comprobado:**
+
+- D1 y cualquier cámara física: rostro real, giro y espejo del sensor, rotación con la vista abierta;
+- cámara ocupada por otra app y desactivada por política, solo cubiertas con dobles;
+- interruptor de privacidad de Android 12+;
+- descarte del diálogo sin responder, que se informa como «abrir ajustes»;
+- TalkBack.
+
+**Entorno.** Gradle exige `TMP`/`TEMP` en `D:\dev\tmp\jtmp`: en `C:` quedan 2 GB y fallaba con «Unable to establish loopback connection».
+
 ## Siguiente acción
 
-Ninguna pendiente en el plan por fases: las fases 1 a 4 están cerradas. Cualquier trabajo nuevo (D1, TalkBack, revisión visual completa de ambos temas, cámara e IA reales, VIG-004 en adelante) requiere autorización expresa.
+Revisión de Codex de la fase 5A. No se integra MediaPipe ni se avanza a otra fase sin autorización expresa; la secuencia VIG del Área 08 sigue aplazada.

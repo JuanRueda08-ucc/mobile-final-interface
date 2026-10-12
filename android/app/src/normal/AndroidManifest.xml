@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fase 5A: solo la app normal (com.juanrueda.vigia) declara CAMERA. Gradle
+     añade este manifiesto únicamente sin VIGIA_DEMO=true; la app DEMO no
+     declara ni solicita la cámara. La cámara frontal no se exige para instalar:
+     la app informa «Cámara frontal no encontrada» si falta. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Sin esto, aapt deduce de CAMERA la cámara trasera como obligatoria. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+</manifest>

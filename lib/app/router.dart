@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/calibration/calibration_screen.dart';
+import '../features/camera/front_camera_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/session_detail_screen.dart';
 import '../features/inicio/inicio_screen.dart';
@@ -28,6 +29,9 @@ abstract final class VigiaRoutes {
   static const ajustes = '/ajustes';
   static const sonido = '/ajustes/sonido';
 
+  /// Fase 5A: cámara frontal real y permiso, solo en la variante normal.
+  static const camara = '/camara';
+
   /// P07 de una sesión guardada.
   static String resumen(String sessionId) => '/resumen/$sessionId';
 
@@ -49,6 +53,11 @@ String? vigiaRedirect({
   required String location,
 }) {
   if (location == VigiaRoutes.inicio) return null;
+  // Cámara frontal real: solo la variante normal. El recorrido DEMO no abre
+  // ninguna cámara ni pide el permiso.
+  if (location == VigiaRoutes.camara) {
+    return mode is RealMode ? null : VigiaRoutes.inicio;
+  }
   // Sin modo demostración no hay recorrido: solo Inicio (motor no comprobado
   // o variante de revisión).
   if (mode is! DemoMode) return VigiaRoutes.inicio;
@@ -118,6 +127,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                     _page(state, const CalibrationScreen()),
               ),
             ],
+          ),
+          GoRoute(
+            path: 'camara',
+            pageBuilder: (context, state) =>
+                _page(state, const FrontCameraScreen()),
           ),
           GoRoute(
             path: 'resumen/:id',

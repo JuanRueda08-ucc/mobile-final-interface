@@ -1,5 +1,5 @@
 name: monitoring_engine
-description: "Motor de monitoreo local de Vigía (plugin Android/Kotlin). Base VIG-003: sin cámara, IA, sesiones ni alertas."
+description: "Motor de monitoreo local de Vigía (plugin Android/Kotlin). Fase 5A: vista previa de la cámara frontal (CameraX) y permiso CAMERA; sin IA, sesiones ni alertas."
 version: 0.1.0
 publish_to: 'none'
 
@@ -16,6 +16,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Fase 5A: generador de los mensajes tipados Flutter–Kotlin (Área 04 §2).
+  # Versión exacta; el código generado se versiona (ver README).
+  pigeon: 29.0.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

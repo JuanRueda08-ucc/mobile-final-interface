@@ -66,6 +66,18 @@ android {
     }
 }
 
+// Fase 5A: el permiso CAMERA solo existe en la app normal
+// (src/normal/AndroidManifest.xml). La DEMO añade src/demo/AndroidManifest.xml,
+// que retira el servicio interno de CameraX: no declara ni solicita la cámara
+// (se comprueba en los manifiestos finales de ambos APK).
+androidComponents {
+    onVariants { variant ->
+        variant.sources.manifests.addStaticManifestFile(
+            if (vigiaDemo) "src/demo/AndroidManifest.xml" else "src/normal/AndroidManifest.xml",
+        )
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

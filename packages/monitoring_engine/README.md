@@ -5,10 +5,21 @@ Plugin Flutter local de Vigía con implementación Android en Kotlin
 (`SessionCoordinator`, cámara, inferencia, política, journal, alertas;
 Área 04 §3 y Área 08 §4).
 
-Estado en VIG-003: solo registro nativo verificable con el canal de la
-plantilla oficial (`getPlatformVersion`). **No** captura cámara, **no**
-ejecuta IA, **no** mantiene sesiones ni reproduce alertas. Ese canal de
-arranque se sustituirá por las APIs generadas con Pigeon (VIG-007/VIG-008).
+Estado en la fase 5A:
+
+- canal de la plantilla (`getPlatformVersion`, VIG-003);
+- API Pigeon `FrontCameraHostApi` / `FrontCameraFlutterApi`, con el permiso
+  CAMERA y la vista previa de la cámara frontal (CameraX, solo Preview).
+
+**No** analiza imágenes, **no** ejecuta IA, **no** mantiene sesiones ni
+reproduce alertas. Detalle: `docs/fase5a-camara-permisos.md` del repositorio.
+
+Regenerar el código de Pigeon (versionado; no editar a mano):
+
+```bash
+dart run pigeon --input pigeons/monitoring_api.dart
+dart format lib pigeons
+```
 
 La app raíz lo consume mediante una dependencia `path`
 (`packages/monitoring_engine`). No incluye app de ejemplo.

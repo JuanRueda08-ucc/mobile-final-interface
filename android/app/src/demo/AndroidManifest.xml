@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fase 5A: el plugin incluye CameraX para la app normal. La app DEMO no usa
+     la cámara: se retira del manifiesto final el servicio interno de CameraX
+     (deshabilitado y no exportado) para que no declare ningún componente de
+     cámara. Gradle añade este manifiesto solo con VIGIA_DEMO=true. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <service
+            android:name="androidx.camera.core.impl.MetadataHolderService"
+            tools:node="remove" />
+    </application>
+</manifest>

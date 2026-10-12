@@ -72,7 +72,16 @@ kotlin {
     }
 }
 
+// Fase 5A: versiones exactas, sin rangos dinámicos (Área 04 §2). CameraX
+// 1.6.2 es la última estable de Google Maven (2026-08-26); solo se usa el caso
+// Preview. Las corrutinas las exige el código que genera Pigeon 29.
+val cameraxVersion = "1.6.2"
+
 dependencies {
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

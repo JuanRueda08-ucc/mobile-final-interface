@@ -197,6 +197,21 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
             'No disponible hasta comprobar el estado del motor.',
             secondary: true,
           ),
+          // Fase 5A: vista previa real de la cámara frontal, sin análisis.
+          if (ref.read(appModeProvider) is RealMode) ...[
+            const VigiaSectionTitle('Cámara frontal'),
+            const VigiaParagraph(
+              'Puedes comprobar el permiso y la vista previa de la cámara. La '
+              'detección de fatiga todavía no está disponible.',
+              secondary: true,
+            ),
+            VigiaButton(
+              label: 'Comprobar cámara',
+              kind: VigiaButtonKind.secondary,
+              icon: VigiaIcon.target,
+              onPressed: () => context.go(VigiaRoutes.camara),
+            ),
+          ],
         ];
       case InicioMotorDesconocido():
         return [

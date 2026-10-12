@@ -14,7 +14,11 @@
 | **Candidato** | Versión propuesta, sin comprobar por compilación o pendiente de ensayo físico |
 | **Pendiente** | Sin decidir o sin resolver. No instalado ni añadido al proyecto |
 
-Ninguna dependencia futura de IA, cámara o almacenamiento (Pigeon, CameraX, MediaPipe, Room, Drift, Riverpod, go_router) se ha añadido al proyecto, y ninguna se declara compatible. **La compilación de VIG-003 no prueba compatibilidad en equipos**: no hay D1 (ver `docs/testing.md`).
+Ninguna dependencia futura de IA, cámara o almacenamiento (Pigeon, CameraX, MediaPipe, Room, Drift, Riverpod, go_router) se ha añadido al proyecto, y ninguna se declara compatible. *(Nota posterior: Drift, Riverpod y go_router se añadieron en las fases 2–3; Pigeon y CameraX, en la fase 5A. Ver la matriz.)*
+
+**Fase 5A (2026-10-12):** si Gradle falla al arrancar con «Unable to establish loopback connection», define `TMP` y `TEMP` en `D:\dev\tmp\jtmp`. En esta máquina, `C:` tenía 2 GB libres.
+
+**La compilación de VIG-003 no prueba compatibilidad en equipos**: no hay D1 (ver `docs/testing.md`).
 
 ## Matriz
 
@@ -34,8 +38,9 @@ Ninguna dependencia futura de IA, cámara o almacenamiento (Pigeon, CameraX, Med
 | NDK | 28.2.13676358 (`flutter.ndkVersion`, que Flutter pasa a Gradle) | `D:\dev\android-sdk\ndk\28.2.13676358` | Instalado. Uso efectivo en la compilación no verificado por separado | VIG-002/07 |
 | CMake | 4.1.2 | `D:\dev\android-sdk\cmake\4.1.2` | Instalado. No lo usa la base actual | VIG-002/07 |
 | `pubspec.lock` (app) | `cupertino_icons` 1.0.9 · `flutter_lints` 6.0.0 · `plugin_platform_interface` 2.1.8 · `monitoring_engine` 0.1.0 (path) | `pubspec.lock` (versionado; SHA-256 `30245718…cc14`) | Verificado: sin cambios tras dos compilaciones con `--enforce-lockfile` | VIG-003/06, compilacion-*-resumen |
-| Pigeon | 29.0.6 (pub.dev) | No añadido. VIG-007/VIG-008 | Candidato | — |
-| CameraX | 1.6.2 (última estable en Google Maven) | No añadido. VIG-010 | Pendiente | — |
+| Pigeon | **29.0.8** exacta (dev del plugin) | `packages/monitoring_engine/pubspec.yaml`; contrato en `pigeons/monitoring_api.dart` | Verificado por compilación (fase 5A) | `docs/fase5a-camara-permisos.md` |
+| CameraX | **1.6.2** exacta: `camera-core`, `camera-camera2`, `camera-lifecycle` (más `camera-camera2-pipe` transitiva) | `packages/monitoring_engine/android/build.gradle.kts` | Verificado por compilación y en emulador con cámara emulada (fase 5A). Sin D1 | `docs/fase5a-camara-permisos.md` |
+| Corrutinas Kotlin | `kotlinx-coroutines-android` **1.11.0** exacta (la exige el código de Pigeon 29) | Ídem | Verificado por compilación (fase 5A) | Ídem |
 | MediaPipe Tasks Vision | 1.0.0 (último listado en Google Maven) | No añadido. VIG-011 | Pendiente | — |
 | Room | 2.8.5 | No añadido. VIG-012 | Pendiente | — |
 | Drift / SQLite | `drift` 2.35.1. `sqlite3_flutter_libs` está en fin de vida (→ `sqlite3` 3.x) | No añadido. VIG-023 | Pendiente | — |
