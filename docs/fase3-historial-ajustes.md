@@ -175,6 +175,23 @@ Cambian P03 «último resumen» y P07 de la fase 2, porque ahora leen el dato gu
 - **Movimiento reducido.** Es una preferencia de la app añadida en esta fase. En B5.2 era un control del prototipo HTML.
 - **Copias de seguridad.** `allowBackup=false` y las reglas de exclusión de Área 06 §17 están en el manifiesto, pero no se han comprobado en un equipo.
 
+## Comprobación en emulador (fase 4)
+
+Resultados reales del recorrido completo con el APK release de `D:\dev\vigia-entrega` en un AVD Android 16: ver `docs/estado-prototipo.md`, sección «Fase 4 · recorrido en emulador». Para repetirlo:
+
+```bash
+export ANDROID_AVD_HOME='D:\dev\avd'
+flutter emulators --launch vigia_pixel
+```
+
+Con el emulador arrancado, instala la app DEMO (la normal, `com.juanrueda.vigia`, no tiene el recorrido):
+
+```bash
+adb install -r D:\dev\vigia-entrega\vigia-demo-486bf72-release.apk
+```
+
+Para simular el cierre con la sesión abierta, detén el proceso con `adb shell am force-stop com.juanrueda.vigia.demo` y reabre la app. Compilar con `flutter run` desde el emulador exige `TEMP`, `TMP` y `JAVA_TOOL_OPTIONS` cortos (ver arriba); sin ellos, Gradle falla con «Unable to establish loopback connection». Los toques sobre «Lo escuché» confirman el flujo, no que el tono se oiga: eso solo se comprueba con oído humano o en el teléfono.
+
 ## Pendiente (no comprobado)
 
 - **Sin teléfono D1:**

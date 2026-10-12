@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido) y `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-06.
+**Actualizado:** 2026-10-12.
 
 ## Fases
 
@@ -11,9 +11,9 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex y subida a `origin/main` | hasta `f4f62bc` |
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
 | 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada y subida a `origin/main` hasta `f86c6ed` por petición del usuario. Revisada por Codex: P1/P2 corregidos en `7c91f46`, el aviso de Ajustes en `f86c6ed` y los avisos de Sonido (P13) en el commit `fix:` que sigue. **Pendiente de aprobación de Codex** | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed` y el commit `fix:` de P13 (local) |
-| 4. Comprobación final y entrega | No iniciada; requiere autorización expresa | — |
+| 4. Comprobación final y entrega | Autorizada por el usuario. Recorrido en emulador hecho (sección siguiente); commit local de fase 4, **sin push, pendiente de revisión de Codex**. Faltan revisión visual completa, D1 y APK final | commit local `Fase 4: …` |
 
-Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 4 no empieza ni se sube la fase 3 hasta que Codex la revise.
+Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 3 no se sube hasta que Codex la revise.
 
 ## Fase 3 (pendiente de revisión)
 
@@ -152,10 +152,42 @@ Regresiones:
   - TalkBack real.
 - **Simulación.** Se rotula siempre «DEMO — datos simulados»; no hay cámara ni IA reales.
 
+## Fase 4 · recorrido en emulador (2026-10-12, pendiente de revisión)
+
+**Entorno.** AVD `vigia_pixel` (Pixel 8, Android 16 / API 36, `google_apis` x86_64, 1080×2400), creado en `D:\dev\avd` (en `C:` no cabe el disco de 12 GB; variable de usuario `ANDROID_AVD_HOME`). Sin teléfono D1.
+
+**Artefacto probado.** `D:\dev\vigia-entrega\vigia-demo-486bf72-release.apk` (SHA-256 `86821fd612984b01cdaa88754ebe66ab163394dbb1cce3865d9462d03b8ef176`, nombre con el commit `486bf72` = HEAD, árbol limpio). Instalado con `adb install -r` sobre la app que había (compilada con `flutter run --dart-define=VIGIA_DEMO=true`, misma clave de depuración); no se desinstaló nada ni se borró ninguna base. Nombre y paquete: `com.juanrueda.vigia.demo`, «Vigía DEMO». Dos primeros intentos de `flutter run` normal mostraron la variante «Vigía» sin recorrido: no cuentan para esta comprobación.
+
+**Método.** Interacción real por `adb` (toques sobre el árbol de accesibilidad de `uiautomator` y capturas), sin hot reload. El proceso se detuvo con `am force-stop` y se comprobó sin PID antes de reabrir.
+
+| Paso | Resultado |
+|---|---|
+| 1. Preparación, sonido, Calibración | Seis condiciones; Iniciar bloqueado con «Calibración pendiente · Prueba de sonido pendiente». «Probar sonido» abre y cierra el flujo de audio del emulador y habilita «Lo escuché» («Reproducción técnica correcta»). Calibración «Comenzar» → «Recogiendo referencia» → Aceptar → `C-DEMO-0001` → Usar referencia → Iniciar habilitado |
+| 2. Monitoreo | `S-DEMO-0001`. El ciclo de 43 s se vio en el tiempo activo: Advertencia a ~8 s, Cierre ocular prolongado a ~20 s, «Recuperando» y vuelta a «Sin señales persistentes». Pausar: «Monitoreo pausado / Evaluación suspendida», cronómetro detenido (00:08:32 fijo); Reanudar: vuelve a Activo y el tiempo continúa |
+| 3. Cierre | D02 «¿Finalizar la sesión?» → Resumen «Completo · guardado»: cobertura 83,5 %, evaluable 446,0 s, no evaluable 88,0 s, pausado 17,8 s, monitoreado 534,0 s, 25 episodios (13 advertencias, 12 cierres), «25 reproducidos · 0 fallidos». Detalle, Historial e Inicio («Último resumen») coinciden |
+| 4. Segunda sesión | `S-DEMO-0002` (94,3 s, cobertura 83,0 %, 5 episodios). La calibración seguía aplicable, y la prueba de sonido se exigió de nuevo. Historial: 0002 y 0001, una fila cada una |
+| 5. Ajustes | Ráfagas de toques sin pausa en Tema y Movimiento (Claro/Oscuro/Reducido/Según Android): la interfaz termina en el último pedido y muestra «Preferencia guardada». Sonido: Patrón 2 guardado (con tono de prueba), Patrón 3 guardado y Patrón 1 guardado inmediatamente antes de otra ráfaga de tema. Sin errores ni avisos de fallo |
+| 6. Reinicio real | Tras detener el proceso: Historial con 0001 y 0002, «Último resumen» 0002, tema Oscuro, movimiento Reducido, Patrón 1 (guardado). Preparación pide Calibración y sonido de nuevo |
+| 7. Sesión abierta | `S-DEMO-0003` iniciada, proceso detenido a los ~39 s: al reabrir, Inicio muestra «Sesión interrumpida» (Inicio 19:48; último registro 19:49), «Final: Desconocido», «Duración: No disponible». Detalle: «Último registro confirmado +00:37», cobertura no disponible, 2 episodios confirmados. Segunda reapertura: sigue habiendo un solo registro 0003 interrumpido, sin duplicados (3 filas en Historial, 1 en «Interrumpidas») |
+
+**logcat.** Sin `FATAL`, sin cierres, sin errores de Flutter ni de SQLite. Solo `AppOps: attributionTag not declared in manifest` (ruido del sistema al reproducir audio) y el aviso de depuración «jdwp» de la instalación de depuración previa.
+
+**Sin fallos reproducidos; no hay regresión nueva.** Una observación sin reproducir: en la segunda sesión, un primer toque en «Finalizar» durante el monitoreo no abrió el diálogo; el siguiente sí. No se repitió y no se ha atribuido a la app (puede haber coincidido con la actualización de la pantalla).
+
+**Sonido.** La aceptación técnica (se abrió y cerró la reproducción de audio en el emulador, la app informó «Reproducción de prueba correcta. Esto no confirma que lo hayas oído») **no equivale a haberlo oído**: el audio del emulador no se ha escuchado, y los tres patrones solo podrían confirmarse con oído humano o el teléfono D1. Los toques sobre «Lo escuché» fueron parte de la prueba de flujo, no una confirmación de audibilidad.
+
+**Capturas** (20) en `D:\dev\vigia-entrega\capturas\emulador\`. Corresponden al tema Oscuro del sistema o al guardado en cada momento; no sustituyen la revisión visual en claro y oscuro.
+
+## No comprobado (fase 4)
+
+- Teléfono D1: instalación física, audio de los tres patrones, TalkBack, copia de seguridad.
+- Revisión visual completa en claro y oscuro desde el emulador y APK final de entrega (el de `D:\dev\vigia-entrega` es el comprobado aquí; la fase 3 sigue pendiente de aprobación de Codex).
+- Tema Claro del recorrido completo: se vio en Ajustes, pero el recorrido se ejecutó sobre el tema del momento (mayormente Oscuro).
+
 ## Siguiente acción
 
 Aprobación de Codex de la fase 3, incluido el commit `fix:` de los avisos de Sonido (P13), que es local hasta que el usuario pida subirlo. Antes de la entrega:
 - recompilar el APK DEMO;
 - compilar y comprobar de nuevo el APK normal.
 
-La fase 4 no empieza sin autorización expresa.
+Revisión de Codex del commit local de la fase 4 y de la fase 3. Sin push hasta entonces.
