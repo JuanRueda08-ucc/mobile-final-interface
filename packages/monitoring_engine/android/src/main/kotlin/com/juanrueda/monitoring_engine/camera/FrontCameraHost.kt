@@ -34,6 +34,9 @@ internal class FrontCameraHost(
     private var activityLifecycle: Lifecycle? = null
     private val permissionWaiters = mutableListOf<CancellableContinuation<CameraPermissionStatus>>()
 
+    /** Explicación que Android ofrecía al lanzar la solicitud en curso. */
+    private var rationaleBeforeRequest = false
+
     private val visibilityObserver = object : DefaultLifecycleObserver {
         override fun onStop(owner: LifecycleOwner) {
             preview.closeFromNative(PreviewCloseReason.BACKGROUND)
@@ -77,6 +80,7 @@ internal class FrontCameraHost(
             cont.invokeOnCancellation { permissionWaiters.remove(cont) }
             // Pulsaciones repetidas comparten la misma solicitud de Android.
             if (permissionWaiters.size == 1) {
+                rationaleBeforeRequest = activity.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
                 activity.requestPermissions(arrayOf(Manifest.permission.CAMERA), REQUEST_CODE)
             }
         }
@@ -95,7 +99,8 @@ internal class FrontCameraHost(
         } else {
             CameraRules.permissionAfterRequest(
                 granted = grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED,
-                showRationale = activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == true,
+                showRationaleBefore = rationaleBeforeRequest,
+                showRationaleAfter = activity?.shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) == true,
             )
         }
         resolvePermission(status)

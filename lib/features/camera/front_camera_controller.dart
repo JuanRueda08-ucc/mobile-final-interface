@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
@@ -40,7 +41,8 @@ enum CameraCheckPhase {
   /// Cámara desactivada por política del dispositivo.
   disabled,
 
-  /// Fallo de apertura sin causa determinada (ER03).
+  /// Fallo de apertura sin causa determinada (ER03), o el motor no respondió
+  /// a una consulta, solicitud o apertura ([FrontCameraState.bridgeFailure]).
   failed,
 
   /// La app pasó a segundo plano: la cámara se liberó y se reabrirá al volver.
@@ -57,6 +59,7 @@ class FrontCameraState {
     this.permission,
     this.preview,
     this.errorCode,
+    this.bridgeFailure = false,
   });
 
   final CameraCheckPhase phase;
@@ -69,6 +72,10 @@ class FrontCameraState {
 
   /// Código técnico del último fallo, para diagnóstico.
   final String? errorCode;
+
+  /// `true` si el fallo fue del canal con el motor (excepción de la
+  /// consulta, la solicitud o la apertura), no una respuesta de CameraX.
+  final bool bridgeFailure;
 
   bool get permissionGranted => permission == CameraPermissionStatus.granted;
 }
@@ -92,6 +99,11 @@ final frontCameraProvider =
 /// - Cada apertura lleva un token nuevo y único en el proceso; el motor
 ///   ignora el cierre de un token antiguo.
 /// - Pulsaciones repetidas durante una solicitud o apertura no crean otra.
+/// - Una excepción del puente termina la operación en un fallo recuperable;
+///   la de una operación antigua no toca el estado vigente.
+/// - Al desecharse, toda operación en curso queda invalidada: tras cada salto
+///   asíncrono se comprueba la generación y `ref.mounted` antes de usar el
+///   Ref o el estado.
 class FrontCameraController extends Notifier<FrontCameraState> {
   static int _tokenSeq = 0;
 
@@ -112,6 +124,8 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     _bridge = ref.read(frontCameraBridgeProvider);
     final sub = _bridge.closures.listen(_onClosed);
     ref.onDispose(() {
+      _visible = false;
+      _generation++;
       sub.cancel();
       _release();
     });
@@ -167,8 +181,14 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       phase: CameraCheckPhase.requesting,
       permission: state.permission,
     );
-    final status = await _bridge.requestPermission();
-    if (gen != _generation) return;
+    final CameraPermissionStatus status;
+    try {
+      status = await _bridge.requestPermission();
+    } catch (e) {
+      if (_live(gen)) _fail(e);
+      return;
+    }
+    if (!_live(gen)) return;
     _lastRequest = status;
     if (status == CameraPermissionStatus.granted) {
       state = FrontCameraState(
@@ -208,8 +228,14 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       phase: CameraCheckPhase.checking,
       permission: state.permission,
     );
-    final status = await _bridge.checkPermission();
-    if (gen != _generation) return;
+    final CameraPermissionStatus status;
+    try {
+      status = await _bridge.checkPermission();
+    } catch (e) {
+      if (_live(gen)) _fail(e);
+      return;
+    }
+    if (!_live(gen)) return;
     if (status == CameraPermissionStatus.granted) {
       _lastRequest = status;
       state = FrontCameraState(
@@ -234,12 +260,21 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   Future<void> _open(int gen) async {
     final token = ++_tokenSeq;
     _token = token;
-    final result = await _bridge.openPreview(token);
-    if (gen != _generation || _token != token) {
+    final PreviewOpenResult result;
+    try {
+      result = await _bridge.openPreview(token);
+    } catch (e) {
+      // Pudo quedar una apertura parcial: se cierra solo este token (el
+      // motor ignora el cierre de un token que ya no es el vigente).
+      _closeQuietly(token);
+      if (_token == token) _token = null;
+      if (_live(gen)) _fail(e);
+      return;
+    }
+    if (!_live(gen) || _token != token) {
       // Respuesta antigua: nunca reactiva una vista cerrada.
-      if (result.status == PreviewOpenStatus.opened) {
-        unawaited(_bridge.closePreview(token));
-      }
+      if (result.status == PreviewOpenStatus.opened) _closeQuietly(token);
+      if (_token == token) _token = null;
       return;
     }
     final phase = switch (result.status) {
@@ -263,7 +298,7 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   }
 
   void _onClosed(PreviewClosedEvent event) {
-    if (event.token != _token) return;
+    if (event.token != _token || !ref.mounted) return;
     _token = null;
     _generation++;
     state = FrontCameraState(
@@ -281,7 +316,38 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   void _release() {
     final token = _token;
     _token = null;
-    if (token != null) unawaited(_bridge.closePreview(token));
+    if (token != null) _closeQuietly(token);
+  }
+
+  /// La operación de [gen] sigue vigente y el controlador no se desechó.
+  bool _live(int gen) => gen == _generation && ref.mounted;
+
+  /// Fallo recuperable: libera el bloqueo de la operación (la fase deja de
+  /// ser `checking`/`requesting`/`opening`) y permite Reintentar.
+  void _fail(Object error) {
+    state = FrontCameraState(
+      phase: CameraCheckPhase.failed,
+      permission: state.permission,
+      errorCode: error is PlatformException ? error.code : 'bridgeError',
+      bridgeFailure: true,
+    );
+  }
+
+  /// Cierra [token] sin dejar excepciones sin capturar: un fallo del canal
+  /// al cerrar no cambia el estado (la cámara ya no se muestra).
+  void _closeQuietly(int token) {
+    try {
+      _bridge
+          .closePreview(token)
+          .then(
+            (_) {},
+            onError: (Object e) {
+              debugPrint('Vigía · cierre de cámara $token no confirmado: $e');
+            },
+          );
+    } catch (e) {
+      debugPrint('Vigía · cierre de cámara $token no confirmado: $e');
+    }
   }
 
   static CameraCheckPhase _blockedPhase(CameraPermissionStatus s) =>

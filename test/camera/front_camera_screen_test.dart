@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
@@ -92,6 +93,38 @@ void main() {
     expect(find.text('Cámara frontal no encontrada'), findsWidgets);
     expect(find.byType(Texture), findsNothing);
     expect(find.text('Cámara disponible'), findsNothing);
+  });
+
+  testWidgets('rechazo o diálogo descartado: se puede volver a solicitar y '
+      'los ajustes son una alternativa, sin afirmar bloqueo', (tester) async {
+    bridge.requestAnswer = CameraPermissionStatus.denied;
+    await pumpReal(tester);
+    await openCamera(tester);
+    await tester.tap(find.text('Permitir cámara'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Android ya no muestra'), findsNothing);
+    expect(enabled(tester, 'Permitir cámara'), isTrue);
+    expect(enabled(tester, 'Abrir ajustes'), isTrue);
+    await tester.ensureVisible(find.text('Permitir cámara'));
+    await tester.tap(find.text('Permitir cámara'));
+    await tester.pumpAndSettle();
+    expect(bridge.requests, 2);
+  });
+
+  testWidgets('fallo del canal: lo dice y Reintentar consulta de nuevo', (
+    tester,
+  ) async {
+    bridge.checkError = PlatformException(code: 'channel-error');
+    await pumpReal(tester);
+    await openCamera(tester);
+    expect(find.text('Estado de la cámara no disponible'), findsOneWidget);
+    expect(find.text('Permiso sin comprobar'), findsOneWidget);
+    bridge.checkError = null;
+    await tester.ensureVisible(find.text('Reintentar'));
+    await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+    expect(bridge.calls.where((c) => c == 'check'), hasLength(2));
+    expect(find.text('Permitir cámara'), findsOneWidget);
   });
 
   testWidgets('rechazo permanente: «Abrir ajustes»', (tester) async {

@@ -12,7 +12,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex dentro de su alcance y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
-| 5A. Cámara frontal real y permisos (variante normal) | **Implementada; pendiente de revisión de Codex.** Autorizada el 2026-10-12. Sin MediaPipe | commit de la fase 5A (ver «Fase 5A») |
+| 5A. Cámara frontal real y permisos (variante normal) | **Implementada y corregidos los tres P2 de la revisión; sigue pendiente de revisión de Codex.** Autorizada el 2026-10-12. Sin MediaPipe | `a3839e3` y el commit de corrección (ver «Fase 5A») |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. **No hay IA real**: no se analiza la imagen, no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -245,8 +245,33 @@ El APK DEMO validado de la fase 4 (`vigia-demo-486bf72-release.apk`) se conserva
 - D1 y cualquier cámara física: rostro real, giro y espejo del sensor, rotación con la vista abierta;
 - cámara ocupada por otra app y desactivada por política, solo cubiertas con dobles;
 - interruptor de privacidad de Android 12+;
-- descarte del diálogo sin responder, que se informa como «abrir ajustes»;
+- descarte del diálogo en un teléfono físico (comprobado solo en el emulador);
 - TalkBack.
+
+### Corrección de los P2 de la revisión de Codex (pendiente de revisión)
+
+Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisión».
+
+1. **Diálogo descartado sin responder.**
+   - Ya no se informa como «Android ya no muestra la solicitud».
+   - El rechazo permanente solo se confirma cuando la explicación de Android pasa de «sí» a «no».
+   - Comprobado en una AVD temporal: tras «Atrás», una nueva pulsación vuelve a abrir el diálogo, y las rutas de rechazo y de ajustes se mantienen.
+2. **Excepciones del puente.** Terminan en un fallo recuperable con Reintentar. Las operaciones antiguas no tocan el estado y los cierres no dejan excepciones sin capturar.
+3. **Controlador desechado.** Invalida sus operaciones y comprueba `ref.mounted` tras cada salto asíncrono: no abre la cámara ni lanza `UnmountedRefException`.
+4. **Código generado.** `tools/generate_pigeon.py` regenera y normaliza el código Pigeon (`--check` compara con lo versionado); `git diff --check` queda limpio.
+
+**Resultados:**
+
+- Regresiones nuevas:
+  - JVM: 5 pruebas de permiso; en total pasan 11.
+  - Dart: 13 de errores y desecho, más 2 de pantalla.
+  - 2 renderizados nuevos y 2 regenerados.
+- `test/camera` y los renderizados de la fase 5A y de Inicio: pasan 86.
+- Revisión de Codex: pasan 11 de 11.
+- **Detección con el código anterior:** fallan 12 de las 13 pruebas Dart nuevas y la prueba JVM del diálogo descartado.
+- Por indicación, no se repitió la suite completa.
+
+**APK normal nuevo:** `D:\dev\vigia-entrega\vigia-normal-fase5a-p2-release.apk` (SHA-256 `75a721e368ab52f3c2231c452b3e24ea44044765ae58538f5b868ec4cc750ebc`). El anterior se conserva.
 
 **Entorno.** Gradle exige `TMP`/`TEMP` en `D:\dev\tmp\jtmp`: en `C:` quedan 2 GB y fallaba con «Unable to establish loopback connection».
 

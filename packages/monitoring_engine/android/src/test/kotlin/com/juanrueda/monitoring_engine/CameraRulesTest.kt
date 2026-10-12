@@ -17,18 +17,47 @@ import kotlin.test.assertTrue
  */
 internal class CameraRulesTest {
     @Test
-    fun permissionAfterRequest_distinguishesDeniedFromSettings() {
+    fun permissionAfterRequest_grantedRegardlessOfRationale() {
         assertEquals(
             CameraPermissionStatus.GRANTED,
-            CameraRules.permissionAfterRequest(granted = true, showRationale = false),
+            CameraRules.permissionAfterRequest(granted = true, showRationaleBefore = false, showRationaleAfter = false),
         )
+    }
+
+    @Test
+    fun permissionAfterRequest_firstDenialIsDenied() {
+        // Primer «No permitir»: Android pasa a ofrecer explicación.
         assertEquals(
             CameraPermissionStatus.DENIED,
-            CameraRules.permissionAfterRequest(granted = false, showRationale = true),
+            CameraRules.permissionAfterRequest(granted = false, showRationaleBefore = false, showRationaleAfter = true),
         )
+    }
+
+    @Test
+    fun permissionAfterRequest_dismissedDialogIsNotRequiresSettings() {
+        // Permitir cámara → Atrás sin responder: sin explicación antes ni
+        // después. No basta para afirmar que Android ya no pregunta.
+        assertEquals(
+            CameraPermissionStatus.DENIED,
+            CameraRules.permissionAfterRequest(granted = false, showRationaleBefore = false, showRationaleAfter = false),
+        )
+    }
+
+    @Test
+    fun permissionAfterRequest_secondDenialRequiresSettings() {
+        // Segundo «No permitir»: la explicación desaparece; rechazo permanente.
         assertEquals(
             CameraPermissionStatus.REQUIRES_SETTINGS,
-            CameraRules.permissionAfterRequest(granted = false, showRationale = false),
+            CameraRules.permissionAfterRequest(granted = false, showRationaleBefore = true, showRationaleAfter = false),
+        )
+    }
+
+    @Test
+    fun permissionAfterRequest_dismissAfterFirstDenialStaysDenied() {
+        // Tras un rechazo, descartar el diálogo conserva la explicación.
+        assertEquals(
+            CameraPermissionStatus.DENIED,
+            CameraRules.permissionAfterRequest(granted = false, showRationaleBefore = true, showRationaleAfter = true),
         )
     }
 

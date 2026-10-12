@@ -17,6 +17,17 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   /// Estado de apertura por defecto; nulo: se retiene en [pendingOpens].
   PreviewOpenStatus? openAnswer = PreviewOpenStatus.opened;
 
+  /// Errores que devolverán las operaciones mientras no sean nulos (por
+  /// ejemplo, `PlatformException(code: 'channel-error')`).
+  Object? checkError;
+  Object? requestError;
+  Object? openError;
+  Object? closeError;
+
+  /// Retiene la siguiente consulta en [pendingCheck].
+  bool holdCheck = false;
+  Completer<CameraPermissionStatus>? pendingCheck;
+
   bool settingsOpened = false;
   final calls = <String>[];
   final pendingOpens = <int, Completer<PreviewOpenResult>>{};
@@ -38,20 +49,29 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
       );
 
   @override
-  Future<CameraPermissionStatus> checkPermission() async {
+  Future<CameraPermissionStatus> checkPermission() {
     calls.add('check');
-    return permission;
+    if (checkError != null) return Future.error(checkError!);
+    if (holdCheck) return (pendingCheck = Completer()).future;
+    return Future.value(permission);
   }
 
   @override
   Future<CameraPermissionStatus> requestPermission() {
     calls.add('request');
+    if (requestError != null) return Future.error(requestError!);
     final answer = requestAnswer;
     if (answer != null) {
       if (answer == CameraPermissionStatus.granted) permission = answer;
       return Future.value(answer);
     }
     return (pendingRequest = Completer()).future;
+  }
+
+  /// Hace fallar la solicitud retenida.
+  void failRequest(Object error) {
+    pendingRequest!.completeError(error);
+    pendingRequest = null;
   }
 
   /// Responde la solicitud retenida.
@@ -71,12 +91,18 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   @override
   Future<PreviewOpenResult> openPreview(int token) {
     calls.add('open:$token');
+    if (openError != null) return Future.error(openError!);
     final answer = openAnswer;
     if (answer != null) {
       if (answer == PreviewOpenStatus.opened) openTokens.add(token);
       return Future.value(result(token, answer));
     }
     return (pendingOpens[token] = Completer()).future;
+  }
+
+  /// Hace fallar una apertura retenida.
+  void failOpen(int token, Object error) {
+    pendingOpens.remove(token)!.completeError(error);
   }
 
   /// Responde una apertura retenida.
@@ -86,9 +112,11 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   }
 
   @override
-  Future<void> closePreview(int token) async {
+  Future<void> closePreview(int token) {
     calls.add('close:$token');
     openTokens.remove(token);
+    if (closeError != null) return Future.error(closeError!);
+    return Future.value();
   }
 
   /// Cierre decidido por el lado nativo.

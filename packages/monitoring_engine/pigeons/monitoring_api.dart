@@ -25,8 +25,9 @@ enum CameraPermissionStatus {
   /// Denegado; Android permite volver a solicitarlo.
   denied,
 
-  /// Denegado y Android ya no muestra la solicitud: hay que abrir los ajustes
-  /// del teléfono. Solo se deduce tras una solicitud.
+  /// Denegado y Android confirmó que ya no muestra la solicitud: antes de
+  /// ella ofrecía explicación y, tras el rechazo, ya no. Hay que abrir los
+  /// ajustes del teléfono. Un diálogo descartado sin responder es [denied].
   requiresSettings,
 }
 

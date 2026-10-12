@@ -11,18 +11,29 @@ import com.juanrueda.monitoring_engine.PreviewOpenStatus
  */
 internal object CameraRules {
     /**
-     * Estado tras responder una solicitud de permiso. Si Android denegó y ya
-     * no explicaría la solicitud, solo queda abrir los ajustes del teléfono.
+     * Estado tras responder una solicitud de permiso.
      *
-     * Limitación conocida: si el usuario descarta el diálogo la primera vez,
-     * Android tampoco ofrece explicación y el caso se informa como
-     * [CameraPermissionStatus.REQUIRES_SETTINGS].
+     * Solo se exige abrir los ajustes cuando Android lo confirma con su API
+     * pública: antes de la solicitud ofrecía explicación
+     * ([showRationaleBefore]) y, tras otro rechazo, ya no
+     * ([showRationaleAfter]). Es el rechazo permanente («No volver a
+     * preguntar»).
+     *
+     * Sin explicación ni antes ni después, la causa no se puede distinguir:
+     * puede ser un diálogo descartado sin responder (Android lo volverá a
+     * mostrar) o un rechazo permanente de otra visita. Se informa
+     * [CameraPermissionStatus.DENIED], que conserva la solicitud; la app
+     * ofrece además los ajustes sin afirmar que la solicitud esté bloqueada.
      */
-    fun permissionAfterRequest(granted: Boolean, showRationale: Boolean): CameraPermissionStatus =
+    fun permissionAfterRequest(
+        granted: Boolean,
+        showRationaleBefore: Boolean,
+        showRationaleAfter: Boolean,
+    ): CameraPermissionStatus =
         when {
             granted -> CameraPermissionStatus.GRANTED
-            showRationale -> CameraPermissionStatus.DENIED
-            else -> CameraPermissionStatus.REQUIRES_SETTINGS
+            showRationaleBefore && !showRationaleAfter -> CameraPermissionStatus.REQUIRES_SETTINGS
+            else -> CameraPermissionStatus.DENIED
         }
 
     /** Resultado de apertura para un error de CameraX antes de abrir. */

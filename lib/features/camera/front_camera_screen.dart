@@ -160,6 +160,21 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
                 ? null
                 : _camera.requestPermission,
           ),
+          // Sin respuesta o con un rechazo que Android aún podría volver a
+          // preguntar no se afirma que la solicitud esté bloqueada: se ofrece
+          // repetirla y, como alternativa, los ajustes del teléfono.
+          if (s.phase == CameraCheckPhase.denied) ...[
+            const VigiaParagraph(
+              'Si la solicitud de Android no aparece, puedes conceder el '
+              'permiso en los ajustes del teléfono.',
+              secondary: true,
+            ),
+            VigiaButton(
+              label: 'Abrir ajustes',
+              kind: VigiaButtonKind.secondary,
+              onPressed: _openSettings,
+            ),
+          ],
           VigiaButton(
             label: 'Ahora no',
             kind: VigiaButtonKind.secondary,
@@ -215,6 +230,11 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
         'Cámara no disponible',
         'La cámara está desactivada en este teléfono.',
       ),
+      CameraCheckPhase.failed when s.bridgeFailure => (
+        false,
+        'Estado de la cámara no disponible',
+        'No se pudo comunicar con el motor de la cámara. Reintenta.',
+      ),
       CameraCheckPhase.failed => (false, 'Cámara no disponible', null),
       CameraCheckPhase.suspended => (
         false,
@@ -247,7 +267,9 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
             ? 'Concedido'
             : permissionKnown
             ? 'Cámara sin permiso'
-            : 'Comprobando…',
+            : s.phase == CameraCheckPhase.checking
+            ? 'Comprobando…'
+            : 'Permiso sin comprobar',
       ),
       CheckRow(
         label: 'Cámara',

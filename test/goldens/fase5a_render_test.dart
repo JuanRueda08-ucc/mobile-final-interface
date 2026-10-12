@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
@@ -52,6 +53,10 @@ void main() {
           (b) => b
             ..permission = CameraPermissionStatus.granted
             ..openAnswer = PreviewOpenStatus.noFrontCamera,
+          null,
+        ),
+        'fallo_del_canal': (
+          (b) => b.checkError = PlatformException(code: 'channel-error'),
           null,
         ),
         'camara_ocupada': (
