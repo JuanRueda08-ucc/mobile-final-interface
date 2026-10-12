@@ -8,12 +8,12 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 
 | Fase | Estado | Commits |
 |---|---|---|
-| 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex y subida a `origin/main` | hasta `f4f62bc` |
-| 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
-| 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
-| 4. Comprobación final y entrega | Autorizada por el usuario. Recorrido en emulador hecho (sección siguiente); commit local de fase 4, **sin push, pendiente de revisión de Codex**. Faltan revisión visual completa, D1 y APK final | commit local `Fase 4: …` |
+| 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex dentro de su alcance y subida a `origin/main` | hasta `f4f62bc` |
+| 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex dentro de su alcance y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
+| 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
+| 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
 
-Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 4 no se sube hasta que Codex la revise.
+Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». **Cámara e IA reales todavía no están implementadas**: todo lo que muestra la app es simulado y lleva el rótulo «DEMO — datos simulados».
 
 ## Fase 3 (aprobada y publicada)
 
@@ -152,7 +152,7 @@ Regresiones:
   - TalkBack real.
 - **Simulación.** Se rotula siempre «DEMO — datos simulados»; no hay cámara ni IA reales.
 
-## Fase 4 · recorrido en emulador (2026-10-12, pendiente de revisión)
+## Fase 4 · recorrido en emulador (2026-10-12, aprobada)
 
 **Entorno.** AVD `vigia_pixel` (Pixel 8, Android 16 / API 36, `google_apis` x86_64, 1080×2400), creado en `D:\dev\avd` (en `C:` no cabe el disco de 12 GB; variable de usuario `ANDROID_AVD_HOME`). Sin teléfono D1.
 
@@ -182,14 +182,20 @@ Regresiones:
 
 ## No comprobado (fase 4)
 
-- Teléfono D1: instalación física, audio de los tres patrones en el teléfono, TalkBack, copia de seguridad.
-- Revisión visual completa en claro y oscuro desde el emulador y APK final de entrega (el de `D:\dev\vigia-entrega` es el comprobado aquí).
-- Tema Claro del recorrido completo: se vio en Ajustes, pero el recorrido se ejecutó sobre el tema del momento (mayormente Oscuro).
+- **Teléfono D1:** instalación física, audio de los tres patrones en el teléfono, copia de seguridad. La audibilidad registrada arriba es una confirmación del usuario, no una prueba en D1.
+- **TalkBack real.**
+- **Revisión visual completa de ambos temas.** El recorrido se ejecutó sobre el tema del momento (mayormente Oscuro); el Claro solo se vio en Ajustes.
+- **Observación no reproducida.** Un primer toque en «Finalizar» durante el monitoreo de la segunda sesión no abrió el diálogo; el siguiente sí. No se repitió y no se atribuye a la app.
+- **Cámara e IA reales:** todavía no implementadas (fuera de este prototipo).
+
+## Artefacto validado disponible
+
+- **Ruta:** `D:\dev\vigia-entrega\vigia-demo-486bf72-release.apk`
+- **SHA-256:** `86821fd612984b01cdaa88754ebe66ab163394dbb1cce3865d9462d03b8ef176` (57 013 754 bytes). Es el APK DEMO de `486bf72`, `com.juanrueda.vigia.demo`.
+- **Qué se le probó:** únicamente el recorrido en emulador descrito en «Fase 4». No se le atribuye ninguna otra prueba.
+- **Qué significa «APK final de entrega» pendiente.** Era la recompilación prevista antes de la entrega. Ya no se requiere: el código de `lib/` y Android no cambió después de `486bf72`; los commits posteriores son solo documentales. Recompilar solo por ellos produciría otro artefacto sin aportar pruebas. Se recompilará únicamente si cambia el código o el usuario lo pide.
+- En la misma carpeta está el APK normal de `486bf72` (`vigia-normal-486bf72-release.apk`, SHA-256 `1254bdd55f6381a6628b6f01fbd94bc79e05005b892dba5fd7757f41e4ab230f`). No se probó en este recorrido.
 
 ## Siguiente acción
 
-Revisión conjunta de Codex de la fase 4 (`cad9f51` y `f696ffe`, locales; `origin/main` sigue en `486bf72`). Antes de la entrega:
-- recompilar el APK DEMO;
-- compilar y comprobar de nuevo el APK normal.
-
-Sin push de la fase 4 hasta su revisión.
+Ninguna pendiente en el plan por fases: las fases 1 a 4 están cerradas. Cualquier trabajo nuevo (D1, TalkBack, revisión visual completa de ambos temas, cámara e IA reales, VIG-004 en adelante) requiere autorización expresa.
