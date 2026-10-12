@@ -187,7 +187,7 @@ flutter emulators --launch vigia_pixel
 Con el emulador arrancado, instala la app DEMO (la normal, `com.juanrueda.vigia`, no tiene el recorrido):
 
 ```bash
-adb install -r D:\dev\vigia-entrega\vigia-demo-486bf72-release.apk
+adb install -r 'D:\dev\vigia-entrega\vigia-demo-486bf72-release.apk'
 ```
 
 Para simular el cierre con la sesión abierta, detén el proceso con `adb shell am force-stop com.juanrueda.vigia.demo` y reabre la app. Compilar con `flutter run` desde el emulador exige `TEMP`, `TMP` y `JAVA_TOOL_OPTIONS` cortos (ver arriba); sin ellos, Gradle falla con «Unable to establish loopback connection». Los toques sobre «Lo escuché» confirman el flujo, no que el tono se oiga: eso solo se comprueba con oído humano o en el teléfono.

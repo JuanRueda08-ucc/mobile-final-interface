@@ -178,6 +178,8 @@ Regresiones:
 
 **Capturas** (20) en `D:\dev\vigia-entrega\capturas\emulador\`. Corresponden al tema Oscuro del sistema o al guardado en cada momento; no sustituyen la revisión visual en claro y oscuro.
 
+**Corrección documental.** El comando `adb install -r` de `docs/fase3-historial-ajustes.md` carecía de comillas, y Bash descartaba las barras de la ruta Windows. Ahora lleva la ruta entre comillas simples. Se comprobó, sin instalar, que Bash la recibe como un solo argumento y que el archivo existe (57 013 754 bytes, SHA-256 `86821fd6…ef176`). `git diff --check` limpio. La fase 4 sigue pendiente del dictamen final de Codex.
+
 ## No comprobado (fase 4)
 
 - Teléfono D1: instalación física, audio de los tres patrones en el teléfono, TalkBack, copia de seguridad.
