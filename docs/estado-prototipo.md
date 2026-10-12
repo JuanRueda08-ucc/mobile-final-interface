@@ -10,12 +10,12 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 |---|---|---|
 | 1. Instrucciones, base visual e Inicio (P03) | Aprobada por Codex y subida a `origin/main` | hasta `f4f62bc` |
 | 2. Recorrido demostrativo (P04–P07, D01/D02/D05) | Aprobada por Codex y subida a `origin/main` | `e7a2381`, `a211c5c`, `3ff7707`, `f771d34`, `26fe51a` |
-| 3. App DEMO separada, persistencia, Historial y Ajustes | Implementada y subida a `origin/main` hasta `f86c6ed` por petición del usuario. Revisada por Codex: P1/P2 corregidos en `7c91f46`, el aviso de Ajustes en `f86c6ed` y los avisos de Sonido (P13) en el commit `fix:` que sigue. **Pendiente de aprobación de Codex** | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed` y el commit `fix:` de P13 (local) |
+| 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | Autorizada por el usuario. Recorrido en emulador hecho (sección siguiente); commit local de fase 4, **sin push, pendiente de revisión de Codex**. Faltan revisión visual completa, D1 y APK final | commit local `Fase 4: …` |
 
-Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 3 no se sube hasta que Codex la revise.
+Las revisiones de las fases 1 y 2 están cerradas, dentro del alcance del prototipo y con las limitaciones de «No comprobado». La fase 4 no se sube hasta que Codex la revise.
 
-## Fase 3 (pendiente de revisión)
+## Fase 3 (aprobada y publicada)
 
 | Commit | Bloque |
 |---|---|
@@ -36,7 +36,7 @@ Decisiones y límites (detalle en `docs/fase3-historial-ajustes.md`):
   **OI-08 sigue abierto** (RF27.CA2 sin tocar).
 - **Referencia de calibración.** Sigue en memoria: tras reabrir la app hay que calibrar de nuevo.
 
-## Correcciones de la revisión de la fase 3 (pendientes de revisión)
+## Correcciones de la revisión de la fase 3 (aprobadas)
 
 1. **P1 · segundo guardado de preferencias.** El INSERT omitía `singleton`, que SQLite trata como rowid (INTEGER PRIMARY KEY). En la segunda escritura proponía `singleton=2` y el CHECK la rechazaba (`SqliteException(275)`) antes de llegar al conflicto. Ahora se fija `singleton=1`.
 2. **P2 · operaciones simultáneas.** `PreferencesController` encola las escrituras en el orden pedido, y cada cambio se aplica sobre las últimas preferencias guardadas:
@@ -64,7 +64,7 @@ Regresiones:
 - `build/review/fase2_review_test.dart`: no compila. Sus reproductores falsos no aceptan el parámetro `patternId` que la fase 3 añadió a `AlertSoundPlayer.play`. No se modificó ese archivo de Codex.
 - No se repitieron, por indicación: la suite completa, el contraste, los renderizados ni las compilaciones Android.
 
-## Corrección del aviso de fallo de preferencias (pendiente de revisión)
+## Corrección del aviso de fallo de preferencias (aprobada)
 
 **Hallazgo de Codex.** Claro → Oscuro → Reducido mientras se guarda → falla Oscuro → se guarda Reducido. Los datos terminaban bien, pero Ajustes decía que había fallado «el último cambio», que sí se guardó.
 
@@ -90,7 +90,7 @@ Regresiones:
 - **Detección.** Con el `lib/` anterior (guardado temporalmente con `git stash`), la reproducción de Codex «mensaje identifica fallo anterior» falla mostrando «No se pudo guardar el último cambio…». Con la corrección pasa. Las pruebas propias usan la API nueva (`failures`) y no compilan con el código anterior.
 - No se repitieron, por indicación: matrices, contraste, renderizados ni compilaciones Android. Los APK existentes siguen siendo anteriores a `7c91f46`.
 
-## Corrección de los avisos de Sonido (P13) (pendiente de revisión)
+## Corrección de los avisos de Sonido (P13) (aprobada)
 
 **Hallazgos de Codex.** `sound_screen.dart` actualizaba su aviso con la respuesta de cada guardado, aunque una petición posterior ya la hubiera sustituido. Eso causaba dos problemas:
 
@@ -181,13 +181,13 @@ Regresiones:
 ## No comprobado (fase 4)
 
 - Teléfono D1: instalación física, audio de los tres patrones en el teléfono, TalkBack, copia de seguridad.
-- Revisión visual completa en claro y oscuro desde el emulador y APK final de entrega (el de `D:\dev\vigia-entrega` es el comprobado aquí; la fase 3 sigue pendiente de aprobación de Codex).
+- Revisión visual completa en claro y oscuro desde el emulador y APK final de entrega (el de `D:\dev\vigia-entrega` es el comprobado aquí).
 - Tema Claro del recorrido completo: se vio en Ajustes, pero el recorrido se ejecutó sobre el tema del momento (mayormente Oscuro).
 
 ## Siguiente acción
 
-Aprobación de Codex de la fase 3, incluido el commit `fix:` de los avisos de Sonido (P13), que es local hasta que el usuario pida subirlo. Antes de la entrega:
+Revisión conjunta de Codex de la fase 4 (`cad9f51` y `f696ffe`, locales; `origin/main` sigue en `486bf72`). Antes de la entrega:
 - recompilar el APK DEMO;
 - compilar y comprobar de nuevo el APK normal.
 
-Revisión de Codex del commit local de la fase 4 y de la fase 3. Sin push hasta entonces.
+Sin push de la fase 4 hasta su revisión.
