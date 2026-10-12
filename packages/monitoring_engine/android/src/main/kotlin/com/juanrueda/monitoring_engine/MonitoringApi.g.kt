@@ -209,9 +209,11 @@ enum class CameraPermissionStatus(val raw: Int) {
   /** Denegado; Android permite volver a solicitarlo. */
   DENIED(1),
   /**
-   * Denegado y Android confirmó que ya no muestra la solicitud: antes de
-   * ella ofrecía explicación y, tras el rechazo, ya no. Hay que abrir los
-   * ajustes del teléfono. Un diálogo descartado sin responder es [denied].
+   * Denegado, y la implementación infiere que Android ya no mostrará la
+   * solicitud: antes de ella `shouldShowRequestPermissionRationale` era
+   * verdadero y, tras el rechazo, falso. Es una inferencia, no una garantía
+   * de la API; se comprobó en un AVD con API 36. Se ofrece abrir los ajustes
+   * del teléfono. Un diálogo descartado sin responder es [denied].
    */
   REQUIRES_SETTINGS(2);
 

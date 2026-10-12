@@ -13,11 +13,13 @@ internal object CameraRules {
     /**
      * Estado tras responder una solicitud de permiso.
      *
-     * Solo se exige abrir los ajustes cuando Android lo confirma con su API
-     * pública: antes de la solicitud ofrecía explicación
-     * ([showRationaleBefore]) y, tras otro rechazo, ya no
-     * ([showRationaleAfter]). Es el rechazo permanente («No volver a
-     * preguntar»).
+     * Solo se informa que hay que abrir los ajustes cuando
+     * `shouldShowRequestPermissionRationale` pasa de verdadero
+     * ([showRationaleBefore]) a falso ([showRationaleAfter]) con un rechazo.
+     * Es una inferencia de esta implementación: la API pública no declara
+     * que esa transición signifique un rechazo permanente. En un AVD con
+     * API 36 (fase 5A) coincidió con el segundo «No permitir», tras el cual
+     * Android dejó de mostrar el diálogo.
      *
      * Sin explicación ni antes ni después, la causa no se puede distinguir:
      * puede ser un diálogo descartado sin responder (Android lo volverá a

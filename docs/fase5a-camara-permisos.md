@@ -49,8 +49,8 @@ En la **variante normal** (`com.juanrueda.vigia`, «Vigía»):
 |---|---|
 | `explain` | Sin permiso y sin solicitud en esta visita |
 | `requesting` | Diálogo de Android visible |
-| `denied` | Sin permiso tras una solicitud que Android no confirmó como bloqueada: primer rechazo o diálogo descartado sin responder (ER01). Se puede volver a pedir; «Abrir ajustes» aparece como alternativa, sin afirmar que la solicitud esté bloqueada |
-| `requiresSettings` | Android confirmó el rechazo permanente: antes de la solicitud ofrecía explicación (`shouldShowRequestPermissionRationale`) y tras el rechazo ya no. Muestra «Abrir ajustes» (UX02.CA2). Al volver sin permiso, el bloqueo se conserva |
+| `denied` | Sin permiso tras una solicitud que la implementación no infiere como bloqueada: primer rechazo o diálogo descartado sin responder (ER01). Se puede volver a pedir; «Abrir ajustes» aparece como alternativa, sin afirmar que la solicitud esté bloqueada |
+| `requiresSettings` | **Inferencia de la implementación:** `shouldShowRequestPermissionRationale` era verdadero antes de la solicitud y falso tras el rechazo. La API no garantiza que esa transición signifique un rechazo permanente, pero en el AVD con API 36 coincidió con el segundo «No permitir», tras el cual Android dejó de mostrar el diálogo. Muestra «Abrir ajustes» (UX02.CA2). Al volver sin permiso, el bloqueo se conserva |
 | `opening` | Apertura en curso |
 | `available` | CameraX informó OPEN |
 | `noFrontCamera` | `hasCamera(DEFAULT_FRONT_CAMERA)` es falso |
@@ -159,7 +159,7 @@ Todas compilan en debug y release con AGP 9.1.0, Kotlin 2.4.0, Gradle 9.3.1, JDK
 ## Corrección de la revisión de Codex (P2)
 
 1. **Diálogo descartado.**
-   - `CameraRules.permissionAfterRequest` recibe la explicación de Android antes y después de la solicitud, y solo devuelve `REQUIRES_SETTINGS` cuando pasa de «sí» a «no».
+   - `CameraRules.permissionAfterRequest` recibe `shouldShowRequestPermissionRationale` antes y después de la solicitud. Solo devuelve `REQUIRES_SETTINGS` si pasa de «sí» a «no», una inferencia que se comprobó en el AVD con API 36 y que la API no garantiza en general.
    - Descartar el diálogo deja `DENIED`, así que se puede volver a solicitar.
    - En ese estado, la pantalla ofrece «Abrir ajustes» como alternativa, sin decir que Android ya no muestra la solicitud.
 2. **Excepciones del puente.**
@@ -199,12 +199,14 @@ Todas compilan en debug y release con AGP 9.1.0, Kotlin 2.4.0, Gradle 9.3.1, JDK
 
 | Paso | Resultado |
 |---|---|
-| Permitir cámara → Atrás sin responder | «Cámara sin permiso» con «Permitir cámara»; no aparece «Android ya no muestra». `dumpsys`: sin `USER_SET` |
+| Permitir cámara → Atrás sin responder | «Cámara sin permiso» con «Permitir cámara»; no aparece «Android ya no muestra». `dumpsys` en ese AVD: sin `USER_SET` |
 | Nueva pulsación | Android vuelve a mostrar el diálogo |
 | No permitir | `denied`, con «Abrir ajustes» como alternativa |
-| No permitir otra vez | «Android ya no muestra la solicitud…» (`USER_FIXED`) |
+| No permitir otra vez | «Android ya no muestra la solicitud…»; `dumpsys` en ese AVD: `USER_SET\|USER_FIXED` |
 | Proceso nuevo y Permitir cámara | Android no muestra diálogo; la app queda en `denied` con la alternativa de ajustes |
 | Conceder en ajustes y volver | «Concedido», «Disponible»; un cliente de cámara activo |
+
+Los flags `USER_SET`/`USER_FIXED` son lo que mostró `dumpsys package` en ese AVD (API 36). Sirven como evidencia de esa prueba, no como contrato de la API: la app no los lee y depende solo de `shouldShowRequestPermissionRationale`. En otras versiones o fabricantes la transición puede comportarse distinto. Por eso el caso ambiguo queda en `denied`, con «Abrir ajustes» siempre disponible como alternativa.
 
 **APK normal recompilado:** `D:\dev\vigia-entrega\vigia-normal-fase5a-p2-release.apk`, 57 769 597 bytes, SHA-256 `75a721e368ab52f3c2231c452b3e24ea44044765ae58538f5b868ec4cc750ebc`. Se conserva el anterior (`vigia-normal-fase5a-release.apk`, `894c8d95…bf16b`). El APK DEMO no se recompiló: la corrección solo afecta a la pantalla de cámara de la variante normal, que la app DEMO no muestra. El último APK DEMO compilado (`vigia-demo-fase5a-release.apk`) no incluye estos cambios del código compartido.
 

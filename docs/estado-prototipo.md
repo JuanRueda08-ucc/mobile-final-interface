@@ -254,7 +254,7 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
 
 1. **Diálogo descartado sin responder.**
    - Ya no se informa como «Android ya no muestra la solicitud».
-   - El rechazo permanente solo se confirma cuando la explicación de Android pasa de «sí» a «no».
+   - La app solo infiere un rechazo permanente, y pide abrir los ajustes, cuando `shouldShowRequestPermissionRationale` pasa de «sí» a «no». Es una inferencia de la implementación, no un contrato de la API; se comprobó en el AVD con API 36, donde `dumpsys` mostró `USER_FIXED`. Los casos ambiguos quedan en «sin permiso», con la solicitud y «Abrir ajustes» disponibles.
    - Comprobado en una AVD temporal: tras «Atrás», una nueva pulsación vuelve a abrir el diálogo, y las rutas de rechazo y de ajustes se mantienen.
 2. **Excepciones del puente.** Terminan en un fallo recuperable con Reintentar. Las operaciones antiguas no tocan el estado y los cierres no dejan excepciones sin capturar.
 3. **Controlador desechado.** Invalida sus operaciones y comprueba `ref.mounted` tras cada salto asíncrono: no abre la cámara ni lanza `UnmountedRefException`.
