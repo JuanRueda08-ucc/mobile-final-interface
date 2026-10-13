@@ -514,6 +514,58 @@ Se mantienen documentados el incidente inicial de telemetría y las limitaciones
 
 **APK:** `D:\dev\vigia-entrega\vigia-normal-fase5c-release.apk`, 94 516 725 bytes, SHA-256 `b205b972bc5dc58c925f2e2381cc3903e2d8edc3578131ca6e5395e18f0567ad` (añadido a `SHA256SUMS.txt`). Evidencia: `D:\dev\vigia-entrega\evidencia-fase5c\`.
 
+## Reparaciones autorizadas de Codex · bloque 5B + 5C (2026-10-13)
+
+Base revisada: `75b727365e27e379b204d4bff177269cb4fea1f8`, en `main` limpio;
+incluye `9a95cce` y `b08cfec`. Autorización del usuario registrada en AGENTS.md
+y CLAUDE.md, commit local `1210ca0`. Claude permanece detenido durante este trabajo.
+
+Código y regresiones reparados en `5d82d7ebd0fbac7fd4701398cc608fdc96829315`:
+vigencia ocular y de señales al leer/publicar/consultar; transporte conservador
+sin comparar relojes; identidad de observación y motor; llamadas y órdenes
+pendientes acotadas; temporizadores y consumidores desvinculados; reentrada
+en pausa; callback con sufijo; contadores de sesión conservados al reanudar;
+invalidación inmediata por error de inferencia y liberación del audio.
+Se reprodujeron los defectos antes de repararlos. No se ampliaron umbrales.
+El ajuste adicional del resumen, reproducido durante la validación propia,
+queda en `ad7e91c3586a342c247584aa3f1ae7b8563344a9`: una respuesta de inicio
+perdida no impide salir después de confirmar y finalizar esa sesión; sigue
+bloqueada la salida si su resultado todavía es incierto.
+
+**Validación propia dirigida:** análisis app/plugin sin incidencias; Dart
+136/136, JVM seleccionada 73/73; regeneración Pigeon idéntica en copia temporal;
+500 comprobaciones del registro de especificaciones, OK. Evidencia antes/después
+en `build/repair-5bc/`; informe en `docs/evidence/fase5bc-reparacion.md`.
+Tras el ajuste del resumen pasan 28/28 casos experimentales y el control
+reforzado de lifecycle 3/3 (137 casos Dart distintos en la revisión).
+Las 741 pruebas, 22 renderizados y 14 inferencias reales de la entrega original
+son resultados anteriores del mantenedor, **no repetidos en esta reparación**.
+Se conservan las aceptaciones previas no afectadas de 5B, modelo y privacidad.
+
+**Esta validación de las reparaciones propias no es una revisión independiente.**
+Los límites físicos y de producción de 5B/5C siguen pendientes; no se presenta
+el perfil experimental como política validada para conducir.
+
+Release reparado de `5d82d7e`: cámara → MediaPipe, EAR 0,28/0,26, tono técnico,
+segundo plano/reentrada/salida con cámara liberada tras asentarse. **La calibración
+se rechazó** por cobertura 0,016/0,050, e Iniciar siguió bloqueado. No se repitió
+con éxito la referencia abierta de la entrega anterior ni se demostró sesión
+real completa. Esas rutas siguen limitadas a las pruebas controladas; D1 pendiente.
+
+**APK final reparado:**
+`build/repair-5bc/vigia-normal-fase5bc-repair-final-release.apk`,
+94 615 029 bytes, SHA-256
+`bce4203d057f23652a7fa1641886d4b3cdc1374581e6b604d1cc31f789b1355f`,
+compilado del código `ad7e91c3586a342c247584aa3f1ae7b8563344a9`.
+Firma debug v2 válida, identidad normal, sin permisos de red. Instalado en una
+segunda capa temporal del emulador: rostro/ojos medibles, EAR 0,28/0,26 y salida
+con cero clientes de cámara y cero analizadores. El ajuste de resumen se valida
+con Flutter; no se presenta como sesión real Android probada.
+
 ## Siguiente acción
 
-Revisión integrada de Codex del bloque (quinta corrección de 5B y fase 5C). Para demostrar el cierre ocular en Android hace falta una cámara física con una persona (teléfono D1 o webcam con consentimiento): ver «Recorrido reproducible» en la guía de 5C. No se avanza a otro bloque sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.
+Revisión independiente del bloque reparado y decisión del usuario sobre las
+pruebas físicas pendientes. Para demostrar cierre ocular en Android hace falta
+una cámara física con una persona (D1 o webcam con consentimiento), según la
+guía de 5C. No se avanza a otro bloque sin autorización expresa. Sin push ni PR;
+la secuencia VIG del Área 08 sigue aplazada.

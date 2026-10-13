@@ -583,3 +583,21 @@ emulator -avd vigia_pixel -no-snapshot-save -camera-front "imagefile:<lienzo.png
 ```
 
 En Windows, Gradle necesita `TMP`/`TEMP` en `D:\dev\tmp\jtmp` (ver la fase 5A).
+
+## Validación acumulada durante la reparación integrada 5B + 5C
+
+Codex conserva las aceptaciones previas no afectadas y comprobó de nuevo las
+correcciones de `9a95cce`: canal predeterminado implícito/expreso, edad al aplicar
+y consumidores desvinculados. Pasan sus reproductores y los controles anteriores
+de vigencia, transporte, plazo, canal sin respuesta y lifecycle dentro de las
+136 pruebas Dart dirigidas del bloque (2026-10-13).
+
+Se reprodujo y reparó un callback adicional: un puente con sufijo registraba
+sus avisos en el canal predeterminado. Ahora usa el mensajero y sufijo del host,
+también en 5C. Regresión en `test/camera/face_analysis_bridge_test.dart`.
+Modelo, licencias, almacenamiento/telemetría y MPImage conservan únicamente el
+alcance de la inspección anterior; no se reejecutaron todos los ensayos ni se
+reabre el cierre de MPImage sin evidencia nueva.
+
+Informe y evidencia: `docs/evidence/fase5bc-reparacion.md` y
+`build/repair-5bc/`. Esta reparación propia no equivale a revisión independiente.

@@ -183,3 +183,66 @@ En Windows, Gradle necesita `TMP`/`TEMP` en `D:\dev\tmp\jtmp`, y en Git Bash `MS
 | Normal | `D:\dev\vigia-entrega\vigia-normal-fase5c-release.apk` | 94 516 725 | `b205b972bc5dc58c925f2e2381cc3903e2d8edc3578131ca6e5395e18f0567ad` |
 
 Compilado en release desde el árbol de trabajo con el código de este bloque y firmado con la clave de depuración. El DEMO se recompiló solo para comprobarlo (`com.juanrueda.vigia.demo`, sin `CAMERA` ni archivos de MediaPipe) y no se archivó: su código no cambió.
+
+## Reparación autorizada y validación propia (2026-10-13)
+
+El APK y los resultados de las secciones anteriores pertenecen a la entrega
+original del mantenedor. Las 741 pruebas, renderizados y 14 ensayos con MediaPipe
+no se repitieron. Codex reprodujo y corrigió los defectos del bloque integrado
+desde `75b7273`; código reparado en
+`5d82d7ebd0fbac7fd4701398cc608fdc96829315`.
+
+- Ojos: se comprueban timestamp, edad del frame y silencio al observar, leer,
+  publicar y consultar, incluyendo el inicio de sesión.
+- Puente: `sequence` ordena snapshots; `observationId` identifica una observación
+  nueva dentro de la instancia. Kotlin entrega presupuestos restantes para ojos
+  y señal; Dart descuenta la consulta completa, incluido el despacho. No mezcla
+  relojes de distinto origen ni renueva un ID retirado.
+- Avisos espontáneos solicitan un snapshot; no publican ojos ni señales.
+  Poll de 100 ms y plazo independiente de 750 ms. Una llamada real pendiente
+  por operación/canal efectivo: el timeout no la libera. Los consumidores y
+  todos sus temporizadores se cancelan al salir o desecharse. Las órdenes tienen
+  el mismo plazo de espera de UI; un inicio aún pendiente impide abandonar un
+  estado cuyo resultado se desconoce.
+- Los getters comprueban también la edad actual cuando el timer se retrasa.
+  Tstale=750 ms y Gmax=150 ms permanecen iguales. Los 3000 ms solo vigilan
+  conexión, sin mantener una señal vieja.
+- Entrada y vuelta del segundo plano consultan el estado antes de abrir cámara;
+  una pausa permanece sin cámara. Error de inferencia retira inmediatamente la
+  observación. Reanudar conserva contadores y Rrepeat de la sesión.
+- Audio: cancelación/desvinculación detienen el tono; inicio fallido y excepción
+  en parada liberan el generador. No se acredita audibilidad con una prueba técnica.
+
+Análisis app/plugin sin incidencias; Dart dirigido 136/136; JVM seleccionada
+73/73; Pigeon regenerado en copia temporal, idéntico; registro de especificaciones
+500 comprobaciones, OK. No se modificaron goldens, umbrales ni fuentes originales.
+Detalle de cada fallo, regresión, comandos y límites:
+`docs/evidence/fase5bc-reparacion.md`; logs en `build/repair-5bc/`.
+Esta validación propia no es una revisión independiente.
+
+Durante esa validación se reparó además la salida del resumen cuando el motor
+había confirmado y finalizado una sesión, pero la respuesta de inicio se perdió
+(`ad7e91c3586a342c247584aa3f1ae7b8563344a9`). El inicio todavía incierto sigue
+bloqueando la salida después del timeout. Pasan 28/28 pruebas experimentales
+tras el ajuste y 3/3 del control de lifecycle reforzado: 137 casos Dart distintos,
+sin repetir todos los controles de 5B por un cambio limitado a esta pantalla.
+
+La nueva ejecución release de `5d82d7e` mostró CameraX → MediaPipe y EAR 0,28/0,26,
+tono técnico y cámara/análisis liberados al salir o suspender. **La referencia
+abierta no se aceptó:** cobertura 0,016 y 0,050 (`insufficientObservations`),
+conservando los umbrales. No se llegó a la comprobación de ojos cerrados.
+Hubo estados caducados y ANR de servicios del sistema al inicio del AVD;
+su causa y el rendimiento físico no están demostrados. Estos resultados no
+sustituyen los ensayos anteriores de la guía por una aprobación general.
+El ajuste de salida del resumen está probado con Flutter; no se logró producir
+una sesión real en Android para ejecutar ese caso con la cámara.
+
+**Artefacto final del código reparado** (sin sustituir el original):
+`build/repair-5bc/vigia-normal-fase5bc-repair-final-release.apk`,
+94 615 029 bytes; SHA-256
+`bce4203d057f23652a7fa1641886d4b3cdc1374581e6b604d1cc31f789b1355f`.
+Código `ad7e91c3586a342c247584aa3f1ae7b8563344a9`, firmado debug v2, identidad
+normal, sin INTERNET/ACCESS_NETWORK_STATE. En un nuevo arranque del AVD con capa
+temporal se verificaron instalación, rostro/ojos medibles (0,28/0,26) y salida
+con cámara/análisis cerrados. No se repitió la calibración ni se obtuvo sesión
+real. Archivo, firma, permisos, comandos y límites completos en el informe.
