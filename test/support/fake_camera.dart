@@ -144,8 +144,15 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     return Future.value(restartAnswer);
   }
 
+  /// Último `sequence` emitido por el doble (todas las aperturas).
+  int _sequence = 0;
+
   /// Resultado facial del motor para [token] (por defecto, la apertura
   /// abierta más reciente).
+  ///
+  /// [sequence] es creciente por defecto, como en el motor. En una detección,
+  /// [resultId] vale 9 por defecto: emitir dos veces sin indicarlo es el
+  /// mismo resultado (un latido o una repetición), no una inferencia nueva.
   void emitFace(
     FaceAnalysisStatus status, {
     int? token,
@@ -153,6 +160,8 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     bool expired = false,
     String? errorCode,
     int generation = 1,
+    int? sequence,
+    int? resultId,
   }) {
     _faces.add(
       face(
@@ -162,9 +171,14 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
         expired: expired,
         errorCode: errorCode,
         generation: generation,
+        sequence: sequence ?? ++_sequence,
+        resultId: resultId,
       ),
     );
   }
+
+  /// Entrega otra vez exactamente el mismo mensaje (mismo `sequence`).
+  void emitRaw(FaceAnalysisSnapshot snapshot) => _faces.add(snapshot);
 
   static FaceAnalysisSnapshot face(
     int token,
@@ -173,10 +187,19 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     bool expired = false,
     String? errorCode,
     int generation = 1,
+    int sequence = 1,
+    int? resultId,
   }) => FaceAnalysisSnapshot(
     token: token,
+    sequence: sequence,
     generation: generation,
     status: status,
+    resultId: switch (status) {
+      FaceAnalysisStatus.noFace ||
+      FaceAnalysisStatus.oneFace ||
+      FaceAnalysisStatus.multipleFaces => resultId ?? 9,
+      _ => null,
+    },
     faceCount:
         faceCount ??
         switch (status) {

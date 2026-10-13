@@ -185,7 +185,8 @@ void main() {
         expect(st().facePhase, FacePresencePhase.waitingResults);
         expect(st().faceExpired, isTrue);
 
-        bridge.emitFace(FaceAnalysisStatus.oneFace);
+        // Una inferencia nueva (otra identidad) sí restaura la detección.
+        bridge.emitFace(FaceAnalysisStatus.oneFace, resultId: 10);
         async.flushMicrotasks();
         expect(st().facePhase, FacePresencePhase.oneFace);
         expect(st().faceExpired, isFalse);
@@ -194,12 +195,12 @@ void main() {
       });
     });
 
-    test('el latido del motor mantiene vigente el resultado', () {
+    test('inferencias nuevas cada segundo mantienen vigente el resultado', () {
       fakeAsync((async) {
         ctrl().enter();
         async.flushMicrotasks();
         for (var i = 0; i < 5; i++) {
-          bridge.emitFace(FaceAnalysisStatus.noFace);
+          bridge.emitFace(FaceAnalysisStatus.noFace, resultId: 20 + i);
           async.flushMicrotasks();
           async.elapse(const Duration(milliseconds: 1000));
         }
@@ -304,5 +305,202 @@ void main() {
         expect(bridge.restarts, 2);
       },
     );
+  });
+
+  /// Revisión de Codex de la fase 5B (P1): orden, identidad y vigencia de
+  /// los resultados en Flutter. Tiempo controlado con `fake_async`.
+  group('orden e identidad de los resultados (revisión 5B)', () {
+    /// Abre la cámara dentro de `fakeAsync` y devuelve el token.
+    int open(FakeAsync async) {
+      ctrl().enter();
+      async.flushMicrotasks();
+      return lastToken();
+    }
+
+    void close(FakeAsync async) {
+      ctrl().leave();
+      async.flushMicrotasks();
+    }
+
+    void send(
+      FakeAsync async,
+      FaceAnalysisStatus status, {
+      int generation = 1,
+      int? sequence,
+      int? resultId,
+      int? token,
+    }) {
+      bridge.emitFace(
+        status,
+        generation: generation,
+        sequence: sequence,
+        resultId: resultId,
+        token: token,
+      );
+      async.flushMicrotasks();
+    }
+
+    test('reproducción de Codex 1: el mismo resultado tras caducar no '
+        'restaura «Rostro detectado»', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.oneFace);
+        async.elapse(const Duration(milliseconds: 3000));
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        // Mismos generation y resultId: ningún resultado nuevo.
+        send(async, FaceAnalysisStatus.oneFace);
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        expect(st().faceExpired, isTrue);
+        close(async);
+      });
+    });
+
+    test('reproducción de Codex 2: una generación anterior no revive un '
+        'análisis detenido', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.oneFace, generation: 1);
+        send(async, FaceAnalysisStatus.stopped, generation: 2);
+        expect(st().facePhase, FacePresencePhase.stopped);
+        send(async, FaceAnalysisStatus.oneFace, generation: 1);
+        expect(st().facePhase, FacePresencePhase.stopped);
+        close(async);
+      });
+    });
+
+    test('tras stopped, nada de esa apertura lo reactiva, ni una generación '
+        'posterior con una inferencia nueva', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.stopped, generation: 2);
+        send(async, FaceAnalysisStatus.oneFace, generation: 3, resultId: 50);
+        send(async, FaceAnalysisStatus.waitingResults, generation: 3);
+        expect(st().facePhase, FacePresencePhase.stopped);
+        expect(st().face!.status, FaceAnalysisStatus.stopped);
+        close(async);
+      });
+    });
+
+    test('el mismo mensaje entregado otra vez (mismo sequence) se ignora', () {
+      fakeAsync((async) {
+        final token = open(async);
+        final message = FakeFrontCameraBridge.face(
+          token,
+          FaceAnalysisStatus.oneFace,
+          sequence: 7,
+          resultId: 30,
+        );
+        bridge.emitRaw(message);
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        send(async, FaceAnalysisStatus.noFace, sequence: 8, resultId: 31);
+        bridge.emitRaw(message);
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.noFace);
+        async.elapse(const Duration(milliseconds: 3000));
+        bridge.emitRaw(message);
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        close(async);
+      });
+    });
+
+    test('un mensaje atrasado (sequence menor) no sustituye al vigente', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.noFace, sequence: 5, resultId: 40);
+        send(async, FaceAnalysisStatus.oneFace, sequence: 4, resultId: 41);
+        expect(st().facePhase, FacePresencePhase.noFace);
+        expect(st().face!.sequence, 5);
+        close(async);
+      });
+    });
+
+    test('una generación anterior se ignora aunque traiga un sequence '
+        'mayor', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.modelError, generation: 1);
+        send(async, FaceAnalysisStatus.waitingResults, generation: 2);
+        send(async, FaceAnalysisStatus.oneFace, generation: 1, resultId: 60);
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        send(async, FaceAnalysisStatus.oneFace, generation: 2, resultId: 61);
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        close(async);
+      });
+    });
+
+    test('un latido de la misma inferencia no amplía su plazo', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.oneFace, resultId: 70);
+        async.elapse(const Duration(milliseconds: 2000));
+        send(async, FaceAnalysisStatus.oneFace, resultId: 70); // latido
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        async.elapse(const Duration(milliseconds: 999));
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        close(async);
+      });
+    });
+
+    test('control positivo: una inferencia nueva justo antes del límite '
+        'reinicia el plazo desde su llegada', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.oneFace, resultId: 80);
+        async.elapse(const Duration(milliseconds: 2900));
+        send(async, FaceAnalysisStatus.multipleFaces, resultId: 81);
+        async.elapse(const Duration(milliseconds: 2999));
+        expect(st().facePhase, FacePresencePhase.multipleFaces);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        send(async, FaceAnalysisStatus.noFace, resultId: 82);
+        expect(st().facePhase, FacePresencePhase.noFace);
+        close(async);
+      });
+    });
+
+    test('una apertura nueva empieza su propio orden y no hereda nada', () {
+      fakeAsync((async) {
+        final old = open(async);
+        send(async, FaceAnalysisStatus.oneFace, sequence: 90, resultId: 90);
+        close(async);
+        final current = open(async);
+        expect(current, isNot(old));
+        // Mensajes tardíos de la apertura anterior: ignorados.
+        send(
+          async,
+          FaceAnalysisStatus.multipleFaces,
+          token: old,
+          sequence: 91,
+          resultId: 91,
+        );
+        expect(st().facePhase, FacePresencePhase.loadingModel);
+        // El motor de la apertura nueva vuelve a numerar desde 1.
+        send(async, FaceAnalysisStatus.noFace, sequence: 1, resultId: 1);
+        expect(st().facePhase, FacePresencePhase.noFace);
+        close(async);
+      });
+    });
+
+    test('una inferencia que llega durante la apertura corre su plazo desde '
+        'su llegada, no desde que se muestra', () {
+      fakeAsync((async) {
+        bridge.openAnswer = null;
+        ctrl().enter();
+        async.flushMicrotasks();
+        final token = lastToken();
+        send(async, FaceAnalysisStatus.oneFace, token: token, resultId: 95);
+        async.elapse(const Duration(milliseconds: 2000));
+        bridge.answerOpen(token, PreviewOpenStatus.opened);
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        async.elapse(const Duration(milliseconds: 1000));
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        close(async);
+      });
+    });
   });
 }

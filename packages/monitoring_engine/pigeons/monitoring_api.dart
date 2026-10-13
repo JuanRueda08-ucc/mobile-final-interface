@@ -135,6 +135,7 @@ enum FaceAnalysisStatus {
 class FaceAnalysisSnapshot {
   FaceAnalysisSnapshot({
     required this.token,
+    required this.sequence,
     required this.generation,
     required this.status,
     required this.maxFaces,
@@ -149,15 +150,27 @@ class FaceAnalysisSnapshot {
   /// Apertura de vista previa a la que pertenece.
   int token;
 
-  /// Carga del modelo dentro de la apertura; cambia al reintentar.
+  /// Orden de publicación dentro de la apertura: estrictamente creciente.
+  /// Flutter descarta un mensaje con un número ya visto o menor (repetido o
+  /// atrasado).
+  int sequence;
+
+  /// Carga del modelo dentro de la apertura; cambia al reintentar y al
+  /// detener. Nunca disminuye.
   int generation;
   FaceAnalysisStatus status;
 
   /// Rostros del resultado vigente; nulo sin resultado vigente.
   int? faceCount;
 
-  /// Edad del resultado vigente: desde la entrega del cuadro al analizador
-  /// hasta la recepción del resultado, en ms.
+  /// Identidad de la inferencia que se informa, única en la apertura; nula
+  /// sin resultado vigente. Un latido repite el valor del último resultado:
+  /// solo un valor nuevo es una inferencia nueva.
+  int? resultId;
+
+  /// Edad del resultado al aceptarlo en el motor: desde la entrega del cuadro
+  /// al analizador hasta su aplicación en el hilo de análisis, en ms. No
+  /// crece en los latidos; la vigencia la decide el motor con Tstale.
   int? resultAgeMs;
 
   /// Rostros como máximo que busca el detector.

@@ -298,9 +298,11 @@ class PreviewOpenResult {
 class FaceAnalysisSnapshot {
   FaceAnalysisSnapshot({
     required this.token,
+    required this.sequence,
     required this.generation,
     required this.status,
     this.faceCount,
+    this.resultId,
     this.resultAgeMs,
     required this.maxFaces,
     required this.staleAfterMs,
@@ -318,7 +320,13 @@ class FaceAnalysisSnapshot {
   /// Apertura de vista previa a la que pertenece.
   int token;
 
-  /// Carga del modelo dentro de la apertura; cambia al reintentar.
+  /// Orden de publicación dentro de la apertura: estrictamente creciente.
+  /// Flutter descarta un mensaje con un número ya visto o menor (repetido o
+  /// atrasado).
+  int sequence;
+
+  /// Carga del modelo dentro de la apertura; cambia al reintentar y al
+  /// detener. Nunca disminuye.
   int generation;
 
   FaceAnalysisStatus status;
@@ -326,8 +334,14 @@ class FaceAnalysisSnapshot {
   /// Rostros del resultado vigente; nulo sin resultado vigente.
   int? faceCount;
 
-  /// Edad del resultado vigente: desde la entrega del cuadro al analizador
-  /// hasta la recepción del resultado, en ms.
+  /// Identidad de la inferencia que se informa, única en la apertura; nula
+  /// sin resultado vigente. Un latido repite el valor del último resultado:
+  /// solo un valor nuevo es una inferencia nueva.
+  int? resultId;
+
+  /// Edad del resultado al aceptarlo en el motor: desde la entrega del cuadro
+  /// al analizador hasta su aplicación en el hilo de análisis, en ms. No
+  /// crece en los latidos; la vigencia la decide el motor con Tstale.
   int? resultAgeMs;
 
   /// Rostros como máximo que busca el detector.
@@ -362,9 +376,11 @@ class FaceAnalysisSnapshot {
   List<Object?> _toList() {
     return <Object?>[
       token,
+      sequence,
       generation,
       status,
       faceCount,
+      resultId,
       resultAgeMs,
       maxFaces,
       staleAfterMs,
@@ -388,21 +404,23 @@ class FaceAnalysisSnapshot {
     result as List<Object?>;
     return FaceAnalysisSnapshot(
       token: result[0]! as int,
-      generation: result[1]! as int,
-      status: result[2]! as FaceAnalysisStatus,
-      faceCount: result[3] as int?,
-      resultAgeMs: result[4] as int?,
-      maxFaces: result[5]! as int,
-      staleAfterMs: result[6]! as int,
-      framesSubmitted: result[7]! as int,
-      resultsAccepted: result[8]! as int,
-      framesDropped: result[9]! as int,
-      resultsDiscarded: result[10]! as int,
-      expired: result[11]! as bool,
-      frameWidth: result[12] as int?,
-      frameHeight: result[13] as int?,
-      frameRotationDegrees: result[14] as int?,
-      errorCode: result[15] as String?,
+      sequence: result[1]! as int,
+      generation: result[2]! as int,
+      status: result[3]! as FaceAnalysisStatus,
+      faceCount: result[4] as int?,
+      resultId: result[5] as int?,
+      resultAgeMs: result[6] as int?,
+      maxFaces: result[7]! as int,
+      staleAfterMs: result[8]! as int,
+      framesSubmitted: result[9]! as int,
+      resultsAccepted: result[10]! as int,
+      framesDropped: result[11]! as int,
+      resultsDiscarded: result[12]! as int,
+      expired: result[13]! as bool,
+      frameWidth: result[14] as int?,
+      frameHeight: result[15] as int?,
+      frameRotationDegrees: result[16] as int?,
+      errorCode: result[17] as String?,
     );
   }
 
@@ -416,9 +434,11 @@ class FaceAnalysisSnapshot {
       return true;
     }
     return _deepEquals(token, other.token) &&
+        _deepEquals(sequence, other.sequence) &&
         _deepEquals(generation, other.generation) &&
         _deepEquals(status, other.status) &&
         _deepEquals(faceCount, other.faceCount) &&
+        _deepEquals(resultId, other.resultId) &&
         _deepEquals(resultAgeMs, other.resultAgeMs) &&
         _deepEquals(maxFaces, other.maxFaces) &&
         _deepEquals(staleAfterMs, other.staleAfterMs) &&
@@ -439,7 +459,7 @@ class FaceAnalysisSnapshot {
 
   @override
   String toString() {
-    return 'FaceAnalysisSnapshot(token: $token, generation: $generation, status: $status, faceCount: $faceCount, resultAgeMs: $resultAgeMs, maxFaces: $maxFaces, staleAfterMs: $staleAfterMs, framesSubmitted: $framesSubmitted, resultsAccepted: $resultsAccepted, framesDropped: $framesDropped, resultsDiscarded: $resultsDiscarded, expired: $expired, frameWidth: $frameWidth, frameHeight: $frameHeight, frameRotationDegrees: $frameRotationDegrees, errorCode: $errorCode)';
+    return 'FaceAnalysisSnapshot(token: $token, sequence: $sequence, generation: $generation, status: $status, faceCount: $faceCount, resultId: $resultId, resultAgeMs: $resultAgeMs, maxFaces: $maxFaces, staleAfterMs: $staleAfterMs, framesSubmitted: $framesSubmitted, resultsAccepted: $resultsAccepted, framesDropped: $framesDropped, resultsDiscarded: $resultsDiscarded, expired: $expired, frameWidth: $frameWidth, frameHeight: $frameHeight, frameRotationDegrees: $frameRotationDegrees, errorCode: $errorCode)';
   }
 }
 

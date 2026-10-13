@@ -184,9 +184,15 @@ final frontCameraProvider =
 /// - Al desecharse, toda operación en curso queda invalidada: tras cada salto
 ///   asíncrono se comprueba la generación y `ref.mounted` antes de usar el
 ///   Ref o el estado.
-/// - Fase 5B: solo se aceptan resultados faciales del token vigente. Si pasan
-///   [faceSilenceLimit] sin ninguno (el motor manda un latido cada segundo),
-///   el último deja de mostrarse como vigente.
+/// - Fase 5B: solo se aceptan resultados faciales del token vigente, en
+///   orden (`sequence` creciente, `generation` que no retrocede). Tras
+///   `stopped`, ningún mensaje de esa apertura reactiva el análisis.
+/// - La vigencia de una observación no se renueva por recibir mensajes: solo
+///   una inferencia nueva (`resultId` distinto) reinicia el plazo de
+///   [faceSilenceLimit]. Un latido o un mensaje repetido con el mismo
+///   `resultId` mantiene vivo el canal, pero no rejuvenece el resultado. No se
+///   comparan relojes de Dart y Android: el plazo se mide en Dart desde que
+///   llegó esa inferencia.
 class FrontCameraController extends Notifier<FrontCameraState> {
   static int _tokenSeq = 0;
 
@@ -195,11 +201,24 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   /// (experimental). No sustituye a Tstale, que aplica el motor.
   static const faceSilenceLimit = Duration(milliseconds: 3000);
 
-  /// Último resultado facial del token vigente, aunque llegue durante la
-  /// apertura (antes de que la cámara esté disponible).
+  /// Último resultado facial aceptado del token vigente, aunque llegue durante
+  /// la apertura (antes de que la cámara esté disponible).
   FaceAnalysisSnapshot? _face;
   Timer? _faceWatchdog;
   bool _restartingFace = false;
+
+  /// Orden de los mensajes de la apertura vigente (ver [_onFace]).
+  int _faceSequence = 0;
+  int _faceGeneration = 0;
+
+  /// La apertura vigente informó `stopped`: es definitivo.
+  bool _faceStopped = false;
+
+  /// Inferencia cuyo plazo de [faceSilenceLimit] está corriendo.
+  int? _faceArmedResultId;
+
+  /// Venció el plazo sin una inferencia nueva.
+  bool _faceSilent = false;
 
   var _generation = 0;
   var _visible = false;
@@ -377,7 +396,7 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   Future<void> _open(int gen) async {
     final token = ++_tokenSeq;
     _token = token;
-    _face = null;
+    _resetFace();
     final PreviewOpenResult result;
     try {
       result = await _bridge.openPreview(token);
@@ -407,7 +426,7 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     final available = phase == CameraCheckPhase.available;
     if (!available) {
       _token = null;
-      _face = null;
+      _resetFace();
     }
     state = FrontCameraState(
       phase: phase,
@@ -417,36 +436,80 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       preview: available ? result : null,
       errorCode: result.errorCode,
       face: available ? _face : null,
+      faceSilent: available && _faceSilent,
     );
-    if (available) _armFaceWatchdog();
+    // Sin ningún mensaje aún, el plazo empieza al abrir; si ya llegó alguno,
+    // sigue corriendo desde su llegada.
+    if (available && _faceWatchdog == null) _armFaceWatchdog(null);
   }
 
-  /// Resultado facial del motor. Los de otra apertura se descartan.
+  /// Resultado facial del motor.
+  ///
+  /// Se descartan: otra apertura; cualquier mensaje tras `stopped` de esta
+  /// apertura; un `sequence` ya visto o menor (repetido o atrasado); una
+  /// `generation` anterior a la última aceptada.
+  ///
+  /// Un mensaje aceptado reinicia el plazo de vigencia solo si trae noticia
+  /// para la vigencia: un estado que no es una detección, o una detección con
+  /// un `resultId` nuevo. Un latido de la misma inferencia no la rejuvenece.
   void _onFace(FaceAnalysisSnapshot snapshot) {
-    if (snapshot.token != _token || !ref.mounted) return;
+    if (snapshot.token != _token || !ref.mounted || _faceStopped) return;
+    if (snapshot.sequence <= _faceSequence) return;
+    if (snapshot.generation < _faceGeneration) return;
+    _faceSequence = snapshot.sequence;
+    _faceGeneration = snapshot.generation;
     _face = snapshot;
+    if (snapshot.status == FaceAnalysisStatus.stopped) {
+      _faceStopped = true;
+      _faceWatchdog?.cancel();
+    } else {
+      final detection = _isDetection(snapshot.status);
+      final id = snapshot.resultId;
+      final news = !detection || (id != null && id != _faceArmedResultId);
+      if (news) {
+        _faceSilent = false;
+        _armFaceWatchdog(detection ? id : null);
+      }
+    }
     if (state.phase != CameraCheckPhase.available) return;
-    state = state.withFace(snapshot);
-    _armFaceWatchdog();
+    state = state.withFace(snapshot, silent: _faceSilent);
   }
 
-  /// Vigilancia de Flutter: sin noticias en [faceSilenceLimit], el último
-  /// resultado deja de mostrarse como vigente.
-  void _armFaceWatchdog() {
+  static bool _isDetection(FaceAnalysisStatus s) =>
+      s == FaceAnalysisStatus.noFace ||
+      s == FaceAnalysisStatus.oneFace ||
+      s == FaceAnalysisStatus.multipleFaces;
+
+  /// Vigilancia de Flutter: si en [faceSilenceLimit] no llega una inferencia
+  /// nueva (o una noticia que no sea una detección), el último resultado deja
+  /// de mostrarse como vigente.
+  void _armFaceWatchdog(int? resultId) {
     _faceWatchdog?.cancel();
+    _faceArmedResultId = resultId;
     final token = _token;
     _faceWatchdog = Timer(faceSilenceLimit, () {
       if (!ref.mounted || token == null || _token != token) return;
+      _faceSilent = true;
       if (state.phase != CameraCheckPhase.available) return;
       state = state.withFace(_face, silent: true);
     });
   }
 
+  void _resetFace() {
+    _face = null;
+    _faceWatchdog?.cancel();
+    _faceWatchdog = null;
+    _faceSequence = 0;
+    _faceGeneration = 0;
+    _faceStopped = false;
+    _faceArmedResultId = null;
+    _faceSilent = false;
+  }
+
   void _onClosed(PreviewClosedEvent event) {
     if (event.token != _token || !ref.mounted) return;
     _token = null;
-    _face = null;
-    _faceWatchdog?.cancel();
+    _resetFace();
     _generation++;
     state = FrontCameraState(
       phase: switch (event.reason) {
@@ -463,9 +526,7 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   void _release() {
     final token = _token;
     _token = null;
-    _face = null;
-    _faceWatchdog?.cancel();
-    _faceWatchdog = null;
+    _resetFace();
     if (token != null) _closeQuietly(token);
   }
 

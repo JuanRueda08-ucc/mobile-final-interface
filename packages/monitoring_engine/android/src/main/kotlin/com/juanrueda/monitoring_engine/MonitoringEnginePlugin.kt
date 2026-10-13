@@ -112,6 +112,7 @@ class MonitoringEnginePlugin :
 
 private fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
     token = token,
+    sequence = sequence,
     generation = generation,
     status = when (status) {
         FacePresenceStatus.LOADING_MODEL -> FaceAnalysisStatus.LOADING_MODEL
@@ -124,6 +125,7 @@ private fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
         FacePresenceStatus.ANALYSIS_ERROR -> FaceAnalysisStatus.ANALYSIS_ERROR
     },
     faceCount = faceCount?.toLong(),
+    resultId = resultId,
     resultAgeMs = resultAgeMs,
     maxFaces = maxFaces.toLong(),
     staleAfterMs = staleAfterMs,

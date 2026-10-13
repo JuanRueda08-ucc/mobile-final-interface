@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) y `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-12 (fase 5B implementada; pendiente de la revisión de Codex).
+**Actualizado:** 2026-10-12 (fase 5B: corrección de los dos P1 de la revisión de Codex; pendiente de nueva revisión).
 
 ## Fases
 
@@ -13,7 +13,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
-| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | **Implementada; pendiente de la revisión de Codex.** Commit local en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | Commit de la fase 5B |
+| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | **Primera revisión de Codex desfavorable** (dos P1 de vigencia sobre `3be9bf1`). **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1` y el commit de corrección P1 |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -288,7 +288,7 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
 
 **Entorno.** Gradle exige `TMP`/`TEMP` en `D:\dev\tmp\jtmp`: en `C:` quedan 2 GB y fallaba con «Unable to establish loopback connection».
 
-## Fase 5B · MediaPipe Face Landmarker (2026-10-12; pendiente de revisión)
+## Fase 5B · MediaPipe Face Landmarker (2026-10-12; corrección P1 pendiente de revisión)
 
 **Autorización:** del usuario, 2026-10-12. Registrada en `AGENTS.md`. La secuencia VIG sigue aplazada. Detalle, evidencia y limitaciones: `docs/fase5b-mediapipe.md`.
 
@@ -302,7 +302,7 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
   - «Reintentar carga» y «Reintentar».
 - **Privacidad:** a Flutter solo llega un resultado compacto. No se guardan, envían ni registran imágenes o puntos faciales.
 - **Hallazgos corregidos:**
-  1. MediaPipe 1.0.0 trae telemetría de uso (`datatransport`) que pedía `INTERNET` y `ACCESS_NETWORK_STATE`. Se retiran del manifiesto: el APK normal release solo pide `CAMERA`. La **primera** ejecución de la prueba instrumentada, con un APK de pruebas que aún tenía red, envió esas estadísticas una vez (sin imágenes). Detalle en la guía.
+  1. MediaPipe 1.0.0 trae telemetría de uso (`datatransport`) que pedía `INTERNET` y `ACCESS_NETWORK_STATE`. Se retiran del manifiesto: el APK normal release solo pide `CAMERA`. La **primera** ejecución de la prueba instrumentada, con un APK de pruebas que aún tenía red, envió esas estadísticas una vez. Es un incidente declarado por el mantenedor: la línea HTTP se vio en logcat pero no se guardó. El contenido no se inspeccionó; que no llevara imágenes es una inferencia a partir de la implementación. Contradice la regla de funcionamiento local sin envíos automáticos (Área 06). Detalle en la guía.
   2. En release, R8 rompía la creación del detector. El plugin aporta ahora `consumer-rules.pro`.
   3. La cola del limitador de MediaPipe hacía que se descartaran resultados por antiguos en el emulador. Ahora va un cuadro cada vez.
 - **DEMO:** sin CAMERA, sin modelo y sin la biblioteca nativa de MediaPipe en su APK.
@@ -348,6 +348,42 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
 - TalkBack;
 - las bibliotecas Android no figuran todavía en la página de licencias de la app.
 
+### Corrección de los P1 de la revisión de Codex (pendiente de nueva revisión)
+
+**Dictamen sobre `3be9bf1`: desfavorable.** Detalle en `docs/fase5b-mediapipe.md`, sección «Corrección de la revisión de Codex (P1)».
+
+1. **Flutter:**
+   - el contrato añade `sequence` y `resultId`;
+   - Dart descarta mensajes repetidos o atrasados y generaciones anteriores;
+   - tras `stopped`, nada de esa apertura reactiva el análisis;
+   - el plazo de 3000 ms solo se renueva con una inferencia nueva (`resultId` distinto), no con un latido;
+   - no se comparan relojes de Dart y Android.
+2. **Kotlin:**
+   - la edad se mide con el reloj del momento de aplicar el resultado (`ahora − entrega del cuadro`);
+   - un aviso retrasado de 4000 ms ya no se publica, ni con 0 ni con 1 ni con varios rostros;
+   - las marcas imposibles se descartan como inválidas;
+   - el silencio cuenta desde la aplicación;
+   - Tstale sigue en 750 ms y el límite de Flutter en 3000 ms.
+
+**Resultados reales:**
+
+- `flutter analyze` (app y plugin): sin problemas.
+- `test/camera` y los renderizados de 5A y 5B: pasan 113, entre ellas 10 regresiones nuevas.
+- Reproducciones de Codex en Dart: 2/2.
+- JVM: pasan 43, entre ellas 7 nuevas.
+- Detección con el código de `3be9bf1` en una copia temporal: fallan las 3 regresiones Dart que admiten la API anterior y 4 de las 5 de despacho retrasado. La quinta es el control positivo.
+- Pigeon regenerado y coherente; `spec_registry.py check`: OK.
+- Comprobación dirigida CameraX → MediaPipe en el emulador (imagen fija, no D1):
+  - «Rostro detectado» estable al entrar, al volver de segundo plano y tras ráfagas;
+  - 0 hilos y 0 clientes de cámara al salir;
+  - paquete instalado solo con `CAMERA`;
+  - edad máxima aceptada de 654–675 ms, ahora con la espera en cola incluida: el margen hasta Tstale es estrecho en el emulador.
+- No se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo.
+
+**APK nuevo** (los anteriores se conservan; hash añadido a `SHA256SUMS.txt`): `D:\dev\vigia-entrega\vigia-normal-fase5b-p1-release.apk`, 94 270 965 bytes, SHA-256 `e525db8a088035a2e1324e1d307de85f381fb8a49fd952024be194c1abacc51b`. El DEMO no se recompiló, porque no ejecuta este código.
+
+**Pendiente de la revisión, no corregido aquí:** el cierre explícito de los `MPImage` (observación de Codex, sin fuga observada).
+
 ## Siguiente acción
 
-Revisión de Codex de la fase 5B. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.
+Nueva revisión de Codex de la fase 5B, con la corrección de los P1. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.

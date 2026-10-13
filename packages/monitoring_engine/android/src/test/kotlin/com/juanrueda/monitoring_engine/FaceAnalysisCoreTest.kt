@@ -426,4 +426,55 @@ internal class FaceAnalysisCoreTest {
         h.result(ts2, 1)
         assertEquals(count, h.published.size)
     }
+
+    /** Contrato del resultado compacto: orden de mensajes e identidad de la inferencia. */
+    @Test
+    fun snapshots_carryIncreasingSequenceAndResultIdentity() {
+        val h = Harness()
+        h.core.start()
+        val ts1 = h.frame()
+        h.result(ts1, 1)
+        val first = h.last
+        h.nowMs += 1_000 // sin resultados nuevos: caduca antes del latido
+        h.core.tick()
+        assertEquals(FacePresenceStatus.WAITING_RESULTS, h.last.status)
+        assertNull(h.last.resultId)
+
+        val ts2 = h.frame()
+        h.result(ts2, 1)
+        val second = h.last
+        assertTrue(second.resultId!! > first.resultId!!)
+        // Latido de la misma inferencia: mismo resultId, sequence mayor.
+        h.nowMs += 700
+        val ts3 = h.frame()
+        h.nowMs += 10
+        h.result(ts3, 1)
+        h.nowMs += 300
+        h.core.tick()
+        val beat = h.last
+        assertTrue(beat.resultId!! > second.resultId!!) // hubo otra inferencia
+        h.nowMs += 20
+        h.core.stop()
+        assertNull(h.last.resultId)
+        val seqs = h.published.map { it.sequence }
+        assertEquals(seqs.sorted().distinct(), seqs)
+    }
+
+    /** El latido lleva la identidad de la última inferencia aceptada, aunque no se publicara. */
+    @Test
+    fun heartbeat_carriesLatestAcceptedResultId() {
+        val h = Harness()
+        h.core.start()
+        val ts1 = h.frame()
+        h.result(ts1, 1)
+        val published = h.last.resultId!!
+        h.nowMs += 400
+        val ts2 = h.frame()
+        h.result(ts2, 1) // mismo estado: no se publica todavía
+        assertEquals(published, h.last.resultId)
+        h.nowMs += 600 // 1000 ms desde la última publicación, 600 de silencio
+        h.core.tick()
+        assertEquals(FacePresenceStatus.ONE_FACE, h.last.status)
+        assertTrue(h.last.resultId!! > published)
+    }
 }

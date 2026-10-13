@@ -24,9 +24,17 @@ internal enum class FacePresenceStatus {
 /** Resultado compacto que sale del motor: sin imágenes ni puntos faciales. */
 internal data class FacePresence(
     val token: Long,
+    /** Orden de publicación dentro de la apertura: estrictamente creciente. */
+    val sequence: Long,
     val generation: Long,
     val status: FacePresenceStatus,
     val faceCount: Int?,
+    /**
+     * Identidad de la inferencia que se informa (única en la apertura); nula
+     * sin resultado vigente. Un latido repite el mismo valor: no es un
+     * resultado nuevo.
+     */
+    val resultId: Long?,
     val resultAgeMs: Long?,
     val maxFaces: Int,
     val staleAfterMs: Long,
@@ -83,8 +91,9 @@ internal interface FaceEngineListener {
  * Sin dependencias de Android para probarla en la JVM con dobles.
  *
  * **Hilo.** Todos los métodos públicos se llaman en el hilo de análisis de la
- * apertura. Los avisos del detector llegan en el hilo de MediaPipe: se anota
- * allí la hora de recepción y se pasan al hilo de análisis con [post].
+ * apertura. Los avisos del detector llegan en el hilo de MediaPipe y se pasan
+ * al hilo de análisis con [post]; la hora del hilo de MediaPipe solo sirve
+ * para comprobar el orden de las marcas.
  *
  * **Identidad.** Cada carga del modelo es una generación. Un aviso de otra
  * generación, o posterior a [stop], se descarta sin tocar el estado.
@@ -92,10 +101,16 @@ internal interface FaceEngineListener {
  * **Vigencia.** «Sin rostro», «un rostro» y «varios rostros» solo se informan
  * con un resultado explícito del detector. La falta de resultados no es
  * ausencia de rostro: sin resultados durante Tstale ([staleAfterNs]) el estado
- * vuelve a «esperando resultados» con `expired`. Un resultado cuya edad
- * (entrega del cuadro al analizador → recepción) supera Tstale se descarta.
- * Igualdad de edad con Tstale sigue vigente; igualdad de silencio caduca
- * (Área 05 §9.2).
+ * vuelve a «esperando resultados» con `expired`.
+ *
+ * La edad de un resultado se mide **al aplicarlo** en el hilo de análisis,
+ * con el reloj monotónico de ese instante: desde la entrega de su cuadro al
+ * analizador hasta ahora. Incluye la espera del aviso en la cola del hilo,
+ * así que un aviso retrasado no se publica con una edad antigua. Si supera
+ * Tstale, se descarta. Una marca imposible (entrega posterior a la recepción
+ * o a ahora) se descarta como inválida, no como edad cero. Igualdad de edad
+ * con Tstale sigue vigente; igualdad de silencio caduca (Área 05 §9.2). El
+ * silencio se cuenta desde la aplicación del último resultado aceptado.
  *
  * **Un cuadro cada vez.** No se envía otro cuadro mientras el anterior no
  * tenga resultado: así ninguno espera en la cola de MediaPipe y la edad del
@@ -139,7 +154,13 @@ internal class FaceAnalysisCore<F>(
 
     private var faceCount: Int? = null
     private var resultAgeNs: Long? = null
-    private var lastAcceptedReceiptNs = 0L
+    private var lastAcceptedAppliedNs = 0L
+    private var resultId: Long? = null
+    private var sequence = 0L
+
+    /** Diagnóstico: resultados descartados por marcas de tiempo imposibles. */
+    var discardedInvalidTime = 0L
+        private set
     private var expired = false
     private var lastPublishNs = Long.MIN_VALUE
 
@@ -257,13 +278,13 @@ internal class FaceAnalysisCore<F>(
     fun tick() {
         if (stopped) return
         val now = clockNs()
-        if (status.isDetection && now - lastAcceptedReceiptNs >= staleAfterNs) {
+        if (status.isDetection && now - lastAcceptedAppliedNs >= staleAfterNs) {
             clearResult()
             expired = true
             setStatus(FacePresenceStatus.WAITING_RESULTS)
             return
         }
-        if (lastPublishNs == Long.MIN_VALUE || now - lastPublishNs >= heartbeatNs) publishNow()
+        if (isHeartbeatDue(now)) publishNow()
     }
 
     /** Termina el análisis y libera el detector. Definitivo. */
@@ -290,7 +311,14 @@ internal class FaceAnalysisCore<F>(
             return
         }
         lastResultTs = ts
-        val age = receivedNs - entryNs
+        // Reloj actual: el aviso pudo esperar en la cola del hilo de análisis.
+        val now = clockNs()
+        if (entryNs > receivedNs || receivedNs > now) {
+            resultsDiscarded++
+            discardedInvalidTime++
+            return
+        }
+        val age = now - entryNs
         if (age > staleAfterNs) {
             resultsDiscarded++
             discardedTooOld++
@@ -300,16 +328,19 @@ internal class FaceAnalysisCore<F>(
         val previous = status to faceCount
         faceCount = count
         resultAgeNs = age
-        lastAcceptedReceiptNs = receivedNs
+        lastAcceptedAppliedNs = now
         expired = false
         resultsAccepted++
+        resultId = resultsAccepted
         val next = when {
             count <= 0 -> FacePresenceStatus.NO_FACE
             count == 1 -> FacePresenceStatus.ONE_FACE
             else -> FacePresenceStatus.MULTIPLE_FACES
         }
         status = next
-        if (previous != (next to faceCount)) publishNow()
+        // Publica también cuando no cambia el estado: es un resultado nuevo
+        // (otra identidad), no un latido.
+        if (previous != (next to faceCount) || isHeartbeatDue(now)) publishNow()
     }
 
     private fun onEngineError(gen: Long, code: String) {
@@ -326,8 +357,11 @@ internal class FaceAnalysisCore<F>(
         setStatus(next)
     }
 
+    private fun isHeartbeatDue(now: Long) = lastPublishNs == Long.MIN_VALUE || now - lastPublishNs >= heartbeatNs
+
     private fun clearResult() {
         faceCount = null
+        resultId = null
         resultAgeNs = null
         expired = false
     }
@@ -352,9 +386,11 @@ internal class FaceAnalysisCore<F>(
         publish(
             FacePresence(
                 token = token,
+                sequence = ++sequence,
                 generation = generation,
                 status = status,
                 faceCount = faceCount,
+                resultId = resultId,
                 resultAgeMs = resultAgeNs?.let { it / 1_000_000 },
                 maxFaces = maxFaces,
                 staleAfterMs = staleAfterNs / 1_000_000,

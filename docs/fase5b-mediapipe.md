@@ -1,6 +1,6 @@
 # Vigía · Fase 5B: MediaPipe Face Landmarker (presencia facial)
 
-**Autorizada por el usuario:** 2026-10-12. **Estado:** implementada; **pendiente de la revisión de Codex**. No se ha publicado.
+**Autorizada por el usuario:** 2026-10-12. **Estado:** la primera revisión de Codex (sobre `3be9bf1`) fue **desfavorable** por dos P1 de vigencia. Ya están corregidos (sección «Corrección de la revisión de Codex (P1)») y la fase queda **pendiente de una nueva revisión**. No se ha publicado.
 
 ## Alcance
 
@@ -99,7 +99,13 @@ Excluir la dependencia no es viable: la creación del detector fallaría con `No
 - La app DEMO no pide ninguno de los dos.
 - Con el APK de pruebas sin permisos: 24 «Error scheduling event», 0 eventos guardados y 0 peticiones.
 
-**Incidente durante la prueba.** La **primera** ejecución de la prueba instrumentada usó un APK de pruebas que todavía tenía los permisos de red. Su `JobService` envió esas estadísticas a `firebaselogging.googleapis.com` desde el emulador: `Status Code: 200`, 2026-10-12 23:14:11 UTC, paquete `com.juanrueda.monitoring_engine.test`. No salieron imágenes de la app (MediaPipe no las incluye en ese registro). Después se añadió el manifiesto de pruebas, se desinstaló ese APK y se repitió todo sin red.
+**Incidente durante la prueba.** La **primera** ejecución de la prueba instrumentada usó un APK de pruebas que todavía tenía los permisos de red. Su `JobService` envió esas estadísticas a `firebaselogging.googleapis.com` desde el emulador, paquete `com.juanrueda.monitoring_engine.test`.
+
+- **Evidencia.** El mantenedor vio en logcat, durante la sesión, `Making request to: https://firebaselogging.googleapis.com/v0cc/log/batch?format=json_proto3` y `Status Code: 200` a las 23:14:11–12 UTC del 2026-10-12. Esas líneas **no se guardaron en un archivo**: `androidTest-logcat.txt` solo contiene los estados del modelo. Por eso es un incidente declarado por el mantenedor, no una observación conservada.
+- **Contenido: no inspeccionado.** Que no incluyera imágenes, puntos ni datos faciales es una **inferencia** a partir de la implementación (los mensajes de registro de MediaPipe no tienen campos de imagen), no una comprobación del cuerpo enviado.
+- **Norma.** Un envío automático así contradice la regla de funcionamiento local sin envíos automáticos (Área 06 §§2 y 19). La mitigación posterior no lo borra.
+
+Después se añadió el manifiesto de pruebas, se desinstaló ese APK y se repitió todo sin red.
 
 **No comprobado:** si el APK release guarda localmente esos eventos. `datatransport` no deja registros en release y la app no es depurable. Sin permisos de red no puede enviarlos.
 
@@ -160,17 +166,28 @@ MediaPipe 1.0.0 no trae reglas propias. El plugin aporta `consumer-rules.pro`:
 Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab-eye-rules-0.1` (Área 05 §7, `qualificationStatus=experimental`), y el latido y el límite de Flutter son la propuesta de transporte de Área 04 §9. Ninguno está aceptado para producción.
 
 - **Motor (Kotlin), Tstale = 750 ms:**
-  - se descarta un resultado cuya edad, desde la entrega del cuadro hasta la recepción, supera 750 ms; con edad igual a 750 ms sigue vigente;
-  - sin resultados aceptados durante ≥750 ms (con 750 ya caduca), «sin rostro», «un rostro» y «varios» vuelven a `waitingResults` con `expired=true`;
+  - la edad de un resultado se calcula **al aplicarlo** en el hilo de análisis, con el reloj monotónico de ese momento: `ahora − entrega del cuadro al analizador`. Incluye la espera del aviso en la cola del hilo;
+  - se descarta si supera 750 ms; con 750 exactos sigue vigente. Vale igual para cero, uno o varios rostros;
+  - se descarta como **inválido** (no como edad cero) si las marcas son imposibles: entrega posterior a la recepción en el hilo de MediaPipe, o recepción posterior a «ahora»;
+  - sin resultados aceptados durante ≥750 ms desde su **aplicación** (con 750 ya caduca), «sin rostro», «un rostro» y «varios» vuelven a `waitingResults` con `expired=true`;
   - el vigilante corre cada 100 ms, así que reacciona en ≤100 ms;
   - el motor manda un latido a Flutter cada 1000 ms.
-- **Flutter, 3000 ms:** sin ningún resultado durante 3000 ms, el último deja de mostrarse como vigente («El último resultado caducó y ya no se muestra»). Cubre un canal que deja de entregar mensajes.
+- **Flutter, 3000 ms:**
+  - un resultado deja de mostrarse como vigente si en 3000 ms no llega una **inferencia nueva**, es decir, otro `resultId` («El último resultado caducó y ya no se muestra»);
+  - el plazo se mide en Dart desde la llegada de esa inferencia; **no se comparan relojes de Dart y Android**;
+  - un latido o un mensaje repetido de la misma inferencia mantiene vivo el canal, pero no rejuvenece el resultado. Un estado que no es una detección (esperando, error) sí reinicia el plazo, porque no muestra ningún rostro.
 - **Edad medida.** Va desde la entrega al analizador, no desde la captura. No se demostró la conversión entre el reloj del sensor (`ImageInfo.timestamp`) y `elapsedRealtime` (Área 05 §4), así que la latencia de captura a entrega no se incluye.
 - **Gmax (150 ms)** no se usa: sin continuidad de medición no hay nada que cortar.
 
 ### Identidad
 
 - Cada apertura de 5A tiene su token y su sesión de análisis. Dart descarta resultados de otro token, y también los que llegan tras salir o tras desecharse el controlador.
+- **Orden dentro de una apertura.** El motor numera cada mensaje (`sequence`, estrictamente creciente). Dart descarta:
+  - un `sequence` ya visto o menor (repetido o atrasado);
+  - una `generation` menor que la última aceptada;
+  - **todo** mensaje de la apertura posterior a `stopped`, que es definitivo.
+
+  Cada apertura nueva empieza su propio orden.
 - En Kotlin, cada carga del modelo es una **generación**: un resultado o error de otra generación, o posterior a la detención, no toca el estado.
 - Reintentar solo actúa tras un error, así que no duplica detectores.
 - Salir, pasar a segundo plano o desconectarse cierra analizador, detector e hilo. Esto viene del ciclo de vida de 5A, que ya liberaba la cámara.
@@ -235,7 +252,7 @@ Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab
 | Fallo de carga y después «Reintentar carga» | `ONE_FACE` |
 | 5 aperturas y cierres seguidos | Cada uno detecta y termina en `STOPPED` |
 
-**Ejecución:** en la AVD `vigia_pixel` (Pixel 8, API 36, x86_64), instalando el APK de pruebas y lanzando `am instrument`. `connectedDebugAndroidTest` falla en este equipo antes de ejecutar: UTP intenta crear `D:\tmp` y Windows deniega el acceso a la raíz de `D:`. Pasan 10 de 10, también tras el último cambio del núcleo. Registros en `D:\dev\vigia-entrega\evidencia-fase5b\androidTest-*.txt`.
+**Ejecución:** en la AVD `vigia_pixel` (Pixel 8, API 36, x86_64), instalando el APK de pruebas y lanzando `am instrument`. `connectedDebugAndroidTest` falla en este equipo antes de ejecutar: UTP intenta crear `D:\tmp` y Windows deniega el acceso a la raíz de `D:`. Pasan 10 de 10 con el código de `3be9bf1`. **No se repitieron tras la corrección P1**, por indicación: el cambio del núcleo afecta al momento de medir la edad y lo cubren las pruebas JVM y la comprobación dirigida por CameraX. Registros en `D:\dev\vigia-entrega\evidencia-fase5b\androidTest-*.txt`.
 
 ```bash
 cd android && ./gradlew :monitoring_engine:assembleDebugAndroidTest
@@ -290,12 +307,65 @@ adb shell am instrument -w com.juanrueda.monitoring_engine.test/androidx.test.ru
 | Normal | `CAMERA`, más `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | — | Sí |
 | DEMO | `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | 0 | No |
 
+## Corrección de la revisión de Codex (P1)
+
+**Dictamen sobre `3be9bf1`: desfavorable** por dos P1 de vigencia. Reproducciones de Codex en `build/review-fase5b/` (`review_stale_test.dart`, `ReviewStale.kt`).
+
+1. **Flutter renovaba resultados antiguos.**
+   - Problema: cualquier mensaje del token vigente reiniciaba los 3000 ms, de modo que el mismo resultado entregado otra vez tras caducar volvía a mostrar «Rostro detectado». Además, un mensaje de una generación anterior revivía un análisis ya detenido.
+   - Corrección: ver «Identidad» y «Política de caducidad».
+     - El contrato Pigeon añade `sequence` (orden de publicación) y `resultId` (identidad de la inferencia: única en la apertura, nula sin resultado vigente; un latido repite la de la última aceptada).
+     - Dart ordena y filtra los mensajes, trata `stopped` como definitivo, y solo renueva la vigencia con un `resultId` nuevo.
+2. **Kotlin publicaba un aviso retrasado como vigente.**
+   - Problema: la edad se calculaba con la hora tomada en el hilo de MediaPipe antes de encolar el aviso. Un aviso de un cuadro de 1000 ms, recibido a 1100 ms y aplicado a 5000 ms, se publicaba como `ONE_FACE` con 100 ms.
+   - Corrección: la edad y el silencio se miden con el reloj del momento de aplicarlo, y las marcas imposibles se descartan (ver «Política de caducidad»).
+   - No cambian Tstale (750 ms) ni el límite de Flutter (3000 ms).
+
+**Regresiones:**
+
+| Archivo | Pruebas nuevas | Qué cubren |
+|---|---|---|
+| `test/camera/face_analysis_controller_test.dart` | 10 | Las dos reproducciones de Codex; `stopped` definitivo incluso ante una generación posterior; mismo mensaje entregado otra vez; mensaje atrasado; generación anterior con `sequence` mayor; latido de la misma inferencia sin ampliar el plazo (límite exacto 2999/3000 ms); control positivo de una inferencia nueva justo antes del límite; apertura nueva con orden propio; plazo de una inferencia llegada durante la apertura |
+| `FaceAnalysisDelayTest.kt` (JVM) | 5 | Reproducción de Codex para 0, 1 y 2 rostros; límite 750/751 ms con despacho retrasado; control positivo de un resultado nuevo tras uno retrasado; silencio desde la aplicación (749/750); entrega «futura» descartada |
+| `FaceAnalysisCoreTest.kt` (JVM) | 2 | `sequence` creciente y `resultId`; el latido lleva la última inferencia aceptada |
+
+Además se corrigieron dos pruebas propias que emitían el **mismo** resultado como si fuera nuevo; ahora usan otro `resultId`.
+
+**Detección con el código anterior** (copia temporal `git worktree` de `3be9bf1` en `D:\dev\tmp`, ya eliminada; solo con pruebas que compilan contra la API anterior):
+
+- **Dart:** fallan las 3 regresiones expresables sin `sequence` ni `resultId`: las dos reproducciones y la del latido.
+- **JVM:** fallan 4 de las 5 de `FaceAnalysisDelayTest`. La quinta es el control positivo, que pasa en ambas versiones.
+
+**Resultados reales:**
+
+- `dart format` y `flutter analyze` (app y plugin): sin problemas.
+- `test/camera` y los renderizados de 5A y 5B: pasan 113. Los renderizados no cambiaron.
+- `build/review-fase5b/review_stale_test.dart`: pasa 2/2.
+- Plugin: 3 pruebas Dart y 43 JVM pasan.
+- `tools/generate_pigeon.py --check` (tras preparar el commit), `git diff --check` y `spec_registry.py check`: OK.
+- No se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo.
+
+**Comprobación dirigida CameraX → MediaPipe** (emulador, `-camera-front imagefile:` con el lienzo del caso 03; `vigia-normal-fase5b-p1-release.apk` instalado con `adb install -r`):
+
+- el paquete instalado solo tiene `CAMERA`, sin `INTERNET` ni `ACCESS_NETWORK_STATE`;
+- «Rostro detectado» al entrar, al volver de segundo plano y al reentrar tras una ráfaga de 6 entradas y salidas;
+- 0 hilos de análisis y 0 clientes de cámara tras HOME y tras salir; nunca más de un análisis vivo (9 sesiones);
+- sin `FATAL` ni avisos de `TransportRuntime`;
+- contadores: 45 de 47 y 54 de 55 resultados aceptados, 1 descartado por antiguo, y una **edad máxima aceptada de 654–675 ms**. Ahora incluye la espera en la cola del hilo de análisis: en el emulador el margen hasta Tstale es estrecho;
+- AVD sin cambios: `config.ini` con el mismo SHA-256.
+- Evidencia en `D:\dev\vigia-entrega\evidencia-fase5b\09_correccion_p1\`; captura `capturas\fase5b\09_correccion_p1_rostro_detectado.png`.
+
+**Observación de la revisión no corregida aquí** (se pidió corregir solo los P1): `MediaPipeFaceEngine.detectAsync` no cierra explícitamente el `MPImage` de entrada, aunque el `Bitmap` subyacente sí se recicla; y el `MPImage` del listener se cierra fuera de un `finally`. Codex no lo presenta como una fuga observada. Queda pendiente.
+
 ## APK (release, firmados con la clave de depuración)
 
 | Variante | Ruta | Bytes | SHA-256 |
 |---|---|---|---|
 | Normal `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5b-release.apk` | 94 270 965 | `639328dedc4658035781411111b1dc12f88c616ef1a93fe5c4c88376d244b9b0` |
 | DEMO `com.juanrueda.vigia.demo` | `D:\dev\vigia-entrega\vigia-demo-fase5b-release.apk` | 58 480 726 | `e565f16e2fc50f805520e70ff38c1c213656814109254430830396849c16d94a` |
+| **Normal corregido (P1)** `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5b-p1-release.apk` | 94 270 965 | `e525db8a088035a2e1324e1d307de85f381fb8a49fd952024be194c1abacc51b` |
+
+El APK DEMO no se recompiló en la corrección. Los cambios afectan al análisis facial de la variante normal y al contrato del plugin, que la DEMO no ejecuta, así que el APK DEMO de la tabla no incluye este código.
 
 - Los APK anteriores se conservan.
 - Hashes añadidos a `D:\dev\vigia-entrega\SHA256SUMS.txt`.

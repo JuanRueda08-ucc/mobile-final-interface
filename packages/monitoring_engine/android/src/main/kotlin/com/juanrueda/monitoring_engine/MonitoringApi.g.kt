@@ -387,14 +387,30 @@ data class PreviewOpenResult (
 data class FaceAnalysisSnapshot (
   /** Apertura de vista previa a la que pertenece. */
   val token: Long,
-  /** Carga del modelo dentro de la apertura; cambia al reintentar. */
+  /**
+   * Orden de publicación dentro de la apertura: estrictamente creciente.
+   * Flutter descarta un mensaje con un número ya visto o menor (repetido o
+   * atrasado).
+   */
+  val sequence: Long,
+  /**
+   * Carga del modelo dentro de la apertura; cambia al reintentar y al
+   * detener. Nunca disminuye.
+   */
   val generation: Long,
   val status: FaceAnalysisStatus,
   /** Rostros del resultado vigente; nulo sin resultado vigente. */
   val faceCount: Long? = null,
   /**
-   * Edad del resultado vigente: desde la entrega del cuadro al analizador
-   * hasta la recepción del resultado, en ms.
+   * Identidad de la inferencia que se informa, única en la apertura; nula
+   * sin resultado vigente. Un latido repite el valor del último resultado:
+   * solo un valor nuevo es una inferencia nueva.
+   */
+  val resultId: Long? = null,
+  /**
+   * Edad del resultado al aceptarlo en el motor: desde la entrega del cuadro
+   * al analizador hasta su aplicación en el hilo de análisis, en ms. No
+   * crece en los latidos; la vigencia la decide el motor con Tstale.
    */
   val resultAgeMs: Long? = null,
   /** Rostros como máximo que busca el detector. */
@@ -420,30 +436,34 @@ data class FaceAnalysisSnapshot (
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): FaceAnalysisSnapshot {
       val token = pigeonVar_list[0] as Long
-      val generation = pigeonVar_list[1] as Long
-      val status = pigeonVar_list[2] as FaceAnalysisStatus
-      val faceCount = pigeonVar_list[3] as Long?
-      val resultAgeMs = pigeonVar_list[4] as Long?
-      val maxFaces = pigeonVar_list[5] as Long
-      val staleAfterMs = pigeonVar_list[6] as Long
-      val framesSubmitted = pigeonVar_list[7] as Long
-      val resultsAccepted = pigeonVar_list[8] as Long
-      val framesDropped = pigeonVar_list[9] as Long
-      val resultsDiscarded = pigeonVar_list[10] as Long
-      val expired = pigeonVar_list[11] as Boolean
-      val frameWidth = pigeonVar_list[12] as Long?
-      val frameHeight = pigeonVar_list[13] as Long?
-      val frameRotationDegrees = pigeonVar_list[14] as Long?
-      val errorCode = pigeonVar_list[15] as String?
-      return FaceAnalysisSnapshot(token, generation, status, faceCount, resultAgeMs, maxFaces, staleAfterMs, framesSubmitted, resultsAccepted, framesDropped, resultsDiscarded, expired, frameWidth, frameHeight, frameRotationDegrees, errorCode)
+      val sequence = pigeonVar_list[1] as Long
+      val generation = pigeonVar_list[2] as Long
+      val status = pigeonVar_list[3] as FaceAnalysisStatus
+      val faceCount = pigeonVar_list[4] as Long?
+      val resultId = pigeonVar_list[5] as Long?
+      val resultAgeMs = pigeonVar_list[6] as Long?
+      val maxFaces = pigeonVar_list[7] as Long
+      val staleAfterMs = pigeonVar_list[8] as Long
+      val framesSubmitted = pigeonVar_list[9] as Long
+      val resultsAccepted = pigeonVar_list[10] as Long
+      val framesDropped = pigeonVar_list[11] as Long
+      val resultsDiscarded = pigeonVar_list[12] as Long
+      val expired = pigeonVar_list[13] as Boolean
+      val frameWidth = pigeonVar_list[14] as Long?
+      val frameHeight = pigeonVar_list[15] as Long?
+      val frameRotationDegrees = pigeonVar_list[16] as Long?
+      val errorCode = pigeonVar_list[17] as String?
+      return FaceAnalysisSnapshot(token, sequence, generation, status, faceCount, resultId, resultAgeMs, maxFaces, staleAfterMs, framesSubmitted, resultsAccepted, framesDropped, resultsDiscarded, expired, frameWidth, frameHeight, frameRotationDegrees, errorCode)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       token,
+      sequence,
       generation,
       status,
       faceCount,
+      resultId,
       resultAgeMs,
       maxFaces,
       staleAfterMs,
@@ -466,15 +486,17 @@ data class FaceAnalysisSnapshot (
       return true
     }
     val other = other as FaceAnalysisSnapshot
-    return MonitoringApiPigeonUtils.deepEquals(this.token, other.token) && MonitoringApiPigeonUtils.deepEquals(this.generation, other.generation) && MonitoringApiPigeonUtils.deepEquals(this.status, other.status) && MonitoringApiPigeonUtils.deepEquals(this.faceCount, other.faceCount) && MonitoringApiPigeonUtils.deepEquals(this.resultAgeMs, other.resultAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.maxFaces, other.maxFaces) && MonitoringApiPigeonUtils.deepEquals(this.staleAfterMs, other.staleAfterMs) && MonitoringApiPigeonUtils.deepEquals(this.framesSubmitted, other.framesSubmitted) && MonitoringApiPigeonUtils.deepEquals(this.resultsAccepted, other.resultsAccepted) && MonitoringApiPigeonUtils.deepEquals(this.framesDropped, other.framesDropped) && MonitoringApiPigeonUtils.deepEquals(this.resultsDiscarded, other.resultsDiscarded) && MonitoringApiPigeonUtils.deepEquals(this.expired, other.expired) && MonitoringApiPigeonUtils.deepEquals(this.frameWidth, other.frameWidth) && MonitoringApiPigeonUtils.deepEquals(this.frameHeight, other.frameHeight) && MonitoringApiPigeonUtils.deepEquals(this.frameRotationDegrees, other.frameRotationDegrees) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode)
+    return MonitoringApiPigeonUtils.deepEquals(this.token, other.token) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.generation, other.generation) && MonitoringApiPigeonUtils.deepEquals(this.status, other.status) && MonitoringApiPigeonUtils.deepEquals(this.faceCount, other.faceCount) && MonitoringApiPigeonUtils.deepEquals(this.resultId, other.resultId) && MonitoringApiPigeonUtils.deepEquals(this.resultAgeMs, other.resultAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.maxFaces, other.maxFaces) && MonitoringApiPigeonUtils.deepEquals(this.staleAfterMs, other.staleAfterMs) && MonitoringApiPigeonUtils.deepEquals(this.framesSubmitted, other.framesSubmitted) && MonitoringApiPigeonUtils.deepEquals(this.resultsAccepted, other.resultsAccepted) && MonitoringApiPigeonUtils.deepEquals(this.framesDropped, other.framesDropped) && MonitoringApiPigeonUtils.deepEquals(this.resultsDiscarded, other.resultsDiscarded) && MonitoringApiPigeonUtils.deepEquals(this.expired, other.expired) && MonitoringApiPigeonUtils.deepEquals(this.frameWidth, other.frameWidth) && MonitoringApiPigeonUtils.deepEquals(this.frameHeight, other.frameHeight) && MonitoringApiPigeonUtils.deepEquals(this.frameRotationDegrees, other.frameRotationDegrees) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode)
   }
 
   override fun hashCode(): Int {
     var result = javaClass.hashCode()
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.token)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.sequence)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.generation)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.status)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.faceCount)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resultId)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resultAgeMs)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.maxFaces)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.staleAfterMs)
@@ -490,7 +512,7 @@ data class FaceAnalysisSnapshot (
     return result
   }
   override fun toString(): String {
-    return "FaceAnalysisSnapshot(token=$token, generation=$generation, status=$status, faceCount=$faceCount, resultAgeMs=$resultAgeMs, maxFaces=$maxFaces, staleAfterMs=$staleAfterMs, framesSubmitted=$framesSubmitted, resultsAccepted=$resultsAccepted, framesDropped=$framesDropped, resultsDiscarded=$resultsDiscarded, expired=$expired, frameWidth=$frameWidth, frameHeight=$frameHeight, frameRotationDegrees=$frameRotationDegrees, errorCode=$errorCode)"
+    return "FaceAnalysisSnapshot(token=$token, sequence=$sequence, generation=$generation, status=$status, faceCount=$faceCount, resultId=$resultId, resultAgeMs=$resultAgeMs, maxFaces=$maxFaces, staleAfterMs=$staleAfterMs, framesSubmitted=$framesSubmitted, resultsAccepted=$resultsAccepted, framesDropped=$framesDropped, resultsDiscarded=$resultsDiscarded, expired=$expired, frameWidth=$frameWidth, frameHeight=$frameHeight, frameRotationDegrees=$frameRotationDegrees, errorCode=$errorCode)"
   }
 }
 
