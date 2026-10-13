@@ -343,32 +343,40 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
   /// Fila «Modelo» (B5.2 P04; ER04 «Modelo no disponible» con «Reintentar
   /// carga»).
   (bool, String, String?, Widget?) _modelRow(FrontCameraState s) =>
-      switch (s.facePhase) {
-        FacePresencePhase.stopped => (
+      s.faceStalled && s.facePhase != FacePresencePhase.stopped
+      // Sin respuesta del motor no se sabe el estado del modelo.
+      ? (
           false,
-          'Modelo sin cargar',
-          'Se carga al abrir la cámara y se libera al cerrarla.',
+          'Estado del modelo no disponible',
+          'El motor no responde a las consultas.',
           null,
-        ),
-        FacePresencePhase.loadingModel => (
-          false,
-          'Cargando el modelo…',
-          null,
-          null,
-        ),
-        FacePresencePhase.modelError => (
-          false,
-          'Modelo no disponible',
-          FrontCameraScreen.modelCause(s.face?.errorCode),
-          VigiaButton(
-            label: 'Reintentar carga',
-            kind: VigiaButtonKind.secondary,
-            icon: VigiaIcon.refresh,
-            onPressed: _camera.retryFaceAnalysis,
+        )
+      : switch (s.facePhase) {
+          FacePresencePhase.stopped => (
+            false,
+            'Modelo sin cargar',
+            'Se carga al abrir la cámara y se libera al cerrarla.',
+            null,
           ),
-        ),
-        _ => (true, 'Cargado', null, null),
-      };
+          FacePresencePhase.loadingModel => (
+            false,
+            'Cargando el modelo…',
+            null,
+            null,
+          ),
+          FacePresencePhase.modelError => (
+            false,
+            'Modelo no disponible',
+            FrontCameraScreen.modelCause(s.face?.errorCode),
+            VigiaButton(
+              label: 'Reintentar carga',
+              kind: VigiaButtonKind.secondary,
+              icon: VigiaIcon.refresh,
+              onPressed: _camera.retryFaceAnalysis,
+            ),
+          ),
+          _ => (true, 'Cargado', null, null),
+        };
 
   /// Fila «Rostro (informativo)». Solo un resultado vigente del motor dice
   /// si hay rostro; sin él, se espera (nunca «no detectado» por silencio).

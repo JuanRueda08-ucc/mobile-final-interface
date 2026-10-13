@@ -33,8 +33,14 @@ abstract interface class FrontCameraBridge {
   Future<bool> restartFaceAnalysis(int token);
 
   /// Estado del análisis de [token] creado por el motor al responder; nulo si
-  /// [token] ya no es la apertura vigente.
+  /// [token] ya no es la apertura vigente. La llamada no se puede cancelar.
   Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token);
+
+  /// Identidad del canal por el que viajan las consultas, con `==` y
+  /// `hashCode` estables: dos puentes distintos sobre el mismo canal
+  /// devuelven claves iguales. Sirve para limitar las llamadas pendientes por
+  /// canal, no por pantalla ni por puente.
+  Object get queryChannel;
 }
 
 /// [FrontCameraBridge] sobre los mensajes generados por Pigeon.
@@ -79,6 +85,31 @@ class PigeonFrontCameraBridge implements FrontCameraBridge {
   @override
   Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token) =>
       _host.getFaceAnalysis(token);
+
+  /// El canal Pigeon lo determinan el mensajero (nulo: el predeterminado) y
+  /// el sufijo del canal; el nombre base es fijo.
+  @override
+  Object get queryChannel => _PigeonQueryChannel(
+    _host.pigeonVar_binaryMessenger,
+    _host.pigeonVar_messageChannelSuffix,
+  );
+}
+
+/// Clave del canal `getFaceAnalysis` de Pigeon.
+final class _PigeonQueryChannel {
+  const _PigeonQueryChannel(this.messenger, this.suffix);
+
+  final Object? messenger;
+  final String suffix;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _PigeonQueryChannel &&
+      identical(other.messenger, messenger) &&
+      other.suffix == suffix;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(messenger), suffix);
 }
 
 class _Events implements FrontCameraFlutterApi {

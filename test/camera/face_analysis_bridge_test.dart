@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
@@ -161,4 +163,107 @@ void main() {
     expect(phase(), isNot(FacePresencePhase.oneFace));
     await tearDownBridge(tester);
   });
+
+  /// Revisión 5B (cuarta ronda): el límite es por canal, también entre
+  /// wrappers Pigeon distintos.
+  testWidgets('dos puentes Pigeon distintos sobre el mismo canal: una sola '
+      'llamada pendiente; al terminar, el consumidor vigente consulta', (
+    tester,
+  ) async {
+    final hostA = _GatedHost();
+    final hostB = _GatedHost();
+    final a = ProviderContainer(
+      overrides: [
+        frontCameraBridgeProvider.overrideWithValue(
+          PigeonFrontCameraBridge(host: hostA),
+        ),
+      ],
+    );
+    await a.read(frontCameraProvider.notifier).enter();
+    await tester.pump(const Duration(milliseconds: 800));
+    a.dispose();
+    final b = ProviderContainer(
+      overrides: [
+        frontCameraBridgeProvider.overrideWithValue(
+          PigeonFrontCameraBridge(host: hostB),
+        ),
+      ],
+    );
+    await b.read(frontCameraProvider.notifier).enter();
+    await tester.pump(const Duration(seconds: 2));
+    expect(hostA.calls.length + hostB.calls.length, 1);
+    expect(b.read(frontCameraProvider).faceStalled, isTrue);
+    // Termina la llamada de A: se libera el canal sin aplicarse en B.
+    hostA.calls.single.complete(null);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(hostB.calls.length, 1);
+    expect(hostA.unfinished + hostB.unfinished, 1);
+    b.read(frontCameraProvider.notifier).leave();
+    for (final c in hostB.calls) {
+      if (!c.isCompleted) c.complete(null);
+    }
+    await tester.pump(const Duration(seconds: 1));
+    b.dispose();
+    FrontCameraFlutterApi.setUp(null);
+  });
+
+  testWidgets('un canal con otro sufijo es independiente', (tester) async {
+    final hostA = _GatedHost();
+    final hostC = _GatedHost(messageChannelSuffix: 'otro');
+    final a = ProviderContainer(
+      overrides: [
+        frontCameraBridgeProvider.overrideWithValue(
+          PigeonFrontCameraBridge(host: hostA),
+        ),
+      ],
+    );
+    final c = ProviderContainer(
+      overrides: [
+        frontCameraBridgeProvider.overrideWithValue(
+          PigeonFrontCameraBridge(host: hostC),
+        ),
+      ],
+    );
+    await a.read(frontCameraProvider.notifier).enter();
+    await c.read(frontCameraProvider.notifier).enter();
+    await tester.pump(const Duration(seconds: 1));
+    expect(hostA.calls.length, 1);
+    expect(hostC.calls.length, 1);
+    a.read(frontCameraProvider.notifier).leave();
+    c.read(frontCameraProvider.notifier).leave();
+    for (final x in [...hostA.calls, ...hostC.calls]) {
+      x.complete(null);
+    }
+    await tester.pump(const Duration(seconds: 1));
+    a.dispose();
+    c.dispose();
+    FrontCameraFlutterApi.setUp(null);
+  });
+}
+
+/// Host que retiene cada llamada `getFaceAnalysis` (canal bloqueado).
+class _GatedHost extends FrontCameraHostApi {
+  _GatedHost({super.messageChannelSuffix});
+
+  final calls = <Completer<FaceAnalysisSnapshot?>>[];
+
+  @override
+  Future<CameraPermissionStatus> checkCameraPermission() async =>
+      CameraPermissionStatus.granted;
+
+  @override
+  Future<PreviewOpenResult> openFrontPreview(int token) async =>
+      FakeFrontCameraBridge.result(token, PreviewOpenStatus.opened);
+
+  @override
+  Future<void> closeFrontPreview(int token) async {}
+
+  @override
+  Future<FaceAnalysisSnapshot?> getFaceAnalysis(int token) {
+    final c = Completer<FaceAnalysisSnapshot?>();
+    calls.add(c);
+    return c.future;
+  }
+
+  int get unfinished => calls.where((c) => !c.isCompleted).length;
 }

@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
+import 'face_query_channel.dart';
+
 /// Fase de la comprobación de la cámara frontal (fase 5A, variante normal).
 ///
 /// La presencia facial de la fase 5B va aparte ([FacePresencePhase]): solo
@@ -140,6 +142,12 @@ class FrontCameraState {
           ? FacePresencePhase.waitingResults
           : FacePresencePhase.loadingModel;
     }
+    // El canal sin respuesta prevalece sobre el último estado recibido
+    // (cargando, errores, latidos antiguos), salvo `stopped`, que es
+    // definitivo.
+    if (faceStalled && f.status != FaceAnalysisStatus.stopped) {
+      return FacePresencePhase.waitingResults;
+    }
     final vigente = !faceSilent && !faceStale && !faceStalled;
     return switch (f.status) {
       FaceAnalysisStatus.noFace when vigente => FacePresencePhase.noFace,
@@ -219,15 +227,18 @@ final frontCameraProvider =
 ///   detenido) sí se aceptan, porque no afirman la presencia de nadie.
 ///   Además, con la cámara abierta se consulta cada [facePollInterval].
 /// - **Consultas acotadas.** La llamada de Pigeon no se puede cancelar. Hay
-///   como máximo **una llamada real pendiente** al canal, registrada en
-///   [_pendingQuery], que sobrevive a salir, volver y reintentar. Cada
+///   como máximo **una llamada real pendiente por canal**, registrada en
+///   [FaceQueryChannel] (no en este controlador): sobrevive a salir, volver,
+///   reintentar y a desechar este controlador y crear otro. Cada
 ///   consulta tiene su plazo propio de [faceStaleAfter] desde que empieza,
 ///   con su propio temporizador. Al vencer, su respuesta deja de valer para
 ///   la interfaz, se retira el rostro mostrado y el canal queda «sin
 ///   respuesta» (`faceStalled`); no se lanza otra llamada mientras esa siga
 ///   pendiente. Cuando termina (respuesta o excepción) se libera el registro,
 ///   sin aplicar su contenido. La siguiente consulta que responde a tiempo
-///   recupera el canal.
+///   recupera el canal. Al recibir, se comprueba además el tiempo monotónico
+///   transcurrido hasta la terminación: 750 ms o más se descarta aunque el
+///   temporizador no haya llegado a ejecutarse.
 /// - [faceSilenceLimit] es el límite de silencio del motor (sin avisos ni
 ///   respuestas), no un plazo de vigencia de un rostro.
 class FrontCameraController extends Notifier<FrontCameraState> {
@@ -276,14 +287,20 @@ class FrontCameraController extends Notifier<FrontCameraState> {
 
   /// Consultas al motor (ver [_queryFace]).
   Timer? _pollTimer;
-  int _queryId = 0;
 
-  /// Única llamada real pendiente al canal, de esta apertura o de una
-  /// anterior. Se libera solo cuando la llamada termina.
-  _FaceQuery? _pendingQuery;
+  /// Consulta lanzada por este controlador en la apertura vigente; su
+  /// llamada la registra [FaceQueryChannel].
+  FaceQueryTicket? _ownQuery;
+  bool _ownExpired = false;
 
-  /// Plazo de la consulta pendiente, para la apertura vigente.
+  /// Llamada pendiente del canal cuyo plazo se vigila (propia o de otro
+  /// consumidor), y su temporizador para la apertura vigente.
+  FaceQueryTicket? _watched;
   Timer? _queryTimeout;
+
+  /// Época de la apertura: cambia en cada [_resetFace]. Una respuesta de otra
+  /// época no se aplica.
+  int _faceEpoch = 0;
 
   /// Una consulta venció sin respuesta: el canal no responde.
   bool _channelStalled = false;
@@ -512,10 +529,10 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       // alguno, sigue corriendo desde su llegada.
       _silenceTimer ??= _startSilenceTimer();
       _pollTimer = Timer.periodic(facePollInterval, (_) => _queryFace());
-      // Una llamada de una apertura anterior sigue ocupando el canal: su
-      // plazo cuenta desde que empezó.
-      final pending = _pendingQuery;
-      if (pending != null) _armQueryTimeout(pending);
+      // Una llamada anterior (de esta pantalla o de otro consumidor) sigue
+      // ocupando el canal: su plazo cuenta desde que empezó.
+      final pending = FaceQueryChannel.pendingOn(_bridge);
+      if (pending != null) _watchTicket(pending);
       _queryFace();
     }
   }
@@ -535,78 +552,100 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   /// Consulta el estado al motor y mide en Dart el tiempo completo de la
   /// consulta, con un cronómetro monotónico iniciado antes de llamar.
   ///
-  /// Como máximo una llamada real pendiente: si ya hay una (de esta apertura
-  /// o de otra), no se llama.
+  /// Como máximo una llamada real pendiente **por canal**: si ya hay una
+  /// (de esta pantalla, de una anterior o de otro consumidor), no se llama;
+  /// solo se vigila su plazo.
   void _queryFace() {
     final token = _token;
     if (token == null || !ref.mounted || _faceStopped) return;
-    if (_pendingQuery != null) return;
-    final query = _FaceQuery(++_queryId, token, clock.stopwatch()..start());
-    _pendingQuery = query;
-    _armQueryTimeout(query);
-    Future<FaceAnalysisSnapshot?> call;
-    try {
-      call = _bridge.queryFaceAnalysis(token);
-    } catch (e) {
-      call = Future.error(e);
-    }
-    call.then(
-      (answer) => _onQueryDone(query, answer),
-      onError: (Object e) {
-        debugPrint('Vigía · consulta del análisis $token sin respuesta: $e');
-        _onQueryDone(query, null);
-      },
-    );
-  }
-
-  /// Plazo propio de [faceStaleAfter] desde el inicio de [query],
-  /// independiente del sondeo.
-  void _armQueryTimeout(_FaceQuery query) {
-    _queryTimeout?.cancel();
-    final left = faceStaleAfter - query.watch.elapsed;
-    if (left <= Duration.zero) {
-      _queryTimeout = null;
-      _expireQuery(query);
+    final pending = FaceQueryChannel.pendingOn(_bridge);
+    if (pending != null) {
+      _watchTicket(pending);
       return;
     }
-    _queryTimeout = Timer(left, () => _expireQuery(query));
+    final ticket = FaceQueryChannel.start(_bridge, token, clock.stopwatch());
+    if (ticket == null) return;
+    _ownQuery = ticket;
+    _ownExpired = false;
+    final epoch = _faceEpoch;
+    _watchTicket(ticket);
+    ticket.outcome.then((outcome) => _onQueryDone(ticket, outcome, epoch));
   }
 
-  /// Venció el plazo de [query]: su respuesta ya no vale para la interfaz,
-  /// se retira el rostro mostrado y el canal queda «sin respuesta». La
-  /// llamada sigue registrada hasta que termine.
-  void _expireQuery(_FaceQuery query) {
-    query.expired = true;
-    if (_pendingQuery == query) _queryTimeout = null;
+  /// Vigila el plazo propio de [faceStaleAfter] de [ticket], contado desde
+  /// su inicio e independiente del sondeo. Al terminar la llamada se deja de
+  /// vigilar.
+  void _watchTicket(FaceQueryTicket ticket) {
+    if (identical(_watched, ticket)) return;
+    _watched = ticket;
+    _queryTimeout?.cancel();
+    _queryTimeout = null;
+    final left = faceStaleAfter - ticket.watch.elapsed;
+    if (left <= Duration.zero) {
+      _expireWatched(ticket);
+    } else {
+      _queryTimeout = Timer(left, () => _expireWatched(ticket));
+    }
+    ticket.outcome.then((_) {
+      if (!identical(_watched, ticket)) return;
+      _watched = null;
+      _queryTimeout?.cancel();
+      _queryTimeout = null;
+    });
+  }
+
+  /// Venció el plazo de [ticket]: si es la consulta propia, su respuesta ya
+  /// no vale para la interfaz. En cualquier caso se retira el rostro
+  /// mostrado y el canal queda «sin respuesta» hasta que otra consulta
+  /// responda a tiempo. La llamada sigue registrada hasta que termine.
+  void _expireWatched(FaceQueryTicket ticket) {
+    if (identical(_ownQuery, ticket)) _ownExpired = true;
+    if (!identical(_watched, ticket)) return;
+    _queryTimeout = null;
     if (!ref.mounted || _token == null || _faceStopped) return;
     _channelStalled = true;
     _retireShown();
     _publishFace();
   }
 
-  /// La llamada de [query] terminó (respuesta o excepción): se libera el
-  /// canal. Solo se aplica la respuesta si sigue siendo la consulta vigente
-  /// de la apertura vigente y no venció su plazo.
-  void _onQueryDone(_FaceQuery query, FaceAnalysisSnapshot? answer) {
-    query.watch.stop();
-    if (_pendingQuery == query) {
-      _pendingQuery = null;
-      _queryTimeout?.cancel();
-      _queryTimeout = null;
-    }
+  /// La llamada de [ticket] terminó (respuesta o excepción); el coordinador
+  /// ya liberó el canal. Solo se aplica si es la consulta propia de esta
+  /// apertura ([epoch] y token), no venció su plazo, terminó en menos de
+  /// [faceStaleAfter] según el tiempo monotónico medido al terminar (aunque
+  /// el temporizador no se haya ejecutado) y no hubo `stopped`.
+  void _onQueryDone(
+    FaceQueryTicket ticket,
+    FaceQueryOutcome outcome,
+    int epoch,
+  ) {
     if (!ref.mounted) return;
-    final valid = !query.expired && query.token == _token && !_faceStopped;
-    if (!valid) return;
-    if (answer != null && answer.token == query.token) {
-      _channelStalled = false;
-      final age = answer.resultAgeMs;
-      _accept(
-        answer,
-        effectiveAge: age == null
-            ? null
-            : Duration(milliseconds: age) + query.watch.elapsed,
+    final mine = identical(_ownQuery, ticket);
+    if (mine) _ownQuery = null;
+    final error = outcome.error;
+    if (error != null) {
+      debugPrint(
+        'Vigía · consulta del análisis ${ticket.token} sin respuesta: '
+        '$error',
       );
     }
+    final valid =
+        mine &&
+        !_ownExpired &&
+        epoch == _faceEpoch &&
+        ticket.token == _token &&
+        !_faceStopped &&
+        outcome.elapsed < faceStaleAfter;
+    if (!valid) return;
+    final answer = outcome.answer;
+    if (answer == null || answer.token != ticket.token) return;
+    _channelStalled = false;
+    final age = answer.resultAgeMs;
+    _accept(
+      answer,
+      effectiveAge: age == null
+          ? null
+          : Duration(milliseconds: age) + outcome.elapsed,
+    );
   }
 
   /// Acepta un mensaje del motor, en orden.
@@ -755,11 +794,15 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     _retiredUpTo = 0;
     _vigenteLeft = null;
     _vigenteWatch = null;
-    // La llamada pendiente (si la hay) sigue registrada: no se puede cancelar
-    // y no debe eludirse el límite al salir o volver. Solo se olvida su plazo
-    // para esta apertura.
+    // La llamada pendiente (si la hay) sigue registrada en FaceQueryChannel:
+    // no se puede cancelar y no debe eludirse el límite al salir o volver.
+    // Esta apertura solo olvida su plazo y deja de poder aplicar respuestas.
     _queryTimeout?.cancel();
     _queryTimeout = null;
+    _watched = null;
+    _ownQuery = null;
+    _ownExpired = false;
+    _faceEpoch++;
     _channelStalled = false;
   }
 
@@ -822,17 +865,4 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       s == CameraPermissionStatus.requiresSettings
       ? CameraCheckPhase.requiresSettings
       : CameraCheckPhase.denied;
-}
-
-/// Una consulta al motor: su identidad, la apertura a la que pertenece y el
-/// cronómetro monotónico iniciado antes de llamar.
-class _FaceQuery {
-  _FaceQuery(this.id, this.token, this.watch);
-
-  final int id;
-  final int token;
-  final Stopwatch watch;
-
-  /// Venció su plazo: su respuesta ya no se aplica.
-  bool expired = false;
 }

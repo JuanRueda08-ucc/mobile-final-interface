@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) y `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-12 (fase 5B: tercera corrección, consultas acotadas; pendiente de nueva revisión de Codex).
+**Actualizado:** 2026-10-13 (fase 5B: cuarta corrección, registro por canal y plazo al recibir; pendiente de nueva revisión de Codex).
 
 ## Fases
 
@@ -13,7 +13,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
-| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia) y `a935729` (consultas). **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1`, `c5c0503`, `a935729` y el commit de la tercera corrección |
+| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729` y `8f715dd` (consultas). **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd` y el commit de la cuarta corrección |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -443,6 +443,23 @@ Se mantienen documentados el incidente inicial de telemetría y las limitaciones
 
 **APK:** los existentes, incluido `vigia-normal-fase5b-p1b-release.apk`, son **anteriores a esta corrección**.
 
+### Cuarta corrección: registro por canal y plazo al recibir (pendiente de nueva revisión)
+
+**Dictamen sobre `8f715dd`: desfavorable.** Detalle en `docs/fase5b-mediapipe.md`, «Consultas acotadas» y «Cuarta corrección».
+
+- **Registro por canal.** La llamada pendiente la registra el coordinador compartido `FaceQueryChannel`, indexado por la identidad del canal (`FrontCameraBridge.queryChannel`), no el controlador. Sobrevive a desechar el controlador y crear otro, y lo comparten wrappers Pigeon distintos sobre el mismo canal. No guarda `Ref` ni estado de pantalla, y solo lo libera la terminación real de la llamada.
+- **Bloqueo visible.** Con el canal sin respuesta se ve la causa aunque antes llegara «cargando»; los latidos y estados antiguos no lo ocultan.
+- **Plazo al recibir.** Se descarta toda respuesta o excepción que terminó en 750 ms o más según el tiempo monotónico, aunque el temporizador no se haya ejecutado.
+
+**Resultados reales:**
+
+- `flutter analyze` (app y plugin): sin problemas.
+- Pasan 170 pruebas Dart, entre ellas 12 regresiones nuevas, los reproductores de Codex y sus 9 comprobaciones adaptadas.
+- Con `8f715dd` fallan las 7 regresiones de los defectos.
+- Kotlin y Pigeon sin cambios: no se ejecutó la JVM ni se compiló Android.
+
+**APK:** todos los existentes son **anteriores** a las correcciones tercera y cuarta.
+
 ## Siguiente acción
 
-Nueva revisión de Codex de la fase 5B, con la tercera corrección. No se avanza a calibración, sesiones ni fatiga. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.
+Nueva revisión de Codex de la fase 5B, con la cuarta corrección. No se avanza a calibración, sesiones ni fatiga. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.

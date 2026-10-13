@@ -178,4 +178,29 @@ void main() {
     expect(bridge.calls, contains('close:$token'));
     expect(bridge.openTokens, isEmpty);
   });
+
+  testWidgets('canal sin respuesta tras un aviso de carga: se ve la causa del '
+      'canal y el modelo sin estado conocido (revisión 5B)', (tester) async {
+    await pumpCamera(tester);
+    bridge.holdQueries = true;
+    await emit(tester, FaceAnalysisStatus.loadingModel);
+    expect(inRow('row-model', 'Cargando el modelo…'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('row-face')),
+        matching: find.textContaining('El motor no responde a las consultas.'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      inRow('row-model', 'Estado del modelo no disponible'),
+      findsOneWidget,
+    );
+    expect(find.text('Cargando el modelo…'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    bridge.releaseQueriesWith(null);
+    await tester.pump();
+  });
 }

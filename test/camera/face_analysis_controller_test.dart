@@ -822,4 +822,194 @@ void main() {
       });
     }
   });
+
+  /// Revisión de Codex de la fase 5B (cuarta ronda): una llamada pendiente
+  /// por **canal**, bloqueo visible y plazo comprobado al recibir.
+  group('coordinador por canal y plazo al recibir (revisión 5B)', () {
+    /// Otro contenedor (otra instancia del controlador) sobre el mismo puente.
+    ProviderContainer another() => ProviderContainer(
+      overrides: [frontCameraBridgeProvider.overrideWithValue(bridge)],
+    );
+
+    test('controlador A con consulta pendiente → desechar → controlador B en '
+        'el mismo canal: una sola llamada; la respuesta tardía libera el canal '
+        'sin aplicarse y B consulta y se recupera', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        final old = open(async);
+        async.elapse(const Duration(milliseconds: 750));
+        container.dispose();
+        expect(bridge.unfinishedQueries, 1);
+
+        final b = another();
+        addTearDown(b.dispose);
+        final ctrlB = b.read(frontCameraProvider.notifier);
+        ctrlB.enter();
+        async.flushMicrotasks();
+
+        expect(bridge.queries, 1);
+        expect(bridge.unfinishedQueries, 1);
+        // B vigila el plazo de la llamada pendiente: «sin respuesta».
+        expect(b.read(frontCameraProvider).faceStalled, isTrue);
+
+        bridge.holdQueries = false;
+        bridge.releaseQueriesWith(
+          FakeFrontCameraBridge.face(
+            old,
+            FaceAnalysisStatus.modelError,
+            sequence: 20,
+            errorCode: 'modelMissing',
+          ),
+        );
+        async.flushMicrotasks();
+        expect(b.read(frontCameraProvider).face, isNull);
+        expect(bridge.unfinishedQueries, 0);
+
+        bridge.emitFace(
+          FaceAnalysisStatus.oneFace,
+          token: b.read(frontCameraProvider).preview!.token,
+          resultAgeMs: 20,
+          resultId: 1,
+        );
+        async.elapse(FrontCameraController.facePollInterval);
+        expect(b.read(frontCameraProvider).faceStalled, isFalse);
+        expect(
+          b.read(frontCameraProvider).facePhase,
+          FacePresencePhase.oneFace,
+        );
+        expect(bridge.queries, greaterThanOrEqualTo(2));
+        expect(bridge.unfinishedQueries, 0);
+        ctrlB.leave();
+        async.flushMicrotasks();
+      });
+    });
+
+    test('recrear el controlador y reintentar varias veces con el canal '
+        'bloqueado no añade llamadas', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        container.dispose();
+        for (var i = 0; i < 10; i++) {
+          final c = another();
+          final ctl = c.read(frontCameraProvider.notifier);
+          ctl.enter();
+          async.flushMicrotasks();
+          ctl.retry();
+          async.elapse(const Duration(milliseconds: 400));
+          ctl.leave();
+          async.flushMicrotasks();
+          c.dispose();
+        }
+        async.elapse(const Duration(seconds: 30));
+        expect(bridge.queries, 1);
+        expect(bridge.unfinishedQueries, 1);
+        bridge.releaseQueriesWith(null);
+        async.flushMicrotasks();
+        expect(bridge.unfinishedQueries, 0);
+      });
+    });
+
+    test('canales distintos no se limitan entre sí', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        final other = FakeFrontCameraBridge(
+          permission: CameraPermissionStatus.granted,
+        )..holdQueries = true;
+        final c = ProviderContainer(
+          overrides: [frontCameraBridgeProvider.overrideWithValue(other)],
+        );
+        c.read(frontCameraProvider.notifier).enter();
+        async.flushMicrotasks();
+        expect(bridge.queries, 1);
+        expect(other.queries, 1);
+        c.read(frontCameraProvider.notifier).leave();
+        async.flushMicrotasks();
+        c.dispose();
+        close(async);
+        bridge.releaseQueriesWith(null);
+        other.releaseQueriesWith(null);
+        async.flushMicrotasks();
+      });
+    });
+
+    test('bloqueo con un aviso previo de carga: se muestra «esperando» con la '
+        'causa del canal; un latido antiguo no lo oculta; una consulta válida '
+        'lo recupera', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        send(async, FaceAnalysisStatus.loadingModel);
+        expect(st().facePhase, FacePresencePhase.loadingModel);
+        async.elapse(const Duration(milliseconds: 749));
+        expect(st().faceStalled, isFalse);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(st().faceStalled, isTrue);
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        // Avisos posteriores (latidos de carga) no ocultan el bloqueo.
+        send(async, FaceAnalysisStatus.loadingModel);
+        bridge.emitFace(
+          FaceAnalysisStatus.modelError,
+          errorCode: 'modelMissing',
+        );
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        // Recuperación: termina la llamada y la siguiente responde a tiempo.
+        bridge.holdQueries = false;
+        bridge.releaseQueriesWith(null);
+        async.flushMicrotasks();
+        send(async, FaceAnalysisStatus.noFace, resultAgeMs: 10, resultId: 4);
+        async.elapse(FrontCameraController.facePollInterval);
+        expect(st().faceStalled, isFalse);
+        expect(st().facePhase, FacePresencePhase.noFace);
+        close(async);
+      });
+    });
+
+    for (final (ms, applied) in [(749, true), (750, false), (800, false)]) {
+      test(
+        'respuesta modelError a $ms ms con el event loop detenido (sin '
+        'ejecutar el temporizador): ${applied ? 'se aplica' : 'no se aplica'}',
+        () {
+          fakeAsync((async) {
+            bridge.holdQueries = true;
+            final token = open(async);
+            async.elapseBlocking(Duration(milliseconds: ms));
+            bridge.releaseQueriesWith(
+              FakeFrontCameraBridge.face(
+                token,
+                FaceAnalysisStatus.modelError,
+                sequence: 5,
+                errorCode: 'modelMissing',
+              ),
+            );
+            async.flushMicrotasks();
+            expect(
+              st().facePhase,
+              applied
+                  ? FacePresencePhase.modelError
+                  : isNot(FacePresencePhase.modelError),
+            );
+            close(async);
+          });
+        },
+      );
+    }
+
+    test('excepción a 800 ms con el event loop detenido: no cambia nada y '
+        'libera el canal', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        final before = st().facePhase;
+        async.elapseBlocking(const Duration(milliseconds: 800));
+        bridge.failQueries(PlatformException(code: 'channel-error'));
+        async.flushMicrotasks();
+        expect(st().facePhase, before);
+        expect(bridge.unfinishedQueries, 0);
+        close(async);
+      });
+    });
+  });
 }

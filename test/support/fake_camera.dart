@@ -217,6 +217,10 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
 
   int get queries => calls.where((c) => c.startsWith('query:')).length;
 
+  /// Cada doble es su propio canal.
+  @override
+  Object get queryChannel => this;
+
   /// Resultado facial del motor para [token] (por defecto, la apertura
   /// abierta más reciente): actualiza [engineState] y lo avisa.
   ///

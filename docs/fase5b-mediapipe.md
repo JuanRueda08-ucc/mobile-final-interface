@@ -5,6 +5,7 @@
 - **Primera revisión** (sobre `3be9bf1`): desfavorable por dos P1 de vigencia, corregidos en `c5c0503`.
 - **Segunda revisión** (sobre `c5c0503`): desfavorable por otros dos P1 de vigencia, corregidos en `a935729`. Ver «Corrección de la revisión de Codex (P1)» y «Segunda corrección (P1)».
 - **Tercera revisión** (sobre `a935729`): desfavorable por la administración de las consultas. Se aceptó la corrección de la edad. Ver «Tercera corrección: consultas acotadas».
+- **Cuarta revisión** (sobre `8f715dd`): desfavorable por el alcance del registro, el bloqueo oculto y el plazo al recibir. Ver «Cuarta corrección: registro por canal y plazo al recibir».
 
 ## Alcance
 
@@ -181,7 +182,11 @@ Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab
   - **Avisos sin consulta** (`onFaceAnalysis`, por `main.post` y el canal): su demora no tiene cota y no se puede medir sin sincronizar relojes. Por eso una detección avisada **nunca** se muestra: solo dispara una consulta. Los estados que no afirman la presencia de nadie (cargando, esperando, errores, detenido) sí se aceptan del aviso, en orden.
   - Con la cámara abierta, Dart consulta cada **200 ms** (experimental, menor que Tstale), para que un rostro estable no se interrumpa entre avisos.
 - **Consultas acotadas (bloqueo y recuperación).** La llamada de Pigeon (`getFaceAnalysis`) **no se puede cancelar**: ni Dart ni el puente generado tienen cancelación ni plazo, y en Android cada llamada es una corrutina más una tarea en el hilo de análisis. Por eso:
-  - **Como máximo una llamada real pendiente al canal.** La registra el controlador (`_pendingQuery`) y el registro sobrevive a salir, volver a entrar, pasar a segundo plano y reintentar. Mientras esté pendiente, el sondeo, los avisos, los reintentos y las aperturas nuevas **no** lanzan otra llamada.
+  - **Como máximo una llamada real pendiente por canal.** La registra un coordinador compartido, `FaceQueryChannel` (`lib/features/camera/face_query_channel.dart`), indexado por la identidad del canal que expone cada puente (`FrontCameraBridge.queryChannel`):
+    - en Pigeon, el mensajero y el sufijo del canal, de modo que dos wrappers distintos sobre el mismo canal comparten registro;
+    - en el doble de pruebas, el propio objeto.
+
+    El coordinador no guarda ningún `Ref` ni estado de pantalla, y vive mientras hay una llamada pendiente. El registro sobrevive a salir, volver, pasar a segundo plano, reintentar y **desechar el controlador y crear otro**. Mientras esté pendiente, ningún sondeo, aviso, reintento, apertura ni controlador nuevo lanza otra llamada.
   - **Plazo propio de 750 ms** desde el inicio de la consulta, con su propio temporizador, independiente del sondeo de 200 ms: a 749 ms no ha vencido y a 750 ms sí. Al vencer:
     - la consulta queda inválida para la interfaz;
     - se retira el rostro mostrado (sin poder revivir);
@@ -190,7 +195,14 @@ Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab
   - Si se sale y se vuelve a entrar con la llamada aún pendiente, la apertura nueva no llama, y su plazo se cuenta desde el inicio de la llamada pendiente.
   - **Vencimiento, descarte y terminación son distintos.** El vencimiento invalida la respuesta para la interfaz. El descarte ocurre al llegar una respuesta o excepción vencida, o de otra apertura: no se aplica ni cambia orden, generación, silencio, vigencia ni estado (tampoco `modelError` ni ningún otro estado sin rostro). La terminación real de la llamada, por respuesta o por excepción, es lo único que libera el registro.
   - **Recuperación.** Al terminar la llamada pendiente, el siguiente sondeo hace una consulta nueva. Si responde dentro de su plazo, el canal deja de estar «sin respuesta» y su contenido se aplica con la edad efectiva habitual. Si el canal no responde nunca, queda una sola llamada pendiente indefinidamente y la pantalla sigue en «sin respuesta». No hay un reinicio del canal que garantice terminar las llamadas anteriores, así que no se usa.
-  - **Identidad antes de aplicar.** Una respuesta solo se aplica si es la consulta vigente (sin vencer), de la apertura vigente, sin `stopped`, y su token coincide.
+  - **Identidad y plazo antes de aplicar.** Una respuesta o excepción solo se aplica si:
+    - es la consulta propia del consumidor, de la misma apertura (época y token);
+    - no hubo `stopped`;
+    - no venció por el temporizador;
+    - **terminó en menos de 750 ms** según el tiempo monotónico medido al terminar la llamada. Así, una respuesta a 800 ms se descarta aunque el event loop aún no haya ejecutado el temporizador. El temporizador se mantiene para avisar del vencimiento cuando no llega respuesta.
+
+    Una respuesta de una llamada lanzada por un controlador ya desechado solo libera el registro.
+  - **Bloqueo visible.** Con el canal «sin respuesta», la pantalla muestra «Esperando resultados…» con la causa del canal, sea cual sea el último estado recibido (carga, errores, latidos antiguos), salvo `stopped`. La fila «Modelo» dice «Estado del modelo no disponible». Solo una consulta propia que responde a tiempo lo levanta.
 - **Flutter, 3000 ms: límite de silencio del motor.** Sin avisos ni respuestas durante 3000 ms, se declara silencio. **No** autoriza a mostrar un rostro durante ese tiempo: la vigencia de un rostro la fija Tstale.
 - **Edad medida.** Va desde la entrega al analizador, no desde la captura. No se demostró la conversión entre el reloj del sensor (`ImageInfo.timestamp`) y `elapsedRealtime` (Área 05 §4), así que la latencia de captura a entrega no se incluye.
 - **Gmax (150 ms)** no se usa: sin continuidad de medición no hay nada que cortar.
@@ -475,6 +487,42 @@ Se sustituyen por las regresiones de arriba. Las aserciones de fondo sí pasan:
 - **No cambió** código Kotlin ni el contrato Pigeon, así que no se ejecutaron las pruebas JVM ni se recompiló Android, por indicación. Tampoco se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo.
 
 **APK:** todos los de la tabla siguiente son **anteriores a esta corrección**. El último, `vigia-normal-fase5b-p1b-release.apk`, no incluye las consultas acotadas.
+
+## Cuarta corrección: registro por canal y plazo al recibir
+
+**Dictamen sobre `8f715dd`: desfavorable** por tres hallazgos. Las correcciones dentro de una misma instancia, la edad y el transporte se aceptaron y se conservan. Reproductores de Codex en `build/review-fase5b-query/`.
+
+| Hallazgo | Antes | Ahora |
+|---|---|---|
+| P1 · Registro por controlador | Desechar el controlador A y crear B sobre el mismo puente dejaba 2 llamadas pendientes | `FaceQueryChannel` registra la llamada por canal: 1, también con wrappers Pigeon distintos sobre el mismo canal. Se comprueba con dos `PigeonFrontCameraBridge` y hosts distintos |
+| P2 · Bloqueo oculto | Con un aviso previo de carga, `faceStalled` era `true` pero se veía «Cargando el modelo…» | El canal sin respuesta prevalece sobre el último estado (salvo `stopped`). Se ve la causa y la fila «Modelo» dice «Estado del modelo no disponible» |
+| P2 · Plazo al recibir | Con el event loop detenido, una respuesta a 800 ms aplicaba `modelError` | Se comprueba el tiempo monotónico medido al terminar la llamada: 750 ms o más se descarta, con o sin temporizador |
+
+**Regresiones:**
+
+| Archivo | Pruebas nuevas | Qué cubren |
+|---|---|---|
+| `face_analysis_controller_test.dart` (grupo «coordinador por canal y plazo al recibir») | 9 | Controlador A desechado → B, mismo canal: 1 llamada; la respuesta tardía libera el canal sin aplicarse y B consulta y se recupera. 10 recreaciones con reintentos: 1 llamada. Canales distintos, independientes. Bloqueo con carga previa: límite 749/750, latidos y `modelError` posteriores no lo ocultan, recuperación. `modelError` con el event loop detenido (`elapseBlocking`) a 749 (se aplica), 750 y 800 ms (no). Excepción a 800 ms |
+| `face_analysis_bridge_test.dart` | 2 | **Puente Pigeon real:** dos wrappers con hosts distintos y el mismo canal, 1 llamada; al terminar, el consumidor vigente consulta. Otro sufijo de canal: independiente |
+| `face_analysis_screen_test.dart` | 1 | Tras un aviso de carga y el bloqueo: causa del canal visible, «Estado del modelo no disponible» y ningún «Cargando el modelo…» |
+
+**Detección con el código anterior** (copia temporal `git worktree` de `8f715dd`, ya eliminada, con el doble nuevo):
+
+- fallan las 7 regresiones que describen los defectos;
+- pasan los controles positivos (749 ms aplicado, canales y sufijos independientes, excepción) y las pruebas anteriores.
+
+**Resultados reales:**
+
+- `dart format` y `flutter analyze` (app y plugin): sin problemas.
+- Pasan 170 pruebas Dart:
+  - `test/camera` y los renderizados de 5A y 5B, que no cambiaron;
+  - las reproducciones aceptadas de las rondas anteriores;
+  - los cuatro casos de `review_scope_test.dart`, la prueba de pantalla de Codex y sus 9 comprobaciones adaptadas (`review_query_lifecycle_adapted_test.dart`).
+- Plugin: 3 pruebas Dart.
+- `spec_registry.py check` y `git diff --check`: OK.
+- Kotlin y Pigeon no cambiaron (solo se añadió `queryChannel` al puente Dart): no se ejecutaron la JVM ni compilaciones, por indicación. Tampoco la suite completa, las matrices, el contraste ni los ensayos del modelo.
+
+**APK:** siguen siendo todos **anteriores** a las correcciones tercera y cuarta.
 
 ## APK (release, firmados con la clave de depuración)
 
