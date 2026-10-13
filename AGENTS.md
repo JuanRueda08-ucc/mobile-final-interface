@@ -24,6 +24,8 @@ Las fases 1–4 (prototipo DEMO) están aprobadas y publicadas. **Ampliación ex
 
 Guía: `docs/fase5c-monitoreo-experimental.md`. **Pendiente de la revisión integrada de Codex.**
 
+**Cambio autorizado del flujo (usuario, 2026-10-13):** Codex puede revisar y reparar los errores reproducibles del bloque integrado **5B + 5C**. Claude queda detenido mientras Codex trabaja. Esta autorización sustituye la restricción de revisión sin modificaciones para este bloque: reproducir antes de corregir, añadir regresiones, conservar cambios ajenos y aceptaciones no afectadas, y validar con análisis y pruebas dirigidas. Recompilar/probar Android cuando el cambio lo justifique. No ampliar umbrales, ocultar fallos, añadir funciones ajenas ni convertir pendientes de producción en tareas. Actualizar continuidad y guías; crear commits locales de corrección, sin amend, push ni PR. La validación de las reparaciones propias no equivale a una revisión independiente.
+
 - Solo se trabaja en la fase o bloque que el usuario haya autorizado expresamente. Al terminar el bloque integrado, se detiene el trabajo para la revisión de Codex. **No se avanza a otro bloque por iniciativa propia.**
 - La secuencia VIG-001…VIG-072 del Área 08 (`docs/source/Vigia_08_…`) queda **aplazada**. No determina automáticamente la siguiente tarea: VIG-004 y siguientes no se ejecutan salvo petición expresa.
 - Siguen vigentes como referencia:
@@ -39,7 +41,7 @@ Esta actualización del usuario prevalece sobre las instrucciones anteriores que
 
 ## Colaboración y Git
 
-- **Claude implementa y Codex revisa** cada bloque (fase) terminado. Claude no declara aprobada una revisión de Codex.
+- **Claude implementa y Codex revisa** cada bloque (fase) terminado. Para el bloque integrado 5B + 5C rige la excepción autorizada arriba: Codex también puede reparar sus hallazgos y Claude permanece detenido. Ninguno presenta la validación de sus propios cambios como revisión independiente.
 - Se trabaja en la rama `main`, con commits por fase o por corrección de revisión. Las PRs no son obligatorias.
 - Un bloque revisado y aprobado puede subirse a `main` en `origin` sin otra ceremonia. No se hace push de trabajo sin revisar salvo petición del usuario.
 - No se reescribe historia publicada (sin `--amend` ni `push --force` sobre commits subidos) ni se borra trabajo previo.
