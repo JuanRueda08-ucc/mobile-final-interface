@@ -239,6 +239,13 @@ final frontCameraProvider =
 ///   recupera el canal. Al recibir, se comprueba además el tiempo monotónico
 ///   transcurrido hasta la terminación: 750 ms o más se descarta aunque el
 ///   temporizador no haya llegado a ejecutarse.
+/// - La edad efectiva se mide **al aplicar** la respuesta (el cronómetro de
+///   la llamada no se detiene al terminar): incluye el despacho hasta el
+///   consumidor. El plazo de recepción usa aparte la duración hasta la
+///   terminación.
+/// - Las suscripciones a una llamada pendiente se cancelan al salir, al
+///   pasar a segundo plano y al desecharse: la llamada no retiene el
+///   controlador ni su Ref.
 /// - [faceSilenceLimit] es el límite de silencio del motor (sin avisos ni
 ///   respuestas), no un plazo de vigencia de un rostro.
 class FrontCameraController extends Notifier<FrontCameraState> {
@@ -292,6 +299,12 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   /// llamada la registra [FaceQueryChannel].
   FaceQueryTicket? _ownQuery;
   bool _ownExpired = false;
+
+  /// Suscripciones a la terminación de las llamadas (propia y vigilada). Se
+  /// cancelan en [_resetFace]: un controlador que sale o se desecha no queda
+  /// retenido por una llamada que sigue pendiente.
+  FaceQueryListener? _ownListener;
+  FaceQueryListener? _watchListener;
 
   /// Llamada pendiente del canal cuyo plazo se vigila (propia o de otro
   /// consumidor), y su temporizador para la apertura vigente.
@@ -569,7 +582,10 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     _ownExpired = false;
     final epoch = _faceEpoch;
     _watchTicket(ticket);
-    ticket.outcome.then((outcome) => _onQueryDone(ticket, outcome, epoch));
+    _ownListener?.cancel();
+    _ownListener = ticket.listen(
+      (outcome) => _onQueryDone(ticket, outcome, epoch),
+    );
   }
 
   /// Vigila el plazo propio de [faceStaleAfter] de [ticket], contado desde
@@ -586,7 +602,9 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     } else {
       _queryTimeout = Timer(left, () => _expireWatched(ticket));
     }
-    ticket.outcome.then((_) {
+    _watchListener?.cancel();
+    _watchListener = ticket.listen((_) {
+      _watchListener = null;
       if (!identical(_watched, ticket)) return;
       _watched = null;
       _queryTimeout?.cancel();
@@ -620,7 +638,10 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   ) {
     if (!ref.mounted) return;
     final mine = identical(_ownQuery, ticket);
-    if (mine) _ownQuery = null;
+    if (mine) {
+      _ownQuery = null;
+      _ownListener = null;
+    }
     final error = outcome.error;
     if (error != null) {
       debugPrint(
@@ -634,17 +655,20 @@ class FrontCameraController extends Notifier<FrontCameraState> {
         epoch == _faceEpoch &&
         ticket.token == _token &&
         !_faceStopped &&
-        outcome.elapsed < faceStaleAfter;
+        outcome.finishedIn < faceStaleAfter;
     if (!valid) return;
     final answer = outcome.answer;
     if (answer == null || answer.token != ticket.token) return;
     _channelStalled = false;
     final age = answer.resultAgeMs;
+    // Edad al aplicar: el cronómetro de la llamada sigue en marcha, así que
+    // incluye el despacho desde la terminación hasta aquí. La publicación
+    // (_accept → _publishFace) es síncrona a partir de este punto.
     _accept(
       answer,
       effectiveAge: age == null
           ? null
-          : Duration(milliseconds: age) + outcome.elapsed,
+          : Duration(milliseconds: age) + outcome.watch.elapsed,
     );
   }
 
@@ -799,6 +823,10 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     // Esta apertura solo olvida su plazo y deja de poder aplicar respuestas.
     _queryTimeout?.cancel();
     _queryTimeout = null;
+    _ownListener?.cancel();
+    _ownListener = null;
+    _watchListener?.cancel();
+    _watchListener = null;
     _watched = null;
     _ownQuery = null;
     _ownExpired = false;

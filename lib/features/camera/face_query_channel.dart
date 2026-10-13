@@ -4,15 +4,44 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 
 /// Resultado de una llamada `getFaceAnalysis` terminada.
 final class FaceQueryOutcome {
-  const FaceQueryOutcome({required this.elapsed, this.answer, this.error});
+  const FaceQueryOutcome({
+    required this.finishedIn,
+    required this.watch,
+    this.answer,
+    this.error,
+  });
 
-  /// Tiempo monotónico desde el inicio de la llamada hasta su terminación,
-  /// medido al terminar (no cuando el consumidor lo procesa).
-  final Duration elapsed;
+  /// Tiempo monotónico desde el inicio de la llamada hasta su terminación.
+  /// Sirve para el plazo de recepción, no para la edad del resultado.
+  final Duration finishedIn;
+
+  /// Cronómetro de la llamada, iniciado justo antes de llamar y que **sigue
+  /// corriendo** tras la terminación: la edad de la respuesta se mide con
+  /// `watch.elapsed` en el momento de aplicarla, de modo que incluye el
+  /// despacho hasta el consumidor.
+  final Stopwatch watch;
+
   final FaceAnalysisSnapshot? answer;
 
   /// Excepción del canal, si la llamada falló.
   final Object? error;
+}
+
+/// Suscripción de un consumidor a la terminación de una llamada. Mientras
+/// está activa, el ticket guarda su función; [cancel] la suelta.
+final class FaceQueryListener {
+  FaceQueryListener._(this._ticket, this._onDone);
+
+  FaceQueryTicket? _ticket;
+  void Function(FaceQueryOutcome)? _onDone;
+
+  /// Desvincula al consumidor: el ticket deja de guardar su función y no la
+  /// llamará. Idempotente.
+  void cancel() {
+    _ticket?._listeners.remove(this);
+    _ticket = null;
+    _onDone = null;
+  }
 }
 
 /// Una llamada real en curso por un canal.
@@ -22,25 +51,59 @@ final class FaceQueryTicket {
   /// Apertura para la que se consultó.
   final int token;
 
-  /// Cronómetro monotónico iniciado justo antes de llamar.
+  /// Cronómetro monotónico iniciado justo antes de llamar; no se detiene.
   final Stopwatch watch;
 
-  final _done = Completer<FaceQueryOutcome>();
+  final _listeners = <FaceQueryListener>{};
+  FaceQueryOutcome? _outcome;
 
-  /// Se completa cuando la llamada termina de verdad (respuesta o excepción).
-  Future<FaceQueryOutcome> get outcome => _done.future;
+  bool get finished => _outcome != null;
 
-  bool get finished => _done.isCompleted;
+  /// Consumidores suscritos todavía (para pruebas y diagnóstico).
+  int get listenerCount => _listeners.length;
+
+  /// Llama a [onDone] cuando la llamada termine, en una tarea posterior a la
+  /// terminación. No usa `Future.then` sobre un futuro compartido: el ticket
+  /// solo guarda las funciones de las suscripciones activas, y cada
+  /// consumidor la cancela al salir o desecharse.
+  FaceQueryListener listen(void Function(FaceQueryOutcome) onDone) {
+    final l = FaceQueryListener._(this, onDone);
+    final done = _outcome;
+    if (done != null) {
+      scheduleMicrotask(() => l._onDone?.call(done));
+    } else {
+      _listeners.add(l);
+    }
+    return l;
+  }
+
+  void _complete(FaceQueryOutcome outcome) {
+    _outcome = outcome;
+    // La entrega va en una microtarea propia: la edad la mide cada consumidor
+    // al aplicar, con el cronómetro en marcha.
+    scheduleMicrotask(() {
+      final ls = _listeners.toList();
+      _listeners.clear();
+      for (final l in ls) {
+        final f = l._onDone;
+        l._ticket = null;
+        l._onDone = null;
+        f?.call(outcome);
+      }
+    });
+  }
 }
 
 /// Coordinador de las consultas `getFaceAnalysis` **por canal** (fase 5B).
 ///
 /// La llamada de Pigeon no se puede cancelar. Para que nunca haya más de una
 /// llamada real pendiente por canal, el registro no vive en la pantalla ni en
-/// su controlador, sino aquí, indexado por [FrontCameraBridge.queryChannel]:
+/// su controlador, sino aquí, indexado por [FrontCameraBridge.queryChannel]
+/// (el mensajero efectivo y el sufijo):
 /// - sobrevive a desechar el controlador y crear otro, y lo comparten puentes
 ///   distintos sobre el mismo canal;
-/// - no guarda ningún `Ref` ni estado de pantalla, solo la llamada;
+/// - no guarda ningún `Ref` ni estado de pantalla: solo la llamada y las
+///   suscripciones activas, que cada consumidor cancela al salir;
 /// - solo la terminación real de la llamada libera el registro; quién la
 ///   lanzó y si sigue existiendo no importa. Aplicar o no la respuesta lo
 ///   decide cada consumidor (ver `FrontCameraController`).
@@ -77,11 +140,11 @@ final class FaceQueryChannel {
       call = Future.error(e);
     }
     void finish(FaceAnalysisSnapshot? answer, Object? error) {
-      ticket.watch.stop();
       if (identical(_pending[key], ticket)) _pending.remove(key);
-      ticket._done.complete(
+      ticket._complete(
         FaceQueryOutcome(
-          elapsed: ticket.watch.elapsed,
+          finishedIn: ticket.watch.elapsed,
+          watch: ticket.watch,
           answer: answer,
           error: error,
         ),

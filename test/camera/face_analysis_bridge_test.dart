@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
@@ -207,6 +208,51 @@ void main() {
     FrontCameraFlutterApi.setUp(null);
   });
 
+  /// Revisión 5B (quinta ronda): el mensajero nulo y el predeterminado
+  /// explícito envían por el mismo canal; la clave es la del mensajero
+  /// efectivo. Envío Pigeon generado, retenido por un único manejador.
+  testWidgets('mensajero implícito y predeterminado explícito: misma clave y '
+      'una sola llamada real pendiente', (tester) async {
+    const name =
+        'dev.flutter.pigeon.monitoring_engine.FrontCameraHostApi.getFaceAnalysis';
+    final held = <Completer<ByteData?>>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMessageHandler(name, (_) {
+      final c = Completer<ByteData?>();
+      held.add(c);
+      return c.future;
+    });
+    final implicit = PigeonFrontCameraBridge(host: _OpenHost());
+    final explicit = PigeonFrontCameraBridge(
+      host: _OpenHost(
+        binaryMessenger: ServicesBinding.instance.defaultBinaryMessenger,
+      ),
+    );
+    expect(implicit.queryChannel, explicit.queryChannel);
+    expect(implicit.queryChannel.hashCode, explicit.queryChannel.hashCode);
+
+    final a = ProviderContainer(
+      overrides: [frontCameraBridgeProvider.overrideWithValue(implicit)],
+    );
+    await a.read(frontCameraProvider.notifier).enter();
+    await tester.pump(const Duration(milliseconds: 800));
+    a.dispose();
+    final b = ProviderContainer(
+      overrides: [frontCameraBridgeProvider.overrideWithValue(explicit)],
+    );
+    await b.read(frontCameraProvider.notifier).enter();
+    await tester.pump(const Duration(seconds: 240));
+    expect(held, hasLength(1));
+    b.read(frontCameraProvider.notifier).leave();
+    for (final c in held) {
+      c.complete(const StandardMessageCodec().encodeMessage([null]));
+    }
+    await tester.pump(const Duration(seconds: 1));
+    b.dispose();
+    messenger.setMockMessageHandler(name, null);
+    FrontCameraFlutterApi.setUp(null);
+  });
+
   testWidgets('un canal con otro sufijo es independiente', (tester) async {
     final hostA = _GatedHost();
     final hostC = _GatedHost(messageChannelSuffix: 'otro');
@@ -266,4 +312,21 @@ class _GatedHost extends FrontCameraHostApi {
   }
 
   int get unfinished => calls.where((c) => !c.isCompleted).length;
+}
+
+/// Host con permiso y apertura dobles; `getFaceAnalysis` es el envío Pigeon
+/// generado, por el mensajero indicado.
+class _OpenHost extends FrontCameraHostApi {
+  _OpenHost({super.binaryMessenger});
+
+  @override
+  Future<CameraPermissionStatus> checkCameraPermission() async =>
+      CameraPermissionStatus.granted;
+
+  @override
+  Future<PreviewOpenResult> openFrontPreview(int token) async =>
+      FakeFrontCameraBridge.result(token, PreviewOpenStatus.opened);
+
+  @override
+  Future<void> closeFrontPreview(int token) async {}
 }

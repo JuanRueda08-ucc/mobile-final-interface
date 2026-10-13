@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
+import 'package:vigia/features/camera/face_query_channel.dart';
 import 'package:vigia/features/camera/front_camera_controller.dart';
 
 import '../support/fake_camera.dart';
@@ -1009,6 +1010,102 @@ void main() {
         expect(st().facePhase, before);
         expect(bridge.unfinishedQueries, 0);
         close(async);
+      });
+    });
+  });
+
+  /// Revisión 5B (quinta ronda): edad medida al aplicar y consumidores
+  /// desvinculados de la llamada pendiente.
+  group('edad al aplicar y consumidores desechados (revisión 5B)', () {
+    const detections = [
+      FaceAnalysisStatus.noFace,
+      FaceAnalysisStatus.oneFace,
+      FaceAnalysisStatus.multipleFaces,
+    ];
+    const shown = [
+      FacePresencePhase.noFace,
+      FacePresencePhase.oneFace,
+      FacePresencePhase.multipleFaces,
+    ];
+    for (final status in detections) {
+      for (final (blockMs, visible) in [(40, false), (20, true)]) {
+        test('${status.name}: edad 710 ms + consulta 10 ms + despacho '
+            '$blockMs ms antes de entregar → '
+            '${visible ? 'se muestra' : 'no se publica'}', () {
+          fakeAsync((async) {
+            bridge.holdQueries = true;
+            final token = open(async);
+            final published = <FacePresencePhase>[];
+            final sub = container.listen(frontCameraProvider, (_, next) {
+              if (shown.contains(next.facePhase)) {
+                published.add(next.facePhase);
+              }
+            });
+            // Tras la terminación (primera continuación: el coordinador),
+            // otra continuación bloquea el isolate sin ejecutar timers.
+            bridge.pendingQueries.single.$1.future.then((_) {
+              async.elapseBlocking(Duration(milliseconds: blockMs));
+            });
+            async.elapseBlocking(const Duration(milliseconds: 10));
+            bridge.releaseQueriesWith(
+              FakeFrontCameraBridge.face(
+                token,
+                status,
+                sequence: 10,
+                resultId: 1,
+                resultAgeMs: 710,
+              ),
+            );
+            async.flushMicrotasks();
+            if (visible) {
+              expect(published, hasLength(1));
+              expect(st().facePhase, shown[detections.indexOf(status)]);
+            } else {
+              expect(published, isEmpty);
+              expect(st().facePhase, FacePresencePhase.waitingResults);
+            }
+            sub.close();
+            close(async);
+          });
+        });
+      }
+    }
+
+    test('diez controladores abiertos y desechados sobre la misma llamada '
+        'bloqueada: el ticket no conserva sus suscripciones', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        final ticket = FaceQueryChannel.pendingOn(bridge)!;
+        expect(ticket.listenerCount, 2); // propia y vigilancia del plazo
+        container.dispose();
+        expect(ticket.listenerCount, 0);
+        for (var i = 0; i < 10; i++) {
+          final c = ProviderContainer(
+            overrides: [frontCameraBridgeProvider.overrideWithValue(bridge)],
+          );
+          c.read(frontCameraProvider.notifier).enter();
+          async.elapse(const Duration(milliseconds: 400));
+          expect(ticket.listenerCount, 1); // solo vigila, no consultó
+          if (i.isEven) {
+            c.read(frontCameraProvider.notifier).leave();
+            async.flushMicrotasks();
+            expect(ticket.listenerCount, 0);
+          }
+          c.dispose();
+          expect(ticket.listenerCount, 0);
+        }
+        expect(bridge.queries, 1);
+        var calls = 0;
+        // Un consumidor externo comprueba que la entrega sigue funcionando.
+        ticket.listen((_) => calls++);
+        bridge.releaseQueriesWith(null);
+        async.flushMicrotasks();
+        expect(calls, 1);
+        expect(ticket.listenerCount, 0);
+        expect(bridge.unfinishedQueries, 0);
+        expect(async.periodicTimerCount, 0);
+        expect(async.nonPeriodicTimerCount, 0);
       });
     });
   });

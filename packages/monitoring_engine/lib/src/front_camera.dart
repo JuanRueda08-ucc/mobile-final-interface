@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
+
 import 'monitoring_api.g.dart';
 
 /// Operaciones de cámara frontal y permiso del motor (fase 5A) y análisis de
@@ -86,11 +88,14 @@ class PigeonFrontCameraBridge implements FrontCameraBridge {
   Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token) =>
       _host.getFaceAnalysis(token);
 
-  /// El canal Pigeon lo determinan el mensajero (nulo: el predeterminado) y
-  /// el sufijo del canal; el nombre base es fijo.
+  /// El canal Pigeon lo determinan el mensajero **efectivo** y el sufijo del
+  /// canal; el nombre base es fijo. Un mensajero nulo envía por el
+  /// predeterminado (`BasicMessageChannel` lo resuelve así), de modo que nulo
+  /// y el predeterminado explícito son el mismo canal.
   @override
   Object get queryChannel => _PigeonQueryChannel(
-    _host.pigeonVar_binaryMessenger,
+    _host.pigeonVar_binaryMessenger ??
+        ServicesBinding.instance.defaultBinaryMessenger,
     _host.pigeonVar_messageChannelSuffix,
   );
 }
@@ -99,7 +104,7 @@ class PigeonFrontCameraBridge implements FrontCameraBridge {
 final class _PigeonQueryChannel {
   const _PigeonQueryChannel(this.messenger, this.suffix);
 
-  final Object? messenger;
+  final BinaryMessenger messenger;
   final String suffix;
 
   @override

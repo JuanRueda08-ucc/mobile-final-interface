@@ -502,7 +502,7 @@ Se sustituyen por las regresiones de arriba. Las aserciones de fondo sí pasan:
 
 | Archivo | Pruebas nuevas | Qué cubren |
 |---|---|---|
-| `face_analysis_controller_test.dart` (grupo «coordinador por canal y plazo al recibir») | 9 | Controlador A desechado → B, mismo canal: 1 llamada; la respuesta tardía libera el canal sin aplicarse y B consulta y se recupera. 10 recreaciones con reintentos: 1 llamada. Canales distintos, independientes. Bloqueo con carga previa: límite 749/750, latidos y `modelError` posteriores no lo ocultan, recuperación. `modelError` con el event loop detenido (`elapseBlocking`) a 749 (se aplica), 750 y 800 ms (no). Excepción a 800 ms |
+| `face_analysis_controller_test.dart` (grupo «coordinador por canal y plazo al recibir») | 8 casos (el de 749/750/800 ms es un bucle de 3) | Controlador A desechado → B, mismo canal: 1 llamada; la respuesta tardía libera el canal sin aplicarse y B consulta y se recupera. 10 recreaciones con reintentos: 1 llamada. Canales distintos, independientes. Bloqueo con carga previa: límite 749/750, latidos y `modelError` posteriores no lo ocultan, recuperación. `modelError` con el event loop detenido (`elapseBlocking`) a 749 (se aplica), 750 y 800 ms (no). Excepción a 800 ms |
 | `face_analysis_bridge_test.dart` | 2 | **Puente Pigeon real:** dos wrappers con hosts distintos y el mismo canal, 1 llamada; al terminar, el consumidor vigente consulta. Otro sufijo de canal: independiente |
 | `face_analysis_screen_test.dart` | 1 | Tras un aviso de carga y el bloqueo: causa del canal visible, «Estado del modelo no disponible» y ningún «Cargando el modelo…» |
 
@@ -523,6 +523,22 @@ Se sustituyen por las regresiones de arriba. Las aserciones de fondo sí pasan:
 - Kotlin y Pigeon no cambiaron (solo se añadió `queryChannel` al puente Dart): no se ejecutaron la JVM ni compilaciones, por indicación. Tampoco la suite completa, las matrices, el contraste ni los ensayos del modelo.
 
 **APK:** siguen siendo todos **anteriores** a las correcciones tercera y cuarta.
+
+## Quinta corrección: mensajero efectivo, edad al aplicar y consumidores desvinculados
+
+**Dictamen sobre `b08cfec`: desfavorable** (dos P1 y un P2). Reproductores de Codex en `build/review-fase5b-channel/`. Por cambio del plan (2026-10-13), esta corrección no se somete a revisión intermedia: entra en la revisión integrada junto con la fase 5C.
+
+| Hallazgo | Antes | Ahora |
+|---|---|---|
+| P1 · Mensajero implícito/explícito | `null` y `ServicesBinding.instance.defaultBinaryMessenger` daban claves distintas: 2 RPC pendientes en el mismo canal | `queryChannel` usa el mensajero **efectivo** (`null` → predeterminado) y el sufijo: 1 RPC |
+| P1 · Edad congelada al terminar | El cronómetro se detenía en la terminación; el despacho hasta el consumidor (40 ms en la reproducción) no contaba y se publicaba un rostro de 760 ms | El cronómetro de la llamada **no se detiene**: la edad es `resultAgeMs + watch.elapsed` en el momento de aplicar, y la publicación es síncrona desde ahí. El plazo de recepción usa aparte `finishedIn` |
+| P2 · Continuaciones que retienen consumidores | Cada controlador añadía `then` al futuro compartido del ticket; 11 continuaciones pendientes tras 10 recreaciones | El ticket no expone un futuro: guarda solo **suscripciones** (`FaceQueryTicket.listen`) que cada controlador cancela al salir, al pasar a segundo plano y al desecharse (`_resetFace`). Tras desechar, el ticket no guarda ninguna función del controlador |
+
+**Regresiones nuevas:** en `face_analysis_controller_test.dart`, grupo «edad al aplicar y consumidores desechados»: 6 casos de edad (cero/uno/varios rostros × despacho 40 ms, que no se publica, y 20 ms, control que sí) y 1 de suscripciones (10 controladores abiertos y desechados sobre la misma llamada bloqueada: 0 suscripciones retenidas, 1 RPC, entrega correcta a un consumidor vivo, 0 timers). En `face_analysis_bridge_test.dart`: mensajero implícito y predeterminado explícito, misma clave y **1** llamada pendiente a 240 s con el envío Pigeon generado.
+
+**Detección:** con el código de `b08cfec` falla la regresión del mensajero (claves distintas); las de edad y suscripciones usan la API nueva y no compilan con la anterior. Los reproductores P1 de Codex pasan ahora (`pendientes=1`, `publicaciones=[]` en los tres estados). La observación P2 de Codex (`review_outcome_subscriptions_test.dart`) falla en su premisa: espera continuaciones `then` de `FaceQueryOutcome` registradas y ahora hay 0.
+
+**Resultados reales:** `flutter analyze` (app y plugin) sin problemas; `test/camera` 125/125; reproductores de Codex de las rondas anteriores y los dos P1 de esta: 27 pasan, falla solo la observación P2 descrita.
 
 ## APK (release, firmados con la clave de depuración)
 
