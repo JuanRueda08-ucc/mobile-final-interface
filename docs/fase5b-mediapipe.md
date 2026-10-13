@@ -3,7 +3,8 @@
 **Autorizada por el usuario:** 2026-10-12. **Estado: pendiente de una nueva revisión de Codex.** No se ha publicado.
 
 - **Primera revisión** (sobre `3be9bf1`): desfavorable por dos P1 de vigencia, corregidos en `c5c0503`.
-- **Segunda revisión** (sobre `c5c0503`): desfavorable por otros dos P1 de vigencia, corregidos después. Ver «Corrección de la revisión de Codex (P1)» y «Segunda corrección (P1)».
+- **Segunda revisión** (sobre `c5c0503`): desfavorable por otros dos P1 de vigencia, corregidos en `a935729`. Ver «Corrección de la revisión de Codex (P1)» y «Segunda corrección (P1)».
+- **Tercera revisión** (sobre `a935729`): desfavorable por la administración de las consultas. Se aceptó la corrección de la edad. Ver «Tercera corrección: consultas acotadas».
 
 ## Alcance
 
@@ -178,7 +179,18 @@ Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab
   - Con edad efectiva > 750 ms, el resultado no se muestra. Si se acepta, su vigencia restante es `750 − edad efectiva`, contada en Dart desde la respuesta; al agotarse, «El último resultado caducó y ya no se muestra».
   - Un mensaje del mismo `resultId` nunca alarga ese plazo: se queda el menor de los conocidos. Como `resultId` crece dentro de la apertura, un resultado caducado, sustituido o anterior al mostrado no vuelve a mostrarse. El retiro es conservador: se basa en una sobreestimación de la edad.
   - **Avisos sin consulta** (`onFaceAnalysis`, por `main.post` y el canal): su demora no tiene cota y no se puede medir sin sincronizar relojes. Por eso una detección avisada **nunca** se muestra: solo dispara una consulta. Los estados que no afirman la presencia de nadie (cargando, esperando, errores, detenido) sí se aceptan del aviso, en orden.
-  - Con la cámara abierta, Dart consulta cada **200 ms** (experimental, menor que Tstale), para que un rostro estable no se interrumpa entre avisos. Una consulta sin respuesta durante más de 750 ms se abandona, porque su respuesta ya llegaría caducada, y no bloquea las siguientes.
+  - Con la cámara abierta, Dart consulta cada **200 ms** (experimental, menor que Tstale), para que un rostro estable no se interrumpa entre avisos.
+- **Consultas acotadas (bloqueo y recuperación).** La llamada de Pigeon (`getFaceAnalysis`) **no se puede cancelar**: ni Dart ni el puente generado tienen cancelación ni plazo, y en Android cada llamada es una corrutina más una tarea en el hilo de análisis. Por eso:
+  - **Como máximo una llamada real pendiente al canal.** La registra el controlador (`_pendingQuery`) y el registro sobrevive a salir, volver a entrar, pasar a segundo plano y reintentar. Mientras esté pendiente, el sondeo, los avisos, los reintentos y las aperturas nuevas **no** lanzan otra llamada.
+  - **Plazo propio de 750 ms** desde el inicio de la consulta, con su propio temporizador, independiente del sondeo de 200 ms: a 749 ms no ha vencido y a 750 ms sí. Al vencer:
+    - la consulta queda inválida para la interfaz;
+    - se retira el rostro mostrado (sin poder revivir);
+    - el canal pasa a «sin respuesta» (`faceStalled`: «Esperando resultados…» con la causa «El motor no responde a las consultas. Se volverá a consultar cuando responda.»);
+    - **no** se crean llamadas nuevas.
+  - Si se sale y se vuelve a entrar con la llamada aún pendiente, la apertura nueva no llama, y su plazo se cuenta desde el inicio de la llamada pendiente.
+  - **Vencimiento, descarte y terminación son distintos.** El vencimiento invalida la respuesta para la interfaz. El descarte ocurre al llegar una respuesta o excepción vencida, o de otra apertura: no se aplica ni cambia orden, generación, silencio, vigencia ni estado (tampoco `modelError` ni ningún otro estado sin rostro). La terminación real de la llamada, por respuesta o por excepción, es lo único que libera el registro.
+  - **Recuperación.** Al terminar la llamada pendiente, el siguiente sondeo hace una consulta nueva. Si responde dentro de su plazo, el canal deja de estar «sin respuesta» y su contenido se aplica con la edad efectiva habitual. Si el canal no responde nunca, queda una sola llamada pendiente indefinidamente y la pantalla sigue en «sin respuesta». No hay un reinicio del canal que garantice terminar las llamadas anteriores, así que no se usa.
+  - **Identidad antes de aplicar.** Una respuesta solo se aplica si es la consulta vigente (sin vencer), de la apertura vigente, sin `stopped`, y su token coincide.
 - **Flutter, 3000 ms: límite de silencio del motor.** Sin avisos ni respuestas durante 3000 ms, se declara silencio. **No** autoriza a mostrar un rostro durante ese tiempo: la vigencia de un rostro la fija Tstale.
 - **Edad medida.** Va desde la entrega al analizador, no desde la captura. No se demostró la conversión entre el reloj del sensor (`ImageInfo.timestamp`) y `elapsedRealtime` (Área 05 §4), así que la latencia de captura a entrega no se incluye.
 - **Gmax (150 ms)** no se usa: sin continuidad de medición no hay nada que cortar.
@@ -413,6 +425,56 @@ Tstale sigue en 750 ms y el silencio en 3000 ms. **No se reabrió el cierre de l
   - Cerca de Tstale, la edad efectiva supera a veces 750 ms entre inferencias. Es el comportamiento conservador exigido: no se amplía el umbral para disimularlo.
   - El volcado de `uiautomator` añade carga al emulador. En D1 no se ha medido.
 - Evidencia en `D:\dev\vigia-entrega\evidencia-fase5b\10_correccion_p1b\` (`pasos.txt`, `logcat.txt`, `muestreo.txt`); captura `capturas\fase5b\10_correccion_p1b_rostro_detectado.png`.
+
+## Tercera corrección: consultas acotadas
+
+**Dictamen sobre `a935729`: desfavorable** por la administración de las consultas. La corrección de la edad (Kotlin y Flutter) fue aceptada y se conserva sin cambios: Tstale, su cálculo y la política conservadora siguen igual. Reproductor de Codex: `build/review-fase5b-p1b/review_query_lifecycle_test.dart`.
+
+| Hallazgo | Antes | Ahora |
+|---|---|---|
+| Trabajo pendiente sin cota | Una consulta «abandonada» seguía viva y cada 800 ms se lanzaba otra: 151 llamadas pendientes a 120 s y 301 a 240 s | Una sola llamada real pendiente: 1 a 120 s y 1 a 240 s, sin crecer con reintentos, salidas ni reaperturas |
+| Plazo dependiente del sondeo | El abandono solo se comprobaba en el siguiente sondeo | Temporizador propio a 750 ms desde el inicio de la consulta |
+| Respuesta abandonada aplicada | Un `modelError` de una consulta abandonada cambiaba la pantalla de la siguiente | Se comprueba la identidad de la consulta, la apertura y el plazo antes de aplicar cualquier respuesta o excepción |
+| `stopped` dejaba el temporizador del rostro mostrado | Uno de un solo disparo seguía activo | `stopped` cancela sondeo, silencio, plazo de la consulta y vigencia; también salir, segundo plano y desechar |
+
+**Pruebas** (`test/camera/face_analysis_controller_test.dart`, grupo «consultas acotadas»; tiempo simulado y llamadas retenidas con el doble):
+
+- canal sin respuesta 120 s y 240 s: se cuentan las **llamadas reales sin terminar** (`unfinishedQueries`), no los identificadores: 1;
+- plazo a 749/750 ms sin depender del sondeo, y ninguna llamada nueva después;
+- respuesta tras el plazo y excepción tras el plazo: no cambian la pantalla, liberan el canal y la siguiente consulta válida lo recupera;
+- respuesta abandonada (`modelError`), con el token vigente o de una apertura anterior: no se aplica;
+- 20 ciclos de reintentar, segundo plano y vuelta, salir y entrar, con avisos de detección y el canal bloqueado: 1 llamada en total y ningún rostro;
+- apertura nueva con el canal ocupado: «sin respuesta» a los 750 ms del inicio de la llamada pendiente (a 749 aún no);
+- `stopped` con un rostro mostrado: 0 temporizadores;
+- salir, segundo plano y desechar con una llamada bloqueada: 0 temporizadores, ninguna llamada nueva y la respuesta tardía no cambia nada.
+
+Se sustituyó la prueba anterior «una consulta sin respuesta no bloquea las siguientes», que describía la política de abandono que la revisión rechazó.
+
+**Reproductor de Codex con este código:** pasan 6 de 9 casos y fallan 3 aserciones, que **suponen la política anterior**:
+
+- esperan una **segunda** llamada a los 750–800 ms;
+- esperan que tras vencer la pantalla siga en «cargando modelo», cuando ahora muestra «esperando» con la causa del canal.
+
+Se sustituyen por las regresiones de arriba. Las aserciones de fondo sí pasan:
+
+- pendientes a 120 s ≤ pendientes a 240 s: 1 y 1;
+- 0 temporizadores tras `stopped`;
+- `leave`, `suspend`, `dispose` y `stopped` sin consultas nuevas ni respuestas aplicadas.
+
+**Detección con el código anterior** (copia temporal `git worktree` de `a935729`, ya eliminada; con el doble nuevo y sin aserciones sobre el campo nuevo `faceStalled`):
+
+- fallan 9 de las 13 regresiones;
+- pasan las tres de salir, segundo plano y desechar, que ya funcionaban;
+- pasa también la de una apertura nueva con el canal ocupado, que sin `faceStalled` se queda sin aserciones.
+
+**Resultados reales:**
+
+- `dart format` y `flutter analyze`: sin problemas.
+- `test/camera`, los renderizados de 5A y 5B y las reproducciones aceptadas de las dos rondas anteriores: pasan 145. Los renderizados no cambiaron.
+- `spec_registry.py check` y `git diff --check`: OK.
+- **No cambió** código Kotlin ni el contrato Pigeon, así que no se ejecutaron las pruebas JVM ni se recompiló Android, por indicación. Tampoco se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo.
+
+**APK:** todos los de la tabla siguiente son **anteriores a esta corrección**. El último, `vigia-normal-fase5b-p1b-release.apk`, no incluye las consultas acotadas.
 
 ## APK (release, firmados con la clave de depuración)
 

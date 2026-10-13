@@ -441,36 +441,6 @@ void main() {
       });
     });
 
-    test('una consulta sin respuesta no bloquea las siguientes: pasado '
-        'Tstale se abandona y una inferencia nueva se muestra', () {
-      fakeAsync((async) {
-        open(async);
-        bridge.holdQueries = true;
-        send(async, FaceAnalysisStatus.oneFace, resultAgeMs: 40, resultId: 1);
-        async.elapse(const Duration(milliseconds: 800));
-        expect(bridge.pendingQueries, isNotEmpty);
-        bridge.holdQueries = false;
-        send(
-          async,
-          FaceAnalysisStatus.multipleFaces,
-          resultAgeMs: 40,
-          resultId: 2,
-        );
-        // Las consultas retenidas se abandonan al pasar Tstale; la siguiente
-        // sale en el próximo periodo de consulta.
-        async.elapse(
-          FrontCameraController.faceStaleAfter +
-              FrontCameraController.facePollInterval,
-        );
-        expect(st().facePhase, FacePresencePhase.multipleFaces);
-        // La respuesta abandonada llega tarde: es anterior y no cambia nada.
-        bridge.releaseQueries();
-        async.flushMicrotasks();
-        expect(st().facePhase, FacePresencePhase.multipleFaces);
-        close(async);
-      });
-    });
-
     test('inferencias nuevas sucesivas mantienen el rostro', () {
       fakeAsync((async) {
         open(async);
@@ -609,5 +579,247 @@ void main() {
         close(async);
       });
     });
+  });
+
+  /// Revisión de Codex de la fase 5B (tercera ronda): consultas acotadas.
+  /// La llamada de Pigeon no se cancela: como máximo una llamada real
+  /// pendiente; plazo propio de 750 ms; identidad antes de aplicar.
+  group('consultas acotadas (revisión 5B)', () {
+    for (final seconds in [120, 240]) {
+      test('canal sin respuesta $seconds s: una sola llamada real pendiente y '
+          'canal «sin respuesta»', () {
+        fakeAsync((async) {
+          bridge.holdQueries = true;
+          open(async);
+          async.elapse(Duration(seconds: seconds));
+          expect(bridge.unfinishedQueries, 1);
+          expect(bridge.queries, 1);
+          expect(st().faceStalled, isTrue);
+          expect(st().facePhase, FacePresencePhase.waitingResults);
+          close(async);
+          // La llamada sigue sin terminar: no se puede cancelar.
+          expect(bridge.unfinishedQueries, 1);
+        });
+      });
+    }
+
+    test('el plazo vence a 750 ms desde el inicio, sin esperar al sondeo; '
+        'a 749 aún no', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        async.elapse(const Duration(milliseconds: 749));
+        expect(st().faceStalled, isFalse);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(st().faceStalled, isTrue);
+        // Ninguna llamada nueva al vencer ni en los sondeos siguientes.
+        async.elapse(const Duration(milliseconds: 1000));
+        expect(bridge.queries, 1);
+        close(async);
+      });
+    });
+
+    test('una respuesta tras el plazo no se aplica; libera el canal y la '
+        'siguiente consulta válida lo recupera', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        final token = open(async);
+        async.elapse(const Duration(milliseconds: 800));
+        expect(st().faceStalled, isTrue);
+        bridge.holdQueries = false;
+        bridge.releaseQueriesWith(
+          FakeFrontCameraBridge.face(
+            token,
+            FaceAnalysisStatus.oneFace,
+            sequence: 50,
+            resultId: 1,
+            resultAgeMs: 0,
+          ),
+        );
+        async.flushMicrotasks();
+        expect(st().facePhase, FacePresencePhase.waitingResults);
+        expect(st().face, isNull);
+        expect(bridge.unfinishedQueries, 0);
+        // Recuperación: el siguiente sondeo hace una consulta nueva que
+        // responde a tiempo.
+        send(
+          async,
+          FaceAnalysisStatus.multipleFaces,
+          resultAgeMs: 30,
+          resultId: 2,
+        );
+        async.elapse(FrontCameraController.facePollInterval);
+        expect(st().faceStalled, isFalse);
+        expect(st().facePhase, FacePresencePhase.multipleFaces);
+        expect(bridge.queries, greaterThanOrEqualTo(2));
+        close(async);
+      });
+    });
+
+    test('una excepción tras el plazo tampoco cambia la pantalla; libera el '
+        'canal y se recupera con una consulta válida', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        async.elapse(const Duration(milliseconds: 800));
+        final before = st();
+        bridge.failQueries(PlatformException(code: 'channel-error'));
+        async.flushMicrotasks();
+        expect(st().facePhase, before.facePhase);
+        expect(st().faceStalled, isTrue);
+        expect(bridge.unfinishedQueries, 0);
+        bridge.holdQueries = false;
+        send(async, FaceAnalysisStatus.noFace, resultAgeMs: 10, resultId: 3);
+        async.elapse(FrontCameraController.facePollInterval);
+        expect(st().faceStalled, isFalse);
+        expect(st().facePhase, FacePresencePhase.noFace);
+        close(async);
+      });
+    });
+
+    test('reproducción de Codex adaptada: la respuesta de una consulta '
+        'abandonada no cambia la pantalla de una apertura posterior (ni '
+        'modelError)', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        final old = open(async);
+        async.elapse(const Duration(milliseconds: 800));
+        close(async);
+        open(async);
+        final after = st();
+        expect(bridge.queries, 1); // la apertura nueva no llama: canal ocupado
+        bridge.releaseQueriesWith(
+          FakeFrontCameraBridge.face(
+            old,
+            FaceAnalysisStatus.modelError,
+            sequence: 1,
+            errorCode: 'modelMissing',
+          ),
+        );
+        async.flushMicrotasks();
+        expect(st().facePhase, after.facePhase);
+        expect(st().facePhase, isNot(FacePresencePhase.modelError));
+        expect(st().face, isNull);
+        close(async);
+      });
+    });
+
+    test('la respuesta abandonada con el token vigente tampoco se aplica', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        final token = open(async);
+        async.elapse(const Duration(milliseconds: 750));
+        bridge.releaseQueriesWith(
+          FakeFrontCameraBridge.face(
+            token,
+            FaceAnalysisStatus.modelError,
+            sequence: 1,
+            errorCode: 'modelMissing',
+          ),
+        );
+        async.flushMicrotasks();
+        expect(st().facePhase, isNot(FacePresencePhase.modelError));
+        expect(st().face, isNull);
+        close(async);
+      });
+    });
+
+    test('reintentos, salidas, segundo plano y reaperturas repetidos con el '
+        'canal bloqueado no añaden llamadas', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        for (var i = 0; i < 20; i++) {
+          async.elapse(const Duration(milliseconds: 300));
+          ctrl().retry();
+          async.flushMicrotasks();
+          ctrl().suspend();
+          ctrl().resume();
+          async.flushMicrotasks();
+          close(async);
+          open(async);
+          bridge.emitFace(FaceAnalysisStatus.oneFace, resultId: 100 + i);
+          async.flushMicrotasks();
+        }
+        async.elapse(const Duration(seconds: 30));
+        expect(bridge.queries, 1);
+        expect(bridge.unfinishedQueries, 1);
+        expect(st().facePhase, isNot(FacePresencePhase.oneFace));
+        expect(st().faceStalled, isTrue);
+        close(async);
+      });
+    });
+
+    test('una apertura nueva con el canal ocupado queda «sin respuesta» al '
+        'cumplirse el plazo de la llamada pendiente', () {
+      fakeAsync((async) {
+        bridge.holdQueries = true;
+        open(async);
+        async.elapse(const Duration(milliseconds: 500));
+        close(async);
+        open(async);
+        async.elapse(const Duration(milliseconds: 249));
+        expect(st().faceStalled, isFalse);
+        async.elapse(const Duration(milliseconds: 1));
+        expect(st().faceStalled, isTrue);
+        close(async);
+      });
+    });
+
+    test('stopped cancela todos los temporizadores, también el del rostro '
+        'mostrado', () {
+      fakeAsync((async) {
+        open(async);
+        send(async, FaceAnalysisStatus.oneFace, resultAgeMs: 0, resultId: 1);
+        expect(st().facePhase, FacePresencePhase.oneFace);
+        send(async, FaceAnalysisStatus.stopped, generation: 2);
+        expect(st().facePhase, FacePresencePhase.stopped);
+        expect(async.nonPeriodicTimerCount, 0);
+        expect(async.periodicTimerCount, 0);
+        async.elapse(const Duration(seconds: 5));
+        expect(st().facePhase, FacePresencePhase.stopped);
+        close(async);
+      });
+    });
+
+    for (final action in ['salir', 'segundo plano', 'desechar']) {
+      test('$action con una llamada bloqueada: sin temporizadores ni '
+          'reintentos activos, y su respuesta tardía no cambia nada', () {
+        fakeAsync((async) {
+          bridge.holdQueries = true;
+          final token = open(async);
+          send(async, FaceAnalysisStatus.oneFace, resultAgeMs: 0, resultId: 1);
+          async.elapse(const Duration(milliseconds: 300));
+          switch (action) {
+            case 'salir':
+              ctrl().leave();
+            case 'segundo plano':
+              ctrl().suspend();
+            case 'desechar':
+              container.dispose();
+          }
+          async.flushMicrotasks();
+          expect(async.nonPeriodicTimerCount, 0);
+          expect(async.periodicTimerCount, 0);
+          final calls = bridge.queries;
+          async.elapse(const Duration(seconds: 5));
+          expect(bridge.queries, calls);
+          bridge.releaseQueriesWith(
+            FakeFrontCameraBridge.face(
+              token,
+              FaceAnalysisStatus.modelError,
+              sequence: 99,
+            ),
+          );
+          async.flushMicrotasks();
+          if (action != 'desechar') {
+            expect(st().facePhase, FacePresencePhase.stopped);
+            close(async);
+          }
+          expect(async.nonPeriodicTimerCount, 0);
+          expect(async.periodicTimerCount, 0);
+        });
+      });
+    }
   });
 }

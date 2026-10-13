@@ -389,7 +389,10 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
         FacePresencePhase.waitingResults => (
           false,
           'Esperando resultados…',
-          s.faceExpired
+          s.faceStalled
+              ? 'El motor no responde a las consultas. Se volverá a '
+                    'consultar cuando responda.'
+              : s.faceExpired
               ? 'El último resultado caducó y ya no se muestra.'
               : null,
           null,

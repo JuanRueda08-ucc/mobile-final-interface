@@ -192,6 +192,29 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     }
   }
 
+  /// Completa las llamadas retenidas con [answer] (en lugar de lo que había
+  /// al consultar), como una respuesta tardía cualquiera.
+  void releaseQueriesWith(FaceAnalysisSnapshot? answer) {
+    final pending = List.of(pendingQueries);
+    pendingQueries.clear();
+    for (final (c, _) in pending) {
+      c.complete(answer);
+    }
+  }
+
+  /// Hace fallar las llamadas retenidas (excepción tardía del canal).
+  void failQueries(Object error) {
+    final pending = List.of(pendingQueries);
+    pendingQueries.clear();
+    for (final (c, _) in pending) {
+      c.completeError(error);
+    }
+  }
+
+  /// Llamadas reales sin terminar (no identificadores lógicos).
+  int get unfinishedQueries =>
+      pendingQueries.where((q) => !q.$1.isCompleted).length;
+
   int get queries => calls.where((c) => c.startsWith('query:')).length;
 
   /// Resultado facial del motor para [token] (por defecto, la apertura
