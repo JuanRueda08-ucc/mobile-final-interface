@@ -145,7 +145,10 @@ class _ExperimentalMonitoringScreenState
 
   Future<void> _back() async {
     final s = ref.read(experimentalMonitoringProvider);
-    if (s.pending != null || _exp.unresolvedStart) {
+    // El resumen solo se abre tras confirmar una sesión y su finalización.
+    // Una respuesta de inicio perdida sigue ocupando el canal, pero ya no
+    // deja incierto el recorrido que el motor confirmó y cerró.
+    if (s.pending != null || (_exp.unresolvedStart && !_showSummary)) {
       showNotice('Espera la respuesta del motor antes de salir.');
       return;
     }

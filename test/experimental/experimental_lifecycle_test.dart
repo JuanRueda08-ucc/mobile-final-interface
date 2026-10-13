@@ -13,6 +13,14 @@ import '../support/fake_camera.dart';
 import '../support/fake_experimental.dart';
 import '../support/vigia_harness.dart';
 
+class LostStartBridge extends FakeExperimentalBridge {
+  LostStartBridge(super.initial);
+  final reply = Completer<MonitoringCommandResult>();
+  @override
+  Future<MonitoringCommandResult> startSession(String cal, String sound) =>
+      reply.future;
+}
+
 void main() {
   setUpAll(loadVigiaFonts);
   Future<void> open(
@@ -37,6 +45,57 @@ void main() {
     await tester.tap(find.byKey(const Key('open-experimental')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'inicio sin respuesta: sesión confirmada y finalizada permite salir del resumen',
+    (tester) async {
+      final camera = FakeFrontCameraBridge(
+        permission: CameraPermissionStatus.granted,
+      );
+      final engine = LostStartBridge(
+        fakeSnapshot(
+          sequence: 2,
+          eyesValid: true,
+          step: CalibrationStep.accepted,
+          calibrationId: 'cal1',
+          soundHeard: true,
+          soundTestPlayed: true,
+          soundTestId: 'sound1',
+        ),
+      );
+      await open(tester, camera, engine);
+      await tester.tap(find.byKey(const Key('start')));
+      await tester.pump();
+      // El motor inició; se perdió exclusivamente la respuesta de la orden.
+      engine.emit(
+        fakeSnapshot(
+          sequence: 20,
+          lifecycle: EngineSessionLifecycle.active,
+          sessionId: 's1',
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 800));
+      engine.next = fakeSnapshot(
+        lifecycle: EngineSessionLifecycle.finalized,
+        sessionId: 's1',
+      );
+      await tester.tap(find.byKey(const Key('finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Finalizar').last);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('summary')), findsOneWidget);
+      expect(engine.reply.isCompleted, isFalse);
+      await tester.tap(find.bySemanticsLabel('Volver').first);
+      await tester.pumpAndSettle();
+      final exited = !tester.any(find.byType(ExperimentalMonitoringScreen));
+      await tester.pumpWidget(const SizedBox());
+      engine.reply.complete(
+        MonitoringCommandResult(accepted: true, snapshot: engine.current),
+      );
+      await tester.pump();
+      expect(exited, isTrue);
+    },
+  );
 
   testWidgets(
     'reentrar con sesión pausada no abre la cámara, tampoco al volver de segundo plano',
@@ -91,6 +150,9 @@ void main() {
     engine.hold = Completer<void>();
     await tester.tap(find.byKey(const Key('start')));
     await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Volver').first);
+    await tester.pumpAndSettle();
+    // Sigue incierto tras el timeout: no hay una sesión confirmada/finalizada.
     await tester.tap(find.bySemanticsLabel('Volver').first);
     await tester.pumpAndSettle();
     final stillThere = tester.any(find.byType(ExperimentalMonitoringScreen));
