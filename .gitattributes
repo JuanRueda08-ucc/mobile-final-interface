@@ -16,3 +16,7 @@ tools/*.sh text eol=lf
 # Fase 1: fuentes y renderizados binarios.
 *.ttf binary
 *.png binary
+
+# Fase 5B: modelo MediaPipe empaquetado (bytes exactos; su SHA-256 se verifica al cargarlo).
+*.task binary
+*.jpg binary

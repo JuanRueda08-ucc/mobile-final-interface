@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fase 5A: el plugin incluye CameraX para la app normal. La app DEMO no usa
+<!-- Fase 5A: el plugin incluye CameraX (y, desde 5B, MediaPipe) para la app normal. La app DEMO no usa
      la cámara: se retira del manifiesto final el servicio interno de CameraX
      (deshabilitado y no exportado) para que no declare ningún componente de
      cámara. Gradle añade este manifiesto solo con VIGIA_DEMO=true. -->
@@ -8,6 +8,18 @@
     <application>
         <service
             android:name="androidx.camera.core.impl.MetadataHolderService"
+            tools:node="remove" />
+        <!-- Fase 5B: la DEMO no ejecuta MediaPipe (sin modelo ni biblioteca
+             nativa en su APK): se retiran también los componentes de la
+             telemetría de MediaPipe Tasks. -->
+        <service
+            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
+            tools:node="remove" />
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
             tools:node="remove" />
     </application>
 </manifest>

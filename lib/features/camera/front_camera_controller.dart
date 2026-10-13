@@ -7,6 +7,9 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 
 /// Fase de la comprobación de la cámara frontal (fase 5A, variante normal).
 ///
+/// La presencia facial de la fase 5B va aparte ([FacePresencePhase]): solo
+/// existe con la cámara en [CameraCheckPhase.available].
+///
 /// Separa permiso ausente, cámara inexistente, apertura en curso, vista
 /// disponible y error de apertura. «Disponible» solo llega con la respuesta
 /// del motor de que la cámara está abierta, nunca por tener el permiso.
@@ -52,6 +55,32 @@ enum CameraCheckPhase {
   closed,
 }
 
+/// Presencia facial tal como la muestra la pantalla (fase 5B).
+///
+/// Solo [noFace], [oneFace] y [multipleFaces] proceden de un resultado
+/// explícito y vigente del motor. La falta de resultados nunca se muestra
+/// como ausencia de rostro: es [waitingResults].
+enum FacePresencePhase {
+  /// Sin cámara abierta: no hay análisis.
+  stopped,
+
+  /// Cámara abierta; el motor verifica y carga el modelo.
+  loadingModel,
+
+  /// Modelo listo, sin resultado vigente (aún no llegó, caducó, o Flutter
+  /// dejó de recibir noticias del motor).
+  waitingResults,
+  noFace,
+  oneFace,
+  multipleFaces,
+
+  /// Modelo ausente, alterado o incompatible: «Reintentar carga» (ER04).
+  modelError,
+
+  /// La inferencia falló: «Reintentar».
+  analysisError,
+}
+
 @immutable
 class FrontCameraState {
   const FrontCameraState({
@@ -60,6 +89,8 @@ class FrontCameraState {
     this.preview,
     this.errorCode,
     this.bridgeFailure = false,
+    this.face,
+    this.faceSilent = false,
   });
 
   final CameraCheckPhase phase;
@@ -77,7 +108,56 @@ class FrontCameraState {
   /// consulta, la solicitud o la apertura), no una respuesta de CameraX.
   final bool bridgeFailure;
 
+  /// Último resultado compacto del análisis facial de la apertura vigente.
+  final FaceAnalysisSnapshot? face;
+
+  /// `true` si Flutter lleva [FrontCameraController.faceSilenceLimit] sin
+  /// noticias del análisis: el último resultado deja de mostrarse como
+  /// vigente aunque el motor no haya podido avisar.
+  final bool faceSilent;
+
   bool get permissionGranted => permission == CameraPermissionStatus.granted;
+
+  /// Presencia facial que se muestra. Fuera de [CameraCheckPhase.available]
+  /// el análisis está detenido.
+  FacePresencePhase get facePhase {
+    if (phase != CameraCheckPhase.available) return FacePresencePhase.stopped;
+    final f = face;
+    if (f == null) {
+      return faceSilent
+          ? FacePresencePhase.waitingResults
+          : FacePresencePhase.loadingModel;
+    }
+    return switch (f.status) {
+      FaceAnalysisStatus.noFace when !faceSilent => FacePresencePhase.noFace,
+      FaceAnalysisStatus.oneFace when !faceSilent => FacePresencePhase.oneFace,
+      FaceAnalysisStatus.multipleFaces when !faceSilent =>
+        FacePresencePhase.multipleFaces,
+      FaceAnalysisStatus.loadingModel => FacePresencePhase.loadingModel,
+      FaceAnalysisStatus.modelError => FacePresencePhase.modelError,
+      FaceAnalysisStatus.analysisError => FacePresencePhase.analysisError,
+      FaceAnalysisStatus.stopped => FacePresencePhase.stopped,
+      _ => FacePresencePhase.waitingResults,
+    };
+  }
+
+  /// El último resultado caducó en el motor o Flutter dejó de recibirlo.
+  bool get faceExpired =>
+      facePhase == FacePresencePhase.waitingResults &&
+      (faceSilent || (face?.expired ?? false));
+
+  FrontCameraState withFace(
+    FaceAnalysisSnapshot? face, {
+    bool silent = false,
+  }) => FrontCameraState(
+    phase: phase,
+    permission: permission,
+    preview: preview,
+    errorCode: errorCode,
+    bridgeFailure: bridgeFailure,
+    face: face,
+    faceSilent: silent,
+  );
 }
 
 /// Puente con el motor. Las pruebas lo sustituyen por un doble.
@@ -104,8 +184,22 @@ final frontCameraProvider =
 /// - Al desecharse, toda operación en curso queda invalidada: tras cada salto
 ///   asíncrono se comprueba la generación y `ref.mounted` antes de usar el
 ///   Ref o el estado.
+/// - Fase 5B: solo se aceptan resultados faciales del token vigente. Si pasan
+///   [faceSilenceLimit] sin ninguno (el motor manda un latido cada segundo),
+///   el último deja de mostrarse como vigente.
 class FrontCameraController extends Notifier<FrontCameraState> {
   static int _tokenSeq = 0;
+
+  /// Silencio máximo del análisis antes de dejar de mostrar su último
+  /// resultado: 3000 ms, propuesta de transporte de Área 04 §9
+  /// (experimental). No sustituye a Tstale, que aplica el motor.
+  static const faceSilenceLimit = Duration(milliseconds: 3000);
+
+  /// Último resultado facial del token vigente, aunque llegue durante la
+  /// apertura (antes de que la cámara esté disponible).
+  FaceAnalysisSnapshot? _face;
+  Timer? _faceWatchdog;
+  bool _restartingFace = false;
 
   var _generation = 0;
   var _visible = false;
@@ -123,10 +217,12 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     // sin volver a leer proveedores.
     _bridge = ref.read(frontCameraBridgeProvider);
     final sub = _bridge.closures.listen(_onClosed);
+    final faces = _bridge.faceAnalysis.listen(_onFace);
     ref.onDispose(() {
       _visible = false;
       _generation++;
       sub.cancel();
+      faces.cancel();
       _release();
     });
     return const FrontCameraState();
@@ -204,6 +300,27 @@ class FrontCameraController extends Notifier<FrontCameraState> {
     }
   }
 
+  /// «Reintentar carga» o «Reintentar» del análisis facial tras un error. El
+  /// motor ignora la petición si el token ya no es el vigente o si no hay
+  /// error; un fallo del canal deja el estado como estaba, sin bloquear.
+  Future<void> retryFaceAnalysis() async {
+    final token = _token;
+    if (!_visible || token == null || _restartingFace) return;
+    final f = state.facePhase;
+    if (f != FacePresencePhase.modelError &&
+        f != FacePresencePhase.analysisError) {
+      return;
+    }
+    _restartingFace = true;
+    try {
+      await _bridge.restartFaceAnalysis(token);
+    } catch (e) {
+      debugPrint('Vigía · reinicio del análisis $token no confirmado: $e');
+    } finally {
+      _restartingFace = false;
+    }
+  }
+
   /// «Abrir ajustes». Al volver, [resume] consulta el permiso.
   Future<bool> openSettings() => _bridge.openAppSettings();
 
@@ -260,6 +377,7 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   Future<void> _open(int gen) async {
     final token = ++_tokenSeq;
     _token = token;
+    _face = null;
     final PreviewOpenResult result;
     try {
       result = await _bridge.openPreview(token);
@@ -286,20 +404,49 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       PreviewOpenStatus.failed ||
       PreviewOpenStatus.superseded => CameraCheckPhase.failed,
     };
-    if (phase != CameraCheckPhase.available) _token = null;
+    final available = phase == CameraCheckPhase.available;
+    if (!available) {
+      _token = null;
+      _face = null;
+    }
     state = FrontCameraState(
       phase: phase,
       permission: result.status == PreviewOpenStatus.permissionMissing
           ? CameraPermissionStatus.denied
           : state.permission,
-      preview: phase == CameraCheckPhase.available ? result : null,
+      preview: available ? result : null,
       errorCode: result.errorCode,
+      face: available ? _face : null,
     );
+    if (available) _armFaceWatchdog();
+  }
+
+  /// Resultado facial del motor. Los de otra apertura se descartan.
+  void _onFace(FaceAnalysisSnapshot snapshot) {
+    if (snapshot.token != _token || !ref.mounted) return;
+    _face = snapshot;
+    if (state.phase != CameraCheckPhase.available) return;
+    state = state.withFace(snapshot);
+    _armFaceWatchdog();
+  }
+
+  /// Vigilancia de Flutter: sin noticias en [faceSilenceLimit], el último
+  /// resultado deja de mostrarse como vigente.
+  void _armFaceWatchdog() {
+    _faceWatchdog?.cancel();
+    final token = _token;
+    _faceWatchdog = Timer(faceSilenceLimit, () {
+      if (!ref.mounted || token == null || _token != token) return;
+      if (state.phase != CameraCheckPhase.available) return;
+      state = state.withFace(_face, silent: true);
+    });
   }
 
   void _onClosed(PreviewClosedEvent event) {
     if (event.token != _token || !ref.mounted) return;
     _token = null;
+    _face = null;
+    _faceWatchdog?.cancel();
     _generation++;
     state = FrontCameraState(
       phase: switch (event.reason) {
@@ -316,6 +463,9 @@ class FrontCameraController extends Notifier<FrontCameraState> {
   void _release() {
     final token = _token;
     _token = null;
+    _face = null;
+    _faceWatchdog?.cancel();
+    _faceWatchdog = null;
     if (token != null) _closeQuietly(token);
   }
 

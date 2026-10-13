@@ -136,6 +136,8 @@ internal class FrontCameraHost(
         preview.close(token)
     }
 
+    override fun restartFaceAnalysis(token: Long): Boolean = preview.restartAnalysis(token)
+
     private companion object {
         // Código propio de la solicitud CAMERA de este plugin.
         const val REQUEST_CODE = 0x5641

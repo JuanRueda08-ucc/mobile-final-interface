@@ -1,5 +1,5 @@
 name: monitoring_engine
-description: "Motor de monitoreo local de Vigía (plugin Android/Kotlin). Fase 5A: vista previa de la cámara frontal (CameraX) y permiso CAMERA; sin IA, sesiones ni alertas."
+description: "Motor de monitoreo local de Vigía (plugin Android/Kotlin). Fase 5A: vista previa de la cámara frontal (CameraX) y permiso CAMERA. Fase 5B: presencia facial local con MediaPipe Face Landmarker; sin calibración, sesiones ni alertas de fatiga."
 version: 0.1.0
 publish_to: 'none'
 

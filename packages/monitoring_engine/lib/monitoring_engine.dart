@@ -4,6 +4,8 @@ export 'src/front_camera.dart';
 export 'src/monitoring_api.g.dart'
     show
         CameraPermissionStatus,
+        FaceAnalysisSnapshot,
+        FaceAnalysisStatus,
         PreviewCloseReason,
         PreviewClosedEvent,
         PreviewOpenResult,

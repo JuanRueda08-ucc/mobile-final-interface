@@ -3,6 +3,8 @@ package com.juanrueda.monitoring_engine
 import android.util.Log
 import com.juanrueda.monitoring_engine.camera.FrontCameraHost
 import com.juanrueda.monitoring_engine.camera.FrontCameraPreview
+import com.juanrueda.monitoring_engine.face.FacePresence
+import com.juanrueda.monitoring_engine.face.FacePresenceStatus
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -23,6 +25,8 @@ import kotlinx.coroutines.launch
  *   `getPlatformVersion`.
  * - Fase 5A: [FrontCameraHostApi] (Pigeon) con el permiso CAMERA y la vista
  *   previa frontal; [FrontCameraFlutterApi] avisa de los cierres nativos.
+ * - Fase 5B: [FrontCameraFlutterApi.onFaceAnalysis] entrega el resultado
+ *   compacto de presencia facial (sin imágenes ni puntos faciales).
  */
 class MonitoringEnginePlugin :
     FlutterPlugin,
@@ -42,16 +46,28 @@ class MonitoringEnginePlugin :
         val preview = FrontCameraPreview(
             flutterPluginBinding.applicationContext,
             flutterPluginBinding.textureRegistry,
-        ) { token, reason, code ->
-            scope.launch {
-                try {
-                    events.onPreviewClosed(PreviewClosedEvent(token, reason, code))
-                } catch (e: Exception) {
-                    // Flutter ya no escucha: el cierre nativo sigue siendo válido.
-                    Log.w("VigiaFrontCamera", "Aviso de cierre no entregado", e)
+            onClosed = { token, reason, code ->
+                scope.launch {
+                    try {
+                        events.onPreviewClosed(PreviewClosedEvent(token, reason, code))
+                    } catch (e: Exception) {
+                        // Flutter ya no escucha: el cierre nativo sigue siendo válido.
+                        Log.w("VigiaFrontCamera", "Aviso de cierre no entregado", e)
+                    }
                 }
-            }
-        }
+            },
+            onFacePresence = { presence ->
+                scope.launch {
+                    try {
+                        events.onFaceAnalysis(presence.toPigeon())
+                    } catch (e: Exception) {
+                        // Flutter ya no escucha; Dart vigila por su cuenta la
+                        // falta de noticias.
+                        Log.w("VigiaFaceAnalysis", "Resultado de análisis no entregado")
+                    }
+                }
+            },
+        )
         val host = FrontCameraHost(flutterPluginBinding.applicationContext, preview)
         camera = host
         FrontCameraHostApi.setUp(flutterPluginBinding.binaryMessenger, host)
@@ -93,3 +109,31 @@ class MonitoringEnginePlugin :
         camera?.detachActivity()
     }
 }
+
+private fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
+    token = token,
+    generation = generation,
+    status = when (status) {
+        FacePresenceStatus.LOADING_MODEL -> FaceAnalysisStatus.LOADING_MODEL
+        FacePresenceStatus.WAITING_RESULTS -> FaceAnalysisStatus.WAITING_RESULTS
+        FacePresenceStatus.NO_FACE -> FaceAnalysisStatus.NO_FACE
+        FacePresenceStatus.ONE_FACE -> FaceAnalysisStatus.ONE_FACE
+        FacePresenceStatus.MULTIPLE_FACES -> FaceAnalysisStatus.MULTIPLE_FACES
+        FacePresenceStatus.STOPPED -> FaceAnalysisStatus.STOPPED
+        FacePresenceStatus.MODEL_ERROR -> FaceAnalysisStatus.MODEL_ERROR
+        FacePresenceStatus.ANALYSIS_ERROR -> FaceAnalysisStatus.ANALYSIS_ERROR
+    },
+    faceCount = faceCount?.toLong(),
+    resultAgeMs = resultAgeMs,
+    maxFaces = maxFaces.toLong(),
+    staleAfterMs = staleAfterMs,
+    framesSubmitted = framesSubmitted,
+    resultsAccepted = resultsAccepted,
+    framesDropped = framesDropped,
+    resultsDiscarded = resultsDiscarded,
+    expired = expired,
+    frameWidth = frameWidth?.toLong(),
+    frameHeight = frameHeight?.toLong(),
+    frameRotationDegrees = frameRotationDegrees?.toLong(),
+    errorCode = errorCode,
+)

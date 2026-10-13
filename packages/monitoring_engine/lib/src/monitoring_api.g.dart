@@ -168,6 +168,36 @@ enum PreviewCloseReason {
   detached,
 }
 
+/// Estado del análisis de presencia facial de una apertura (fase 5B).
+enum FaceAnalysisStatus {
+  /// Verificando el modelo empaquetado y creando el detector.
+  loadingModel,
+
+  /// Modelo listo, sin resultado vigente: todavía no llegó ninguno o el
+  /// último caducó. No significa que falte el rostro.
+  waitingResults,
+
+  /// Resultado vigente con cero rostros.
+  noFace,
+
+  /// Resultado vigente con un rostro.
+  oneFace,
+
+  /// Resultado vigente con dos o más rostros (el detector busca hasta
+  /// [FaceAnalysisSnapshot.maxFaces]).
+  multipleFaces,
+
+  /// El análisis terminó (cierre de la vista previa).
+  stopped,
+
+  /// El modelo no se pudo cargar: ausente, alterado o incompatible
+  /// ([FaceAnalysisSnapshot.errorCode]). Se puede reintentar la carga.
+  modelError,
+
+  /// La inferencia falló. Se puede reintentar.
+  analysisError,
+}
+
 class PreviewOpenResult {
   PreviewOpenResult({
     required this.token,
@@ -263,6 +293,156 @@ class PreviewOpenResult {
   }
 }
 
+/// Resultado compacto del análisis facial. No contiene imágenes ni puntos
+/// faciales: solo el estado, el número de rostros y contadores técnicos.
+class FaceAnalysisSnapshot {
+  FaceAnalysisSnapshot({
+    required this.token,
+    required this.generation,
+    required this.status,
+    this.faceCount,
+    this.resultAgeMs,
+    required this.maxFaces,
+    required this.staleAfterMs,
+    required this.framesSubmitted,
+    required this.resultsAccepted,
+    required this.framesDropped,
+    required this.resultsDiscarded,
+    required this.expired,
+    this.frameWidth,
+    this.frameHeight,
+    this.frameRotationDegrees,
+    this.errorCode,
+  });
+
+  /// Apertura de vista previa a la que pertenece.
+  int token;
+
+  /// Carga del modelo dentro de la apertura; cambia al reintentar.
+  int generation;
+
+  FaceAnalysisStatus status;
+
+  /// Rostros del resultado vigente; nulo sin resultado vigente.
+  int? faceCount;
+
+  /// Edad del resultado vigente: desde la entrega del cuadro al analizador
+  /// hasta la recepción del resultado, en ms.
+  int? resultAgeMs;
+
+  /// Rostros como máximo que busca el detector.
+  int maxFaces;
+
+  /// Vigencia máxima de un resultado (Tstale, experimental), en ms.
+  int staleAfterMs;
+
+  int framesSubmitted;
+
+  int resultsAccepted;
+
+  /// Cuadros no enviados al modelo (sin modelo listo, orden o conversión).
+  int framesDropped;
+
+  /// Resultados descartados por antiguos, desordenados o desconocidos.
+  int resultsDiscarded;
+
+  /// `true` si se volvió a esperar porque el último resultado caducó.
+  bool expired;
+
+  /// Tamaño y giro horario de los cuadros analizados (diagnóstico).
+  int? frameWidth;
+
+  int? frameHeight;
+
+  int? frameRotationDegrees;
+
+  /// Código técnico del error, para diagnóstico. No es un texto de interfaz.
+  String? errorCode;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      token,
+      generation,
+      status,
+      faceCount,
+      resultAgeMs,
+      maxFaces,
+      staleAfterMs,
+      framesSubmitted,
+      resultsAccepted,
+      framesDropped,
+      resultsDiscarded,
+      expired,
+      frameWidth,
+      frameHeight,
+      frameRotationDegrees,
+      errorCode,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static FaceAnalysisSnapshot decode(Object result) {
+    result as List<Object?>;
+    return FaceAnalysisSnapshot(
+      token: result[0]! as int,
+      generation: result[1]! as int,
+      status: result[2]! as FaceAnalysisStatus,
+      faceCount: result[3] as int?,
+      resultAgeMs: result[4] as int?,
+      maxFaces: result[5]! as int,
+      staleAfterMs: result[6]! as int,
+      framesSubmitted: result[7]! as int,
+      resultsAccepted: result[8]! as int,
+      framesDropped: result[9]! as int,
+      resultsDiscarded: result[10]! as int,
+      expired: result[11]! as bool,
+      frameWidth: result[12] as int?,
+      frameHeight: result[13] as int?,
+      frameRotationDegrees: result[14] as int?,
+      errorCode: result[15] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FaceAnalysisSnapshot || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(token, other.token) &&
+        _deepEquals(generation, other.generation) &&
+        _deepEquals(status, other.status) &&
+        _deepEquals(faceCount, other.faceCount) &&
+        _deepEquals(resultAgeMs, other.resultAgeMs) &&
+        _deepEquals(maxFaces, other.maxFaces) &&
+        _deepEquals(staleAfterMs, other.staleAfterMs) &&
+        _deepEquals(framesSubmitted, other.framesSubmitted) &&
+        _deepEquals(resultsAccepted, other.resultsAccepted) &&
+        _deepEquals(framesDropped, other.framesDropped) &&
+        _deepEquals(resultsDiscarded, other.resultsDiscarded) &&
+        _deepEquals(expired, other.expired) &&
+        _deepEquals(frameWidth, other.frameWidth) &&
+        _deepEquals(frameHeight, other.frameHeight) &&
+        _deepEquals(frameRotationDegrees, other.frameRotationDegrees) &&
+        _deepEquals(errorCode, other.errorCode);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'FaceAnalysisSnapshot(token: $token, generation: $generation, status: $status, faceCount: $faceCount, resultAgeMs: $resultAgeMs, maxFaces: $maxFaces, staleAfterMs: $staleAfterMs, framesSubmitted: $framesSubmitted, resultsAccepted: $resultsAccepted, framesDropped: $framesDropped, resultsDiscarded: $resultsDiscarded, expired: $expired, frameWidth: $frameWidth, frameHeight: $frameHeight, frameRotationDegrees: $frameRotationDegrees, errorCode: $errorCode)';
+  }
+}
+
 class PreviewClosedEvent {
   PreviewClosedEvent({
     required this.token,
@@ -333,11 +513,17 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is PreviewCloseReason) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    } else if (value is PreviewOpenResult) {
+    } else if (value is FaceAnalysisStatus) {
       buffer.putUint8(132);
+      writeValue(buffer, value.index);
+    } else if (value is PreviewOpenResult) {
+      buffer.putUint8(133);
+      writeValue(buffer, value.encode());
+    } else if (value is FaceAnalysisSnapshot) {
+      buffer.putUint8(134);
       writeValue(buffer, value.encode());
     } else if (value is PreviewClosedEvent) {
-      buffer.putUint8(133);
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -357,8 +543,13 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : PreviewCloseReason.values[value];
       case 132:
-        return PreviewOpenResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : FaceAnalysisStatus.values[value];
       case 133:
+        return PreviewOpenResult.decode(readValue(buffer)!);
+      case 134:
+        return FaceAnalysisSnapshot.decode(readValue(buffer)!);
+      case 135:
         return PreviewClosedEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -471,8 +662,8 @@ class FrontCameraHostApi {
     return pigeonVar_replyValue! as PreviewOpenResult;
   }
 
-  /// Cierra y libera la vista previa de [token]. Si [token] ya no es la
-  /// petición vigente, no hace nada.
+  /// Cierra y libera la vista previa de [token] y su análisis facial. Si
+  /// [token] ya no es la petición vigente, no hace nada.
   Future<void> closeFrontPreview(int token) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.monitoring_engine.FrontCameraHostApi.closeFrontPreview$pigeonVar_messageChannelSuffix';
@@ -492,6 +683,29 @@ class FrontCameraHostApi {
       isNullValid: true,
     );
   }
+
+  /// Vuelve a cargar el modelo y reinicia el análisis facial de [token] tras
+  /// un error. `false` si [token] no es la apertura vigente.
+  Future<bool> restartFaceAnalysis(int token) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.FrontCameraHostApi.restartFaceAnalysis$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[token],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as bool;
+  }
 }
 
 /// Avisos de Kotlin hacia Flutter.
@@ -500,6 +714,9 @@ abstract class FrontCameraFlutterApi {
 
   /// La vista previa vigente se cerró por decisión nativa.
   void onPreviewClosed(PreviewClosedEvent event);
+
+  /// Nuevo estado del análisis facial, o latido periódico con el vigente.
+  void onFaceAnalysis(FaceAnalysisSnapshot snapshot);
 
   static void setUp(
     FrontCameraFlutterApi? api, {
@@ -523,6 +740,32 @@ abstract class FrontCameraFlutterApi {
           final PreviewClosedEvent arg_event = args[0]! as PreviewClosedEvent;
           try {
             api.onPreviewClosed(arg_event);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onFaceAnalysis$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final FaceAnalysisSnapshot arg_snapshot =
+              args[0]! as FaceAnalysisSnapshot;
+          try {
+            api.onFaceAnalysis(arg_snapshot);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

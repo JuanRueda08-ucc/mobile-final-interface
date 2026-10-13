@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:monitoring_engine/monitoring_engine.dart';
 
-/// Doble de [FrontCameraBridge] (fase 5A). No abre ninguna cámara: cada
-/// respuesta la decide la prueba, y puede retenerse para simular respuestas
+/// Doble de [FrontCameraBridge] (fases 5A y 5B). No abre ninguna cámara ni
+/// ejecuta ningún modelo: cada respuesta y cada resultado facial los decide
+/// la prueba ([emitFace]), y pueden retenerse para simular respuestas
 /// tardías. Registra las llamadas en [calls].
 class FakeFrontCameraBridge implements FrontCameraBridge {
   FakeFrontCameraBridge({this.permission = CameraPermissionStatus.denied});
@@ -23,6 +24,7 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   Object? requestError;
   Object? openError;
   Object? closeError;
+  Object? restartError;
 
   /// Retiene la siguiente consulta en [pendingCheck].
   bool holdCheck = false;
@@ -36,6 +38,7 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   /// Tokens abiertos y no cerrados, según el doble.
   final openTokens = <int>{};
   final _closures = StreamController<PreviewClosedEvent>.broadcast();
+  final _faces = StreamController<FaceAnalysisSnapshot>.broadcast();
 
   static PreviewOpenResult result(int token, PreviewOpenStatus status) =>
       PreviewOpenResult(
@@ -127,6 +130,78 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
 
   @override
   Stream<PreviewClosedEvent> get closures => _closures.stream;
+
+  @override
+  Stream<FaceAnalysisSnapshot> get faceAnalysis => _faces.stream;
+
+  /// Respuesta de [restartFaceAnalysis].
+  bool restartAnswer = true;
+
+  @override
+  Future<bool> restartFaceAnalysis(int token) {
+    calls.add('restartFace:$token');
+    if (restartError != null) return Future.error(restartError!);
+    return Future.value(restartAnswer);
+  }
+
+  /// Resultado facial del motor para [token] (por defecto, la apertura
+  /// abierta más reciente).
+  void emitFace(
+    FaceAnalysisStatus status, {
+    int? token,
+    int? faceCount,
+    bool expired = false,
+    String? errorCode,
+    int generation = 1,
+  }) {
+    _faces.add(
+      face(
+        token ?? openTokens.last,
+        status,
+        faceCount: faceCount,
+        expired: expired,
+        errorCode: errorCode,
+        generation: generation,
+      ),
+    );
+  }
+
+  static FaceAnalysisSnapshot face(
+    int token,
+    FaceAnalysisStatus status, {
+    int? faceCount,
+    bool expired = false,
+    String? errorCode,
+    int generation = 1,
+  }) => FaceAnalysisSnapshot(
+    token: token,
+    generation: generation,
+    status: status,
+    faceCount:
+        faceCount ??
+        switch (status) {
+          FaceAnalysisStatus.noFace => 0,
+          FaceAnalysisStatus.oneFace => 1,
+          FaceAnalysisStatus.multipleFaces => 2,
+          _ => null,
+        },
+    resultAgeMs: switch (status) {
+      FaceAnalysisStatus.noFace ||
+      FaceAnalysisStatus.oneFace ||
+      FaceAnalysisStatus.multipleFaces => 40,
+      _ => null,
+    },
+    maxFaces: 2,
+    staleAfterMs: 750,
+    framesSubmitted: 10,
+    resultsAccepted: 9,
+    framesDropped: 1,
+    resultsDiscarded: 0,
+    expired: expired,
+    errorCode: errorCode,
+  );
+
+  int get restarts => calls.where((c) => c.startsWith('restartFace:')).length;
 
   int get opens => calls.where((c) => c.startsWith('open:')).length;
   int get requests => calls.where((c) => c == 'request').length;

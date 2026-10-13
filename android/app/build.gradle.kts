@@ -57,6 +57,18 @@ android {
         versionName = flutter.versionName
     }
 
+    // Fase 5B: la DEMO no ejecuta el modelo facial. Su APK no lleva el modelo
+    // (assets/vigia_models) ni la biblioteca nativa de MediaPipe; sin ellos no
+    // puede cargarse aunque el código del plugin esté presente.
+    if (vigiaDemo) {
+        androidResources {
+            ignoreAssetsPatterns += "<dir>vigia_models"
+        }
+        packaging {
+            jniLibs.excludes += "**/libmediapipe_tasks_jni.so"
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

@@ -1,8 +1,10 @@
 // Contrato Pigeon del motor (Área 04 §7: `pigeons/monitoring_api.dart`).
 //
-// Fase 5A: solo la vista previa de la cámara frontal y el permiso CAMERA.
-// Sin análisis de imagen, calibración, sesiones ni alertas: esas operaciones
-// del Área 04 §7 se añadirán cuando se autoricen.
+// Fase 5A: vista previa de la cámara frontal y permiso CAMERA.
+// Fase 5B: presencia facial con MediaPipe Face Landmarker (resultados
+// compactos; los puntos faciales no salen de Kotlin). Sin calibración,
+// sesiones ni alertas: esas operaciones del Área 04 §7 se añadirán cuando se
+// autoricen.
 //
 // Regenerar (desde packages/monitoring_engine):
 //   dart run pigeon --input pigeons/monitoring_api.dart
@@ -98,6 +100,93 @@ class PreviewOpenResult {
   String? errorCode;
 }
 
+/// Estado del análisis de presencia facial de una apertura (fase 5B).
+enum FaceAnalysisStatus {
+  /// Verificando el modelo empaquetado y creando el detector.
+  loadingModel,
+
+  /// Modelo listo, sin resultado vigente: todavía no llegó ninguno o el
+  /// último caducó. No significa que falte el rostro.
+  waitingResults,
+
+  /// Resultado vigente con cero rostros.
+  noFace,
+
+  /// Resultado vigente con un rostro.
+  oneFace,
+
+  /// Resultado vigente con dos o más rostros (el detector busca hasta
+  /// [FaceAnalysisSnapshot.maxFaces]).
+  multipleFaces,
+
+  /// El análisis terminó (cierre de la vista previa).
+  stopped,
+
+  /// El modelo no se pudo cargar: ausente, alterado o incompatible
+  /// ([FaceAnalysisSnapshot.errorCode]). Se puede reintentar la carga.
+  modelError,
+
+  /// La inferencia falló. Se puede reintentar.
+  analysisError,
+}
+
+/// Resultado compacto del análisis facial. No contiene imágenes ni puntos
+/// faciales: solo el estado, el número de rostros y contadores técnicos.
+class FaceAnalysisSnapshot {
+  FaceAnalysisSnapshot({
+    required this.token,
+    required this.generation,
+    required this.status,
+    required this.maxFaces,
+    required this.staleAfterMs,
+    required this.framesSubmitted,
+    required this.resultsAccepted,
+    required this.framesDropped,
+    required this.resultsDiscarded,
+    required this.expired,
+  });
+
+  /// Apertura de vista previa a la que pertenece.
+  int token;
+
+  /// Carga del modelo dentro de la apertura; cambia al reintentar.
+  int generation;
+  FaceAnalysisStatus status;
+
+  /// Rostros del resultado vigente; nulo sin resultado vigente.
+  int? faceCount;
+
+  /// Edad del resultado vigente: desde la entrega del cuadro al analizador
+  /// hasta la recepción del resultado, en ms.
+  int? resultAgeMs;
+
+  /// Rostros como máximo que busca el detector.
+  int maxFaces;
+
+  /// Vigencia máxima de un resultado (Tstale, experimental), en ms.
+  int staleAfterMs;
+
+  int framesSubmitted;
+  int resultsAccepted;
+
+  /// Cuadros no enviados al modelo (sin modelo listo, orden o conversión).
+  int framesDropped;
+
+  /// Resultados descartados por antiguos, desordenados o desconocidos.
+  int resultsDiscarded;
+
+  /// `true` si se volvió a esperar porque el último resultado caducó.
+  bool expired;
+
+  /// Tamaño y giro horario de los cuadros analizados (diagnóstico).
+  int? frameWidth;
+  int? frameHeight;
+  int? frameRotationDegrees;
+
+  /// Código técnico del error, para diagnóstico. No es un texto de interfaz.
+  String? errorCode;
+}
+
 class PreviewClosedEvent {
   PreviewClosedEvent({required this.token, required this.reason});
 
@@ -128,9 +217,13 @@ abstract class FrontCameraHostApi {
   @async
   PreviewOpenResult openFrontPreview(int token);
 
-  /// Cierra y libera la vista previa de [token]. Si [token] ya no es la
-  /// petición vigente, no hace nada.
+  /// Cierra y libera la vista previa de [token] y su análisis facial. Si
+  /// [token] ya no es la petición vigente, no hace nada.
   void closeFrontPreview(int token);
+
+  /// Vuelve a cargar el modelo y reinicia el análisis facial de [token] tras
+  /// un error. `false` si [token] no es la apertura vigente.
+  bool restartFaceAnalysis(int token);
 }
 
 /// Avisos de Kotlin hacia Flutter.
@@ -138,4 +231,7 @@ abstract class FrontCameraHostApi {
 abstract class FrontCameraFlutterApi {
   /// La vista previa vigente se cerró por decisión nativa.
   void onPreviewClosed(PreviewClosedEvent event);
+
+  /// Nuevo estado del análisis facial, o latido periódico con el vigente.
+  void onFaceAnalysis(FaceAnalysisSnapshot snapshot);
 }

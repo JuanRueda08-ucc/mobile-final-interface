@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fase 5B: ningún APK release pide INTERNET. La dependencia
+     com.google.android.datatransport (telemetría de MediaPipe Tasks) lo
+     declara; aquí se retira del manifiesto final. En debug y profile lo
+     añade Flutter para sus herramientas. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+</manifest>

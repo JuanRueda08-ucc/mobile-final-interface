@@ -20,16 +20,22 @@ import androidx.lifecycle.Observer
 import com.juanrueda.monitoring_engine.PreviewCloseReason
 import com.juanrueda.monitoring_engine.PreviewOpenResult
 import com.juanrueda.monitoring_engine.PreviewOpenStatus
+import com.juanrueda.monitoring_engine.face.FaceAnalysisSession
+import com.juanrueda.monitoring_engine.face.FacePresence
 import io.flutter.view.TextureRegistry
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Único propietario de la cámara frontal en el proceso (fase 5A).
+ * Único propietario de la cámara frontal en el proceso (fases 5A y 5B).
  *
- * - Solo vincula el caso de uso Preview: sin fotografía, grabación, análisis
- *   ni almacenamiento de imágenes.
+ * - Vincula Preview y, desde la fase 5B, el `ImageAnalysis` de
+ *   [FaceAnalysisSession] **en la misma llamada y la misma cámara**: no se
+ *   abre una segunda cámara. Sin fotografía, grabación ni almacenamiento de
+ *   imágenes.
+ * - Cada apertura tiene su propio análisis facial; al liberarla se cierran
+ *   analizador, detector e hilo de análisis.
  * - Cada apertura usa un [LifecycleOwner] propio que vive mientras la
  *   pantalla de Flutter la pide; al cerrarla se destruye y CameraX libera la
  *   cámara. La Activity que deja de verse cierra también la vista previa.
@@ -45,6 +51,7 @@ internal class FrontCameraPreview(
     private val context: Context,
     private val textures: TextureRegistry,
     private val onClosed: (token: Long, reason: PreviewCloseReason, errorCode: String?) -> Unit,
+    private val onFacePresence: (FacePresence) -> Unit,
 ) {
     private val gate = PreviewGate()
     private var active: Active? = null
@@ -60,6 +67,7 @@ internal class FrontCameraPreview(
         var camera: Camera? = null
         var producer: TextureRegistry.SurfaceProducer? = null
         var transformation: SurfaceRequest.TransformationInfo? = null
+        var analysis: FaceAnalysisSession? = null
         var surfacesInUse = 0
         var opened = false
         var released = false
@@ -163,10 +171,30 @@ internal class FrontCameraPreview(
                 if (a.released && a.surfacesInUse == 0) producer.release()
             }
         }
+        val analysis = FaceAnalysisSession(context, a.token, onFacePresence)
+        a.analysis = analysis
         a.owner.start()
-        val camera = provider.bindToLifecycle(a.owner, CameraSelector.DEFAULT_FRONT_CAMERA, preview)
+        val camera = provider.bindToLifecycle(
+            a.owner,
+            CameraSelector.DEFAULT_FRONT_CAMERA,
+            preview,
+            analysis.useCase,
+        )
         a.camera = camera
         camera.cameraInfo.cameraState.observeForever(a.stateObserver)
+        // El modelo se carga en el hilo de análisis mientras la cámara abre.
+        analysis.start()
+    }
+
+    /**
+     * Reintenta el análisis facial de [token] tras un error. `false` si
+     * [token] no es la apertura vigente.
+     */
+    fun restartAnalysis(token: Long): Boolean {
+        val a = active?.takeIf { it.token == token && gate.isCurrent(token) } ?: return false
+        val analysis = a.analysis ?: return false
+        analysis.restart()
+        return true
     }
 
     private fun onCameraState(a: Active, state: CameraState) {
@@ -214,9 +242,12 @@ internal class FrontCameraPreview(
         a.released = true
         a.outcome.complete(PreviewOpenStatus.SUPERSEDED to null)
         a.camera?.cameraInfo?.cameraState?.removeObserver(a.stateObserver)
-        a.preview?.let { preview ->
+        // Primero el análisis: retira el analizador y cierra el detector.
+        a.analysis?.close()
+        val useCases = listOfNotNull(a.preview, a.analysis?.useCase)
+        if (useCases.isNotEmpty()) {
             try {
-                a.provider?.unbind(preview)
+                a.provider?.unbind(*useCases.toTypedArray())
             } catch (e: Exception) {
                 Log.w(TAG, "No se pudo desvincular la vista previa", e)
             }

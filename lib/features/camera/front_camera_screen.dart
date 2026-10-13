@@ -13,13 +13,16 @@ import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../core/design_system/widgets/vigia_text.dart';
 import 'front_camera_controller.dart';
 
-/// Cámara frontal (fase 5A, variante normal; permiso P02 y vista previa de
-/// P04).
+/// Cámara frontal (variante normal; permiso P02 y vista previa de P04).
 ///
-/// Abre la vista previa real de la cámara frontal y gestiona el permiso. No
-/// analiza la imagen: no hay detección facial, calibración ni sesión, así que
-/// Calibrar e Iniciar monitoreo siguen deshabilitados aunque la vista previa
-/// funcione. La cámara se libera al salir y al pasar a segundo plano.
+/// - Fase 5A: vista previa real de la cámara frontal y permiso.
+/// - Fase 5B: **detección facial en pruebas**. El motor analiza la imagen en
+///   el teléfono y la pantalla muestra el estado del modelo y la presencia
+///   facial (filas «Modelo» y «Rostro (informativo)» de P04 en B5.2).
+///
+/// No evalúa los ojos ni la fatiga: no hay calibración ni sesión, así que
+/// Calibrar e Iniciar monitoreo siguen deshabilitados aunque se detecte un
+/// rostro. La cámara y el modelo se liberan al salir y en segundo plano.
 class FrontCameraScreen extends ConsumerStatefulWidget {
   const FrontCameraScreen({super.key});
 
@@ -28,10 +31,30 @@ class FrontCameraScreen extends ConsumerStatefulWidget {
       'faciales relacionadas con somnolencia. El procesamiento se hace en este '
       'teléfono.';
   static const scope =
-      'En esta versión solo se muestra la vista previa: no se analiza, no se '
-      'graba y no se guarda ninguna imagen.';
+      'En esta versión la imagen se analiza en el teléfono solo para saber si '
+      'hay un rostro: no se graba, no se guarda y no se envía ninguna imagen.';
   static const settingsFailedNotice =
       'No se pudieron abrir los ajustes del teléfono.';
+
+  /// Causa visible de «Modelo no disponible» según el código del motor.
+  static String modelCause(String? code) => switch (code) {
+    'modelMissing' => 'El modelo facial no está en la aplicación.',
+    'modelCorrupt' => 'El archivo del modelo no coincide con el verificado.',
+    'modelIncompatible' => 'El modelo no se pudo iniciar en este teléfono.',
+    _ => 'No se pudo leer el modelo facial.',
+  };
+
+  /// Texto de presencia sobre la vista previa (`VIEWER` de B5.2).
+  static String presenceLabel(FacePresencePhase phase) => switch (phase) {
+    FacePresencePhase.stopped => 'Análisis detenido',
+    FacePresencePhase.loadingModel => 'Cargando el modelo…',
+    FacePresencePhase.waitingResults => 'Esperando resultados…',
+    FacePresencePhase.noFace => 'Rostro no detectado',
+    FacePresencePhase.oneFace => 'Rostro detectado',
+    FacePresencePhase.multipleFaces => 'Varios rostros detectados',
+    FacePresencePhase.modelError => 'Modelo no disponible',
+    FacePresencePhase.analysisError => 'Error de análisis',
+  };
 
   @override
   ConsumerState<FrontCameraScreen> createState() => _FrontCameraScreenState();
@@ -100,8 +123,19 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
               title: 'Cámara disponible',
               text:
                   'La vista previa es real y se procesa solo en este teléfono. '
-                  'No se analiza ni se guarda ninguna imagen.',
+                  'No se graba, no se guarda ni se envía ninguna imagen.',
             ),
+          const StatusCard(
+            key: Key('face-detection-testing'),
+            tone: StatusTone.neutral,
+            icon: VigiaIcon.info,
+            tag: 'Detección facial',
+            title: 'Detección facial en pruebas',
+            text:
+                'El modelo facial funciona en este teléfono, sin Internet, y '
+                'solo indica si ve un rostro, varios o ninguno. No guarda ni '
+                'envía imágenes ni puntos faciales.',
+          ),
           const StatusCard(
             key: Key('detection-pending'),
             tone: StatusTone.pending,
@@ -109,12 +143,13 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
             tag: 'Detección',
             title: 'Detección de fatiga pendiente',
             text:
-                'Esta versión todavía no incluye el modelo facial: no evalúa '
-                'los ojos ni detecta señales de somnolencia.',
+                'Esta versión todavía no evalúa los ojos ni detecta señales de '
+                'somnolencia. Un rostro detectado no es una evaluación de '
+                'fatiga.',
           ),
           const VigiaParagraph(
             'Calibrar e Iniciar monitoreo no están disponibles: falta la '
-            'detección de fatiga. La vista previa no basta para empezar.',
+            'detección de fatiga. Detectar un rostro no basta para empezar.',
             secondary: true,
           ),
           const VigiaButton(
@@ -259,6 +294,8 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
       ),
       _ => null,
     };
+    final (modelOk, modelValue, modelCause, modelAction) = _modelRow(s);
+    final (faceOk, faceValue, faceCause, faceAction) = _faceRow(s);
     return [
       CheckRow(
         label: 'Permiso de cámara',
@@ -278,14 +315,121 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
         cause: cameraCause,
         action: retry,
       ),
+      CheckRow(
+        key: const Key('row-model'),
+        label: 'Modelo',
+        ok: modelOk,
+        value: modelValue,
+        cause: modelCause,
+        action: modelAction,
+      ),
+      CheckRow(
+        key: const Key('row-face'),
+        label: 'Rostro (informativo)',
+        ok: faceOk,
+        value: faceValue,
+        cause: faceCause,
+        action: faceAction,
+      ),
       const CheckRow(
         label: 'Detección de fatiga',
         ok: false,
         value: 'Detección de fatiga pendiente',
-        cause: 'Sin modelo facial no hay medición ocular.',
+        cause: 'Esta versión no evalúa los ojos.',
       ),
     ];
   }
+
+  /// Fila «Modelo» (B5.2 P04; ER04 «Modelo no disponible» con «Reintentar
+  /// carga»).
+  (bool, String, String?, Widget?) _modelRow(FrontCameraState s) =>
+      switch (s.facePhase) {
+        FacePresencePhase.stopped => (
+          false,
+          'Modelo sin cargar',
+          'Se carga al abrir la cámara y se libera al cerrarla.',
+          null,
+        ),
+        FacePresencePhase.loadingModel => (
+          false,
+          'Cargando el modelo…',
+          null,
+          null,
+        ),
+        FacePresencePhase.modelError => (
+          false,
+          'Modelo no disponible',
+          FrontCameraScreen.modelCause(s.face?.errorCode),
+          VigiaButton(
+            label: 'Reintentar carga',
+            kind: VigiaButtonKind.secondary,
+            icon: VigiaIcon.refresh,
+            onPressed: _camera.retryFaceAnalysis,
+          ),
+        ),
+        _ => (true, 'Cargado', null, null),
+      };
+
+  /// Fila «Rostro (informativo)». Solo un resultado vigente del motor dice
+  /// si hay rostro; sin él, se espera (nunca «no detectado» por silencio).
+  (bool, String, String?, Widget?) _faceRow(FrontCameraState s) =>
+      switch (s.facePhase) {
+        FacePresencePhase.stopped => (
+          false,
+          'Análisis detenido',
+          'Solo se analiza con la cámara abierta.',
+          null,
+        ),
+        FacePresencePhase.loadingModel => (
+          false,
+          'Esperando el modelo…',
+          null,
+          null,
+        ),
+        FacePresencePhase.waitingResults => (
+          false,
+          'Esperando resultados…',
+          s.faceExpired
+              ? 'El último resultado caducó y ya no se muestra.'
+              : null,
+          null,
+        ),
+        FacePresencePhase.noFace => (
+          false,
+          'Rostro no detectado',
+          'Revisa el encuadre: el rostro debe verse completo.',
+          null,
+        ),
+        FacePresencePhase.oneFace => (
+          true,
+          'Rostro detectado',
+          'Presencia facial no equivale a ojos medibles.',
+          null,
+        ),
+        FacePresencePhase.multipleFaces => (
+          false,
+          'Varios rostros detectados',
+          'Con más de un rostro en la imagen no se sabe cuál es el tuyo.',
+          null,
+        ),
+        FacePresencePhase.modelError => (
+          false,
+          'Sin análisis',
+          'Falta el modelo facial.',
+          null,
+        ),
+        FacePresencePhase.analysisError => (
+          false,
+          'Error de análisis',
+          'El análisis facial se detuvo.',
+          VigiaButton(
+            label: 'Reintentar',
+            kind: VigiaButtonKind.secondary,
+            icon: VigiaIcon.refresh,
+            onPressed: _camera.retryFaceAnalysis,
+          ),
+        ),
+      };
 }
 
 /// Zona de vista previa real (`VIEWER` de B5.2). Con la cámara abierta muestra
@@ -329,7 +473,18 @@ class FrontCameraStage extends StatelessWidget {
                     const Positioned(
                       left: 12,
                       top: 12,
-                      child: _StageTag('Vista previa · sin análisis'),
+                      child: _StageTag('Detección facial en pruebas'),
+                    ),
+                    Positioned(
+                      left: 12,
+                      bottom: 12,
+                      child: Semantics(
+                        key: const Key('presence-label'),
+                        liveRegion: true,
+                        child: _StageTag(
+                          FrontCameraScreen.presenceLabel(state.facePhase),
+                        ),
+                      ),
                     ),
                   ],
                 ),

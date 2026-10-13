@@ -269,6 +269,41 @@ enum class PreviewCloseReason(val raw: Int) {
   }
 }
 
+/** Estado del análisis de presencia facial de una apertura (fase 5B). */
+enum class FaceAnalysisStatus(val raw: Int) {
+  /** Verificando el modelo empaquetado y creando el detector. */
+  LOADING_MODEL(0),
+  /**
+   * Modelo listo, sin resultado vigente: todavía no llegó ninguno o el
+   * último caducó. No significa que falte el rostro.
+   */
+  WAITING_RESULTS(1),
+  /** Resultado vigente con cero rostros. */
+  NO_FACE(2),
+  /** Resultado vigente con un rostro. */
+  ONE_FACE(3),
+  /**
+   * Resultado vigente con dos o más rostros (el detector busca hasta
+   * [FaceAnalysisSnapshot.maxFaces]).
+   */
+  MULTIPLE_FACES(4),
+  /** El análisis terminó (cierre de la vista previa). */
+  STOPPED(5),
+  /**
+   * El modelo no se pudo cargar: ausente, alterado o incompatible
+   * ([FaceAnalysisSnapshot.errorCode]). Se puede reintentar la carga.
+   */
+  MODEL_ERROR(6),
+  /** La inferencia falló. Se puede reintentar. */
+  ANALYSIS_ERROR(7);
+
+  companion object {
+    fun ofRaw(raw: Int): FaceAnalysisStatus? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PreviewOpenResult (
   /** Identificador de la petición, elegido por Flutter. */
@@ -343,6 +378,122 @@ data class PreviewOpenResult (
   }
 }
 
+/**
+ * Resultado compacto del análisis facial. No contiene imágenes ni puntos
+ * faciales: solo el estado, el número de rostros y contadores técnicos.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FaceAnalysisSnapshot (
+  /** Apertura de vista previa a la que pertenece. */
+  val token: Long,
+  /** Carga del modelo dentro de la apertura; cambia al reintentar. */
+  val generation: Long,
+  val status: FaceAnalysisStatus,
+  /** Rostros del resultado vigente; nulo sin resultado vigente. */
+  val faceCount: Long? = null,
+  /**
+   * Edad del resultado vigente: desde la entrega del cuadro al analizador
+   * hasta la recepción del resultado, en ms.
+   */
+  val resultAgeMs: Long? = null,
+  /** Rostros como máximo que busca el detector. */
+  val maxFaces: Long,
+  /** Vigencia máxima de un resultado (Tstale, experimental), en ms. */
+  val staleAfterMs: Long,
+  val framesSubmitted: Long,
+  val resultsAccepted: Long,
+  /** Cuadros no enviados al modelo (sin modelo listo, orden o conversión). */
+  val framesDropped: Long,
+  /** Resultados descartados por antiguos, desordenados o desconocidos. */
+  val resultsDiscarded: Long,
+  /** `true` si se volvió a esperar porque el último resultado caducó. */
+  val expired: Boolean,
+  /** Tamaño y giro horario de los cuadros analizados (diagnóstico). */
+  val frameWidth: Long? = null,
+  val frameHeight: Long? = null,
+  val frameRotationDegrees: Long? = null,
+  /** Código técnico del error, para diagnóstico. No es un texto de interfaz. */
+  val errorCode: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FaceAnalysisSnapshot {
+      val token = pigeonVar_list[0] as Long
+      val generation = pigeonVar_list[1] as Long
+      val status = pigeonVar_list[2] as FaceAnalysisStatus
+      val faceCount = pigeonVar_list[3] as Long?
+      val resultAgeMs = pigeonVar_list[4] as Long?
+      val maxFaces = pigeonVar_list[5] as Long
+      val staleAfterMs = pigeonVar_list[6] as Long
+      val framesSubmitted = pigeonVar_list[7] as Long
+      val resultsAccepted = pigeonVar_list[8] as Long
+      val framesDropped = pigeonVar_list[9] as Long
+      val resultsDiscarded = pigeonVar_list[10] as Long
+      val expired = pigeonVar_list[11] as Boolean
+      val frameWidth = pigeonVar_list[12] as Long?
+      val frameHeight = pigeonVar_list[13] as Long?
+      val frameRotationDegrees = pigeonVar_list[14] as Long?
+      val errorCode = pigeonVar_list[15] as String?
+      return FaceAnalysisSnapshot(token, generation, status, faceCount, resultAgeMs, maxFaces, staleAfterMs, framesSubmitted, resultsAccepted, framesDropped, resultsDiscarded, expired, frameWidth, frameHeight, frameRotationDegrees, errorCode)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      token,
+      generation,
+      status,
+      faceCount,
+      resultAgeMs,
+      maxFaces,
+      staleAfterMs,
+      framesSubmitted,
+      resultsAccepted,
+      framesDropped,
+      resultsDiscarded,
+      expired,
+      frameWidth,
+      frameHeight,
+      frameRotationDegrees,
+      errorCode,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as FaceAnalysisSnapshot
+    return MonitoringApiPigeonUtils.deepEquals(this.token, other.token) && MonitoringApiPigeonUtils.deepEquals(this.generation, other.generation) && MonitoringApiPigeonUtils.deepEquals(this.status, other.status) && MonitoringApiPigeonUtils.deepEquals(this.faceCount, other.faceCount) && MonitoringApiPigeonUtils.deepEquals(this.resultAgeMs, other.resultAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.maxFaces, other.maxFaces) && MonitoringApiPigeonUtils.deepEquals(this.staleAfterMs, other.staleAfterMs) && MonitoringApiPigeonUtils.deepEquals(this.framesSubmitted, other.framesSubmitted) && MonitoringApiPigeonUtils.deepEquals(this.resultsAccepted, other.resultsAccepted) && MonitoringApiPigeonUtils.deepEquals(this.framesDropped, other.framesDropped) && MonitoringApiPigeonUtils.deepEquals(this.resultsDiscarded, other.resultsDiscarded) && MonitoringApiPigeonUtils.deepEquals(this.expired, other.expired) && MonitoringApiPigeonUtils.deepEquals(this.frameWidth, other.frameWidth) && MonitoringApiPigeonUtils.deepEquals(this.frameHeight, other.frameHeight) && MonitoringApiPigeonUtils.deepEquals(this.frameRotationDegrees, other.frameRotationDegrees) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.token)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.generation)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.status)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.faceCount)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resultAgeMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.maxFaces)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.staleAfterMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.framesSubmitted)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resultsAccepted)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.framesDropped)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resultsDiscarded)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.expired)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.frameWidth)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.frameHeight)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.frameRotationDegrees)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.errorCode)
+    return result
+  }
+  override fun toString(): String {
+    return "FaceAnalysisSnapshot(token=$token, generation=$generation, status=$status, faceCount=$faceCount, resultAgeMs=$resultAgeMs, maxFaces=$maxFaces, staleAfterMs=$staleAfterMs, framesSubmitted=$framesSubmitted, resultsAccepted=$resultsAccepted, framesDropped=$framesDropped, resultsDiscarded=$resultsDiscarded, expired=$expired, frameWidth=$frameWidth, frameHeight=$frameHeight, frameRotationDegrees=$frameRotationDegrees, errorCode=$errorCode)"
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PreviewClosedEvent (
   val token: Long,
@@ -406,11 +557,21 @@ private open class MonitoringApiPigeonCodec : StandardMessageCodec() {
         }
       }
       132.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          FaceAnalysisStatus.ofRaw(it.toInt())
+        }
+      }
+      133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PreviewOpenResult.fromList(it)
         }
       }
-      133.toByte() -> {
+      134.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          FaceAnalysisSnapshot.fromList(it)
+        }
+      }
+      135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PreviewClosedEvent.fromList(it)
         }
@@ -432,12 +593,20 @@ private open class MonitoringApiPigeonCodec : StandardMessageCodec() {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PreviewOpenResult -> {
+      is FaceAnalysisStatus -> {
         stream.write(132)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PreviewOpenResult -> {
+        stream.write(133)
+        writeValue(stream, value.toList())
+      }
+      is FaceAnalysisSnapshot -> {
+        stream.write(134)
         writeValue(stream, value.toList())
       }
       is PreviewClosedEvent -> {
-        stream.write(133)
+        stream.write(135)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -474,10 +643,15 @@ interface FrontCameraHostApi {
    */
   suspend fun openFrontPreview(token: Long): PreviewOpenResult
   /**
-   * Cierra y libera la vista previa de [token]. Si [token] ya no es la
-   * petición vigente, no hace nada.
+   * Cierra y libera la vista previa de [token] y su análisis facial. Si
+   * [token] ya no es la petición vigente, no hace nada.
    */
   fun closeFrontPreview(token: Long)
+  /**
+   * Vuelve a cargar el modelo y reinicia el análisis facial de [token] tras
+   * un error. `false` si [token] no es la apertura vigente.
+   */
+  fun restartFaceAnalysis(token: Long): Boolean
 
   companion object {
     /** The codec used by FrontCameraHostApi. */
@@ -572,6 +746,23 @@ interface FrontCameraHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.FrontCameraHostApi.restartFaceAnalysis$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val tokenArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              listOf(api.restartFaceAnalysis(tokenArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -595,6 +786,26 @@ class FrontCameraFlutterApi(private val binaryMessenger: BinaryMessenger, privat
       val channelName = "dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onPreviewClosed$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
       channel.send(listOf(eventArg)) {
+        if (it is List<*>) {
+          if (it.size > 1) {
+            continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
+          } else {
+            continuation.resume(Unit)
+          }
+        } else {
+          continuation.resumeWithException(MonitoringApiPigeonUtils.createConnectionError(channelName))
+        }
+      }
+    }
+  }
+  /** Nuevo estado del análisis facial, o latido periódico con el vigente. */
+  suspend fun onFaceAnalysis(snapshotArg: FaceAnalysisSnapshot)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    return suspendCancellableCoroutine { continuation ->
+      val channelName = "dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onFaceAnalysis$separatedMessageChannelSuffix"
+      val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+      channel.send(listOf(snapshotArg)) {
         if (it is List<*>) {
           if (it.size > 1) {
             continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
