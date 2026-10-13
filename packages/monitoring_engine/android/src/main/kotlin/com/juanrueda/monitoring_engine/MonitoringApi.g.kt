@@ -408,9 +408,10 @@ data class FaceAnalysisSnapshot (
    */
   val resultId: Long? = null,
   /**
-   * Edad del resultado al aceptarlo en el motor: desde la entrega del cuadro
-   * al analizador hasta su aplicación en el hilo de análisis, en ms. No
-   * crece en los latidos; la vigencia la decide el motor con Tstale.
+   * Edad del resultado **al crear este mensaje** en el motor: reloj
+   * monotónico de Android en ese instante menos la entrega del cuadro al
+   * analizador, en ms. No incluye el tiempo del puente: Flutter lo suma
+   * cuando el mensaje responde a [FrontCameraHostApi.getFaceAnalysis].
    */
   val resultAgeMs: Long? = null,
   /** Rostros como máximo que busca el detector. */
@@ -674,6 +675,14 @@ interface FrontCameraHostApi {
    * un error. `false` si [token] no es la apertura vigente.
    */
   fun restartFaceAnalysis(token: Long): Boolean
+  /**
+   * Estado del análisis facial de [token], creado en el hilo de análisis en
+   * el momento de responder (su `resultAgeMs` es la edad en ese instante).
+   * Nulo si [token] no es la apertura vigente. Es la única vía por la que
+   * Flutter acepta un rostro como vigente: mide en Dart el tiempo completo
+   * de esta consulta y lo suma a `resultAgeMs`.
+   */
+  suspend fun getFaceAnalysis(token: Long): FaceAnalysisSnapshot?
 
   companion object {
     /** The codec used by FrontCameraHostApi. */
@@ -785,6 +794,25 @@ interface FrontCameraHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.FrontCameraHostApi.getFaceAnalysis$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val tokenArg = args[0] as Long
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.getFaceAnalysis(tokenArg))
+              } catch (exception: Throwable) {
+                MonitoringApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -820,7 +848,11 @@ class FrontCameraFlutterApi(private val binaryMessenger: BinaryMessenger, privat
       }
     }
   }
-  /** Nuevo estado del análisis facial, o latido periódico con el vigente. */
+  /**
+   * Nuevo estado del análisis facial, o latido periódico con el vigente.
+   * Su demora no se puede acotar: Flutter no muestra un rostro a partir de
+   * este aviso; ante una detección, consulta [FrontCameraHostApi.getFaceAnalysis].
+   */
   suspend fun onFaceAnalysis(snapshotArg: FaceAnalysisSnapshot)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""

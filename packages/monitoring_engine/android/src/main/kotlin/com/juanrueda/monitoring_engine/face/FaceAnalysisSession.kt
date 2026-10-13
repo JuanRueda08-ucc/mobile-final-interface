@@ -114,6 +114,19 @@ internal class FaceAnalysisSession(
         onAnalysisThread { core.restart() }
     }
 
+    /**
+     * Crea en el hilo de análisis el estado de este instante y lo entrega a
+     * [answer] (en ese hilo). Nulo si la sesión ya se cerró.
+     */
+    fun query(answer: (FacePresence?) -> Unit) {
+        if (closed || !started) return answer(null)
+        try {
+            executor.execute { answer(if (closed) null else core.snapshotNow()) }
+        } catch (e: RejectedExecutionException) {
+            answer(null)
+        }
+    }
+
     /** Libera analizador, detector e hilo. Idempotente. */
     fun close() {
         if (closed) return

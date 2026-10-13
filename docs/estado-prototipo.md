@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) y `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-12 (fase 5B: corrección de los dos P1 de la revisión de Codex; pendiente de nueva revisión).
+**Actualizado:** 2026-10-12 (fase 5B: segunda corrección de P1 de vigencia; pendiente de nueva revisión de Codex).
 
 ## Fases
 
@@ -13,7 +13,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
-| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | **Primera revisión de Codex desfavorable** (dos P1 de vigencia sobre `3be9bf1`). **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1` y el commit de corrección P1 |
+| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1` y sobre `c5c0503`, por P1 de vigencia. **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1`, `c5c0503` y el commit de la segunda corrección |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -384,6 +384,41 @@ Detalle en `docs/fase5a-camara-permisos.md`, sección «Corrección de la revisi
 
 **Pendiente de la revisión, no corregido aquí:** el cierre explícito de los `MPImage` (observación de Codex, sin fuga observada).
 
+### Segunda corrección de P1 (pendiente de nueva revisión)
+
+**Dictamen sobre `c5c0503`: desfavorable** por dos P1 de vigencia. Detalle en `docs/fase5b-mediapipe.md`, «Segunda corrección (P1)» y «Política de caducidad».
+
+1. **Kotlin:**
+   - la edad (`ahora − entrega del cuadro`) y el silencio se reevalúan con el reloj actual al crear cada mensaje (cambio, latido, consulta) y al leer el estado;
+   - `resultAgeMs` es la edad actual;
+   - un latido a 2051 con un resultado de 751 ms ya no anuncia ningún rostro.
+2. **Flutter:**
+   - un rostro solo se muestra a partir de la consulta nueva `getFaceAnalysis`;
+   - edad efectiva = `resultAgeMs` + tiempo completo de la consulta, medido con un cronómetro monotónico de Dart iniciado antes de llamar. Sobreestima; no rejuvenece; no se comparan relojes;
+   - se descarta si supera 750 ms; si no, vigencia restante = `750 − edad efectiva`. El mismo `resultId` nunca alarga el plazo;
+   - los avisos sin consulta (demora sin cota) nunca muestran un rostro, solo disparan una consulta;
+   - Dart consulta cada 200 ms (experimental) y abandona una consulta sin respuesta pasados 750 ms;
+   - 3000 ms es solo el límite de silencio del motor.
+
+**Resultados reales:**
+
+- `flutter analyze` (app y plugin): sin problemas.
+- Dart: pasan 133 (`test/camera`, renderizados de 5A y 5B, y las 5 reproducciones de Codex de las dos rondas), entre ellas 7 con el puente Pigeon real. Los renderizados no cambiaron.
+- JVM: pasan 49. El reproductor Kotlin de Codex termina sin error con el núcleo actual.
+- Con `c5c0503` en una copia temporal fallan:
+  - las 3 reproducciones Dart de Codex y 4 regresiones Dart expresables con la API anterior;
+  - 3 de las 4 regresiones JVM de este P1 (la cuarta es el control positivo).
+- Pigeon regenerado y coherente; `spec_registry.py check`: OK.
+- No se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo; tampoco se reabrió `MPImage`.
+- **CameraX → MediaPipe en el emulador** (imagen fija, no D1):
+  - paquete instalado solo con `CAMERA`;
+  - liberación correcta: 0 hilos y 0 clientes de cámara al salir;
+  - **detección intermitente**: 18 de 20 muestras «Rostro detectado», 2 «Esperando resultados», con una edad máxima aceptada de 691 ms. Es el comportamiento conservador ante una latencia cercana a Tstale; no se amplió el umbral.
+
+**APK nuevo** (los anteriores se conservan; hash añadido a `SHA256SUMS.txt`): `D:\dev\vigia-entrega\vigia-normal-fase5b-p1b-release.apk`, 94 270 965 bytes, SHA-256 `2f435d49c2e34d94b524671acf222734b745fec6d0548e938cdd68272b7deaf1`. El DEMO no se recompiló.
+
+Se mantienen documentados el incidente inicial de telemetría y las limitaciones físicas: D1, dos rostros por la cámara, 16 KB y TalkBack.
+
 ## Siguiente acción
 
-Nueva revisión de Codex de la fase 5B, con la corrección de los P1. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.
+Nueva revisión de Codex de la fase 5B, con la segunda corrección de los P1. No se avanza a calibración, sesiones ni fatiga. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.

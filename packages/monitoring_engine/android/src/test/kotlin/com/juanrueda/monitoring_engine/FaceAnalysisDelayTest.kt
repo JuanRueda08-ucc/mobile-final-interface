@@ -18,8 +18,8 @@ import kotlin.test.assertTrue
  * hora a la que MediaPipe lo entregó. Dobles: detector falso, reloj manual y
  * cola de avisos retenida, para simular la espera del aviso en la cola.
  *
- * Solo usa la API anterior a la corrección, para poder ejecutar estas
- * pruebas también contra el código de 3be9bf1.
+ * Solo usa la API anterior a las correcciones, para poder ejecutar estas
+ * pruebas también contra el código de 3be9bf1 y c5c0503.
  */
 internal class FaceAnalysisDelayTest {
     private class Harness {
@@ -116,8 +116,13 @@ internal class FaceAnalysisDelayTest {
         assertEquals(40, h.published.last().resultAgeMs)
     }
 
+    /**
+     * Tras aplicarlo, la edad sigue contando desde la entrega del cuadro (no
+     * desde la aplicación): cuadro 1000, aplicación 1300, caduca al pasar de
+     * 750 de edad (1751), antes que por silencio (2050).
+     */
     @Test
-    fun silenceIsMeasuredFromApplication() {
+    fun ageKeepsCountingFromTheFrameAfterApplication() {
         val h = Harness()
         val ts = h.frameAt(1_000)
         h.nowMs = 1_050
@@ -125,10 +130,10 @@ internal class FaceAnalysisDelayTest {
         h.nowMs = 1_300
         h.runQueued()
         assertEquals(FacePresenceStatus.ONE_FACE, h.core.status)
-        h.nowMs = 1_300 + 749
+        h.nowMs = 1_750
         h.core.tick()
         assertEquals(FacePresenceStatus.ONE_FACE, h.core.status)
-        h.nowMs = 1_300 + 750
+        h.nowMs = 1_751
         h.core.tick()
         assertEquals(FacePresenceStatus.WAITING_RESULTS, h.core.status)
     }

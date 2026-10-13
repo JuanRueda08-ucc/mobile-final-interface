@@ -1,6 +1,9 @@
 # Vigía · Fase 5B: MediaPipe Face Landmarker (presencia facial)
 
-**Autorizada por el usuario:** 2026-10-12. **Estado:** la primera revisión de Codex (sobre `3be9bf1`) fue **desfavorable** por dos P1 de vigencia. Ya están corregidos (sección «Corrección de la revisión de Codex (P1)») y la fase queda **pendiente de una nueva revisión**. No se ha publicado.
+**Autorizada por el usuario:** 2026-10-12. **Estado: pendiente de una nueva revisión de Codex.** No se ha publicado.
+
+- **Primera revisión** (sobre `3be9bf1`): desfavorable por dos P1 de vigencia, corregidos en `c5c0503`.
+- **Segunda revisión** (sobre `c5c0503`): desfavorable por otros dos P1 de vigencia, corregidos después. Ver «Corrección de la revisión de Codex (P1)» y «Segunda corrección (P1)».
 
 ## Alcance
 
@@ -163,19 +166,20 @@ MediaPipe 1.0.0 no trae reglas propias. El plugin aporta `consumer-rules.pro`:
 
 ### Política de caducidad
 
-Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab-eye-rules-0.1` (Área 05 §7, `qualificationStatus=experimental`), y el latido y el límite de Flutter son la propuesta de transporte de Área 04 §9. Ninguno está aceptado para producción.
+Los valores son **experimentales**: Tstale y Gmax son candidatos del perfil `lab-eye-rules-0.1` (Área 05 §7, `qualificationStatus=experimental`); el latido, el límite de silencio y el periodo de consulta son la propuesta de transporte de Área 04 §9, o derivan de ella. Ninguno está aceptado para producción.
 
-- **Motor (Kotlin), Tstale = 750 ms:**
-  - la edad de un resultado se calcula **al aplicarlo** en el hilo de análisis, con el reloj monotónico de ese momento: `ahora − entrega del cuadro al analizador`. Incluye la espera del aviso en la cola del hilo;
-  - se descarta si supera 750 ms; con 750 exactos sigue vigente. Vale igual para cero, uno o varios rostros;
-  - se descarta como **inválido** (no como edad cero) si las marcas son imposibles: entrega posterior a la recepción en el hilo de MediaPipe, o recepción posterior a «ahora»;
-  - sin resultados aceptados durante ≥750 ms desde su **aplicación** (con 750 ya caduca), «sin rostro», «un rostro» y «varios» vuelven a `waitingResults` con `expired=true`;
-  - el vigilante corre cada 100 ms, así que reacciona en ≤100 ms;
-  - el motor manda un latido a Flutter cada 1000 ms.
-- **Flutter, 3000 ms:**
-  - un resultado deja de mostrarse como vigente si en 3000 ms no llega una **inferencia nueva**, es decir, otro `resultId` («El último resultado caducó y ya no se muestra»);
-  - el plazo se mide en Dart desde la llegada de esa inferencia; **no se comparan relojes de Dart y Android**;
-  - un latido o un mensaje repetido de la misma inferencia mantiene vivo el canal, pero no rejuvenece el resultado. Un estado que no es una detección (esperando, error) sí reinicia el plazo, porque no muestra ningún rostro.
+- **Motor (Kotlin), Tstale = 750 ms.** La edad de un resultado es siempre `ahora − entrega de su cuadro al analizador`, con el reloj monotónico de Android del instante en que se usa:
+  - **al aplicarlo** en el hilo de análisis, incluida la espera del aviso en la cola: se descarta si supera 750 ms (con 750 exactos sigue vigente). Vale para cero, uno o varios rostros;
+  - **al crear cada mensaje** (cambio, latido o respuesta a una consulta) y **al leer el estado**: si el resultado vigente tiene edad > 750 ms, o silencio ≥ 750 ms desde su aplicación, se retira antes, sin esperar al vigilante. `resultAgeMs` es la edad en ese instante, no la de la aceptación;
+  - las marcas imposibles (entrega posterior a la recepción en el hilo de MediaPipe, o recepción posterior a «ahora») se descartan como **inválidas**, no como edad cero;
+  - el vigilante corre cada 100 ms, y el motor manda un latido a Flutter cada 1000 ms.
+- **Flutter: edad efectiva y Tstale = 750 ms.**
+  - **Solo una consulta muestra un rostro.** `getFaceAnalysis(token)` es asíncrona: Kotlin crea la respuesta en el hilo de análisis al atenderla. Dart pone en marcha un cronómetro monotónico (`clock.stopwatch()`) justo antes de llamar y calcula: edad efectiva = `resultAgeMs` + tiempo completo de la consulta. Puede sobreestimar la edad, porque incluye la ida y la vuelta del puente, pero nunca la rejuvenece. **No se comparan relojes de Dart y Android.**
+  - Con edad efectiva > 750 ms, el resultado no se muestra. Si se acepta, su vigencia restante es `750 − edad efectiva`, contada en Dart desde la respuesta; al agotarse, «El último resultado caducó y ya no se muestra».
+  - Un mensaje del mismo `resultId` nunca alarga ese plazo: se queda el menor de los conocidos. Como `resultId` crece dentro de la apertura, un resultado caducado, sustituido o anterior al mostrado no vuelve a mostrarse. El retiro es conservador: se basa en una sobreestimación de la edad.
+  - **Avisos sin consulta** (`onFaceAnalysis`, por `main.post` y el canal): su demora no tiene cota y no se puede medir sin sincronizar relojes. Por eso una detección avisada **nunca** se muestra: solo dispara una consulta. Los estados que no afirman la presencia de nadie (cargando, esperando, errores, detenido) sí se aceptan del aviso, en orden.
+  - Con la cámara abierta, Dart consulta cada **200 ms** (experimental, menor que Tstale), para que un rostro estable no se interrumpa entre avisos. Una consulta sin respuesta durante más de 750 ms se abandona, porque su respuesta ya llegaría caducada, y no bloquea las siguientes.
+- **Flutter, 3000 ms: límite de silencio del motor.** Sin avisos ni respuestas durante 3000 ms, se declara silencio. **No** autoriza a mostrar un rostro durante ese tiempo: la vigencia de un rostro la fija Tstale.
 - **Edad medida.** Va desde la entrega al analizador, no desde la captura. No se demostró la conversión entre el reloj del sensor (`ImageInfo.timestamp`) y `elapsedRealtime` (Área 05 §4), así que la latencia de captura a entrega no se incluye.
 - **Gmax (150 ms)** no se usa: sin continuidad de medición no hay nada que cortar.
 
@@ -355,7 +359,60 @@ Además se corrigieron dos pruebas propias que emitían el **mismo** resultado c
 - AVD sin cambios: `config.ini` con el mismo SHA-256.
 - Evidencia en `D:\dev\vigia-entrega\evidencia-fase5b\09_correccion_p1\`; captura `capturas\fase5b\09_correccion_p1_rostro_detectado.png`.
 
-**Observación de la revisión no corregida aquí** (se pidió corregir solo los P1): `MediaPipeFaceEngine.detectAsync` no cierra explícitamente el `MPImage` de entrada, aunque el `Bitmap` subyacente sí se recicla; y el `MPImage` del listener se cierra fuera de un `finally`. Codex no lo presenta como una fuga observada. Queda pendiente.
+**Observación de la revisión no corregida aquí** (se pidió corregir solo los P1): `MediaPipeFaceEngine.detectAsync` no cierra explícitamente el `MPImage` de entrada, aunque el `Bitmap` subyacente sí se recicla; y el `MPImage` del listener se cierra fuera de un `finally`. En la segunda revisión, Codex examinó el bytecode y el código nativo (copia con `memcpy` antes de volver) y no encontró ninguna fuga ni liberación prematura reproducible. Queda como mejora de robustez, no como defecto.
+
+## Segunda corrección (P1)
+
+**Dictamen sobre `c5c0503`: desfavorable** por otros dos P1 de vigencia. Reproducciones de Codex en `build/review-fase5b-p1/`:
+
+- `review_transport_delay_test.dart`: puente Pigeon real, mensaje retenido 5000 ms;
+- `ReviewCoreResidual.kt`: latido a 2051 ms con un resultado de 751 ms.
+
+1. **Kotlin publicaba en un latido un resultado de más de 750 ms.**
+   - Problema: la edad solo se comprobaba al aceptar la inferencia. Cuadro 1300, aceptación 1950 (650 ms), latido 2051: se anunciaba `ONE_FACE` (o 0 o 2 rostros) con «650 ms», cuando tenía 751.
+   - Corrección: la edad y el silencio se reevalúan con el reloj actual al crear cada mensaje y al leer el estado, y `resultAgeMs` es la edad actual (ver «Política de caducidad»).
+2. **Flutter perdía la demora del puente.**
+   - Problema: un mensaje retenido 5000 ms con `resultAgeMs=40` se mostraba como vigente, y el plazo de 3000 ms empezaba a su llegada.
+   - Corrección: edad efectiva = `resultAgeMs` + tiempo completo de la consulta; un aviso nunca muestra un rostro; el límite de 3000 ms es solo de silencio (ver «Política de caducidad»).
+   - El contrato añade la consulta `getFaceAnalysis` y cambia la semántica de `resultAgeMs`; Pigeon se regeneró.
+
+Tstale sigue en 750 ms y el silencio en 3000 ms. **No se reabrió el cierre de los `MPImage`**: no hay evidencia nueva, y el análisis de Codex no encontró fuga.
+
+**Regresiones:**
+
+| Archivo | Pruebas | Qué cubren |
+|---|---|---|
+| `FacePublishAgeTest.kt` (JVM) | 4 | Reproducción de Codex en el latido para 0, 1 y 2 rostros; límite 750/751 en un latido, que informa 750 y no la edad de aceptación; lectura del estado entre ticks; control positivo con resultados frescos |
+| `FaceAnalysisCoreTest.kt` (JVM) | +2 | `snapshotNow`: edad actual, retiro al pasar de 750, numeración compartida y que la consulta no se avisa; límite de silencio 749/750 |
+| `FaceAnalysisDelayTest.kt` (JVM) | 1 sustituida | `ageKeepsCountingFromTheFrameAfterApplication`: la edad sigue contando desde el cuadro tras aplicarlo |
+| `test/camera/face_analysis_controller_test.dart` | nuevo grupo «edad efectiva y vigencia» | Reproducción de Codex (retenido 5000 ms, 0/1/2 rostros); control positivo con transporte corto y caducidad tras mostrarse (700/701 ms); límites 750/751; caducidad mientras espera en el puente (710/711 ms); latido o consulta del mismo resultado sin rejuvenecer, antes y después de caducar; un aviso de detección no se muestra sin consulta; una consulta sin respuesta no bloquea; inferencias sucesivas mantienen el rostro; descuento del tiempo durante la apertura |
+| Mismo archivo | grupo «silencio del motor» y grupo de orden | Silencio de 3000 ms con y sin respuestas, y entre aperturas; reproducciones de la primera ronda, `stopped`, aviso atrasado, generación anterior y reapertura |
+| `test/camera/face_analysis_bridge_test.dart` | 7 | **Puente Pigeon real** con el códec generado: aviso retenido 5000 ms (el motor lo informa con 5040) sin rostro, para 0/1/2; control positivo con 10 ms de puente y caducidad a los 700 ms; 711 ms de consulta sin rostro |
+
+**Detección con el código anterior** (copia temporal `git worktree` de `c5c0503`, ya eliminada):
+
+- **Dart:** fallan las 3 reproducciones de Codex con el puente real y las 4 regresiones expresables con la API anterior: retenido 5000 ms para 0/1/2 y caducidad a los 750 ms tras mostrarse.
+- **JVM:** fallan 3 de las 4 de `FacePublishAgeTest`. La cuarta es el control positivo.
+- El reproductor Kotlin de Codex, compilado con el núcleo actual en un directorio temporal, termina sin error: a 2051 ms publica `WAITING_RESULTS`.
+
+**Resultados reales:**
+
+- `dart format` y `flutter analyze` (app y plugin): sin problemas.
+- `test/camera`, los renderizados de 5A y 5B y las 5 reproducciones de Codex de ambas rondas: pasan 133. Los renderizados no cambiaron.
+- Plugin: 3 pruebas Dart y 49 JVM pasan.
+- Pigeon regenerado: `generate_pigeon.py --check` (tras preparar el commit) y `spec_registry.py check`: OK.
+- No se repitieron la suite completa, las matrices, el contraste ni los ensayos del modelo.
+
+**Comprobación dirigida CameraX → MediaPipe** (emulador, `-camera-front imagefile:` con el lienzo del caso 03; `vigia-normal-fase5b-p1b-release.apk` instalado con `adb install -r`):
+
+- el paquete instalado solo tiene `CAMERA`;
+- 0 hilos y 0 clientes de cámara tras HOME y al salir; nunca más de un análisis vivo (9 sesiones);
+- sin `FATAL` ni `TransportRuntime`; AVD sin cambios.
+- **La detección es intermitente en el emulador.** Con la vista sostenida, 18 de 20 muestras dicen «Rostro detectado» y 2 «Esperando resultados» («El último resultado caducó»). Dos de los tres pasos del ciclo de vida cayeron en «Esperando resultados».
+  - Contadores de esa sesión: 550 cuadros enviados, 545 aceptados, 4 descartados por antiguos y una edad máxima aceptada de 691 ms.
+  - Cerca de Tstale, la edad efectiva supera a veces 750 ms entre inferencias. Es el comportamiento conservador exigido: no se amplía el umbral para disimularlo.
+  - El volcado de `uiautomator` añade carga al emulador. En D1 no se ha medido.
+- Evidencia en `D:\dev\vigia-entrega\evidencia-fase5b\10_correccion_p1b\` (`pasos.txt`, `logcat.txt`, `muestreo.txt`); captura `capturas\fase5b\10_correccion_p1b_rostro_detectado.png`.
 
 ## APK (release, firmados con la clave de depuración)
 
@@ -364,8 +421,9 @@ Además se corrigieron dos pruebas propias que emitían el **mismo** resultado c
 | Normal `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5b-release.apk` | 94 270 965 | `639328dedc4658035781411111b1dc12f88c616ef1a93fe5c4c88376d244b9b0` |
 | DEMO `com.juanrueda.vigia.demo` | `D:\dev\vigia-entrega\vigia-demo-fase5b-release.apk` | 58 480 726 | `e565f16e2fc50f805520e70ff38c1c213656814109254430830396849c16d94a` |
 | **Normal corregido (P1)** `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5b-p1-release.apk` | 94 270 965 | `e525db8a088035a2e1324e1d307de85f381fb8a49fd952024be194c1abacc51b` |
+| **Normal, segunda corrección (P1)** `com.juanrueda.vigia` | `D:\dev\vigia-entrega\vigia-normal-fase5b-p1b-release.apk` | 94 270 965 | `2f435d49c2e34d94b524671acf222734b745fec6d0548e938cdd68272b7deaf1` |
 
-El APK DEMO no se recompiló en la corrección. Los cambios afectan al análisis facial de la variante normal y al contrato del plugin, que la DEMO no ejecuta, así que el APK DEMO de la tabla no incluye este código.
+El APK DEMO no se recompiló en ninguna de las dos correcciones. Los cambios afectan al análisis facial de la variante normal y al contrato del plugin, que la DEMO no ejecuta, así que el APK DEMO de la tabla no incluye este código.
 
 - Los APK anteriores se conservan.
 - Hashes añadidos a `D:\dev\vigia-entrega\SHA256SUMS.txt`.
@@ -375,7 +433,7 @@ El APK DEMO no se recompiló en la corrección. Los cambios afectan al análisis
 
 - **D1 y cualquier cámara física:**
   - rostro real;
-  - latencia en el teléfono: en el emulador, la edad máxima aceptada fue de 355 a 582 ms, cerca de Tstale;
+  - latencia en el teléfono: en el emulador, la edad máxima aceptada fue de 355 a 691 ms, cerca de Tstale. Con la vigencia estricta de la segunda corrección, la detección es intermitente en el emulador (2 de 20 muestras «Esperando resultados»); en D1 no se ha medido;
   - consumo y calor;
   - giro y espejo con un sensor real;
   - dos rostros por la cámara;

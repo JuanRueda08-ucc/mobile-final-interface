@@ -477,4 +477,40 @@ internal class FaceAnalysisCoreTest {
         assertEquals(FacePresenceStatus.ONE_FACE, h.last.status)
         assertTrue(h.last.resultId!! > published)
     }
+
+    /** Consulta de Flutter: estado creado ahora, con la edad de este instante. */
+    @Test
+    fun snapshotNow_reportsCurrentAgeAndRetiresStaleResults() {
+        val h = Harness()
+        h.core.start()
+        val ts = h.frame()
+        h.nowMs += 100
+        h.result(ts, 1)
+        val published = h.published.size
+        h.nowMs += 200 // edad 300
+        val fresh = h.core.snapshotNow()
+        assertEquals(FacePresenceStatus.ONE_FACE, fresh.status)
+        assertEquals(300, fresh.resultAgeMs)
+        assertTrue(fresh.sequence > h.last.sequence)
+        assertEquals(published, h.published.size) // la consulta no se avisa
+        h.nowMs += 451 // edad 751
+        val stale = h.core.snapshotNow()
+        assertEquals(FacePresenceStatus.WAITING_RESULTS, stale.status)
+        assertTrue(stale.expired)
+        assertNull(stale.resultId)
+        assertNull(stale.resultAgeMs)
+        assertTrue(stale.sequence > fresh.sequence)
+    }
+
+    @Test
+    fun snapshotNow_boundary750IsCurrent() {
+        val h = Harness()
+        h.core.start()
+        val ts = h.frame()
+        h.result(ts, 0)
+        h.nowMs += 749 // silencio 749 (< 750) y edad 749
+        assertEquals(FacePresenceStatus.NO_FACE, h.core.snapshotNow().status)
+        h.nowMs += 1 // silencio 750: caduca
+        assertEquals(FacePresenceStatus.WAITING_RESULTS, h.core.snapshotNow().status)
+    }
 }

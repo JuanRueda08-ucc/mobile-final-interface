@@ -24,7 +24,9 @@ import com.juanrueda.monitoring_engine.face.FaceAnalysisSession
 import com.juanrueda.monitoring_engine.face.FacePresence
 import io.flutter.view.TextureRegistry
 import java.util.concurrent.Executor
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -184,6 +186,18 @@ internal class FrontCameraPreview(
         camera.cameraInfo.cameraState.observeForever(a.stateObserver)
         // El modelo se carga en el hilo de análisis mientras la cámara abre.
         analysis.start()
+    }
+
+    /**
+     * Estado del análisis facial de [token] creado ahora en su hilo de
+     * análisis; nulo si [token] no es la apertura vigente o ya se cerró.
+     */
+    suspend fun queryAnalysis(token: Long): FacePresence? {
+        val a = active?.takeIf { it.token == token && gate.isCurrent(token) } ?: return null
+        val analysis = a.analysis ?: return null
+        return suspendCancellableCoroutine { cont ->
+            analysis.query { presence -> main.post { if (cont.isActive) cont.resume(presence) } }
+        }
     }
 
     /**

@@ -12,6 +12,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.juanrueda.monitoring_engine.CameraPermissionStatus
+import com.juanrueda.monitoring_engine.FaceAnalysisSnapshot
+import com.juanrueda.monitoring_engine.toPigeon
 import com.juanrueda.monitoring_engine.FrontCameraHostApi
 import com.juanrueda.monitoring_engine.PreviewCloseReason
 import com.juanrueda.monitoring_engine.PreviewOpenResult
@@ -137,6 +139,9 @@ internal class FrontCameraHost(
     }
 
     override fun restartFaceAnalysis(token: Long): Boolean = preview.restartAnalysis(token)
+
+    override suspend fun getFaceAnalysis(token: Long): FaceAnalysisSnapshot? =
+        preview.queryAnalysis(token)?.toPigeon()
 
     private companion object {
         // Código propio de la solicitud CAMERA de este plugin.

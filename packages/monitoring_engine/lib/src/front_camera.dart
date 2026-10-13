@@ -31,6 +31,10 @@ abstract interface class FrontCameraBridge {
 
   /// Recarga el modelo y reinicia el análisis de [token] tras un error.
   Future<bool> restartFaceAnalysis(int token);
+
+  /// Estado del análisis de [token] creado por el motor al responder; nulo si
+  /// [token] ya no es la apertura vigente.
+  Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token);
 }
 
 /// [FrontCameraBridge] sobre los mensajes generados por Pigeon.
@@ -71,6 +75,10 @@ class PigeonFrontCameraBridge implements FrontCameraBridge {
   @override
   Future<bool> restartFaceAnalysis(int token) =>
       _host.restartFaceAnalysis(token);
+
+  @override
+  Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token) =>
+      _host.getFaceAnalysis(token);
 }
 
 class _Events implements FrontCameraFlutterApi {

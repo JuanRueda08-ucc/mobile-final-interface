@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +92,7 @@ class FrontCameraState {
     this.bridgeFailure = false,
     this.face,
     this.faceSilent = false,
+    this.faceStale = false,
   });
 
   final CameraCheckPhase phase;
@@ -112,9 +114,13 @@ class FrontCameraState {
   final FaceAnalysisSnapshot? face;
 
   /// `true` si Flutter lleva [FrontCameraController.faceSilenceLimit] sin
-  /// noticias del análisis: el último resultado deja de mostrarse como
-  /// vigente aunque el motor no haya podido avisar.
+  /// noticias del motor (ni avisos ni respuestas a consultas).
   final bool faceSilent;
+
+  /// `true` si el resultado facial dejó de ser vigente en Flutter: su edad
+  /// efectiva (edad en el motor + tiempo de la consulta + tiempo desde que
+  /// llegó) alcanzó Tstale, o llegó ya caducado.
+  final bool faceStale;
 
   bool get permissionGranted => permission == CameraPermissionStatus.granted;
 
@@ -128,10 +134,11 @@ class FrontCameraState {
           ? FacePresencePhase.waitingResults
           : FacePresencePhase.loadingModel;
     }
+    final vigente = !faceSilent && !faceStale;
     return switch (f.status) {
-      FaceAnalysisStatus.noFace when !faceSilent => FacePresencePhase.noFace,
-      FaceAnalysisStatus.oneFace when !faceSilent => FacePresencePhase.oneFace,
-      FaceAnalysisStatus.multipleFaces when !faceSilent =>
+      FaceAnalysisStatus.noFace when vigente => FacePresencePhase.noFace,
+      FaceAnalysisStatus.oneFace when vigente => FacePresencePhase.oneFace,
+      FaceAnalysisStatus.multipleFaces when vigente =>
         FacePresencePhase.multipleFaces,
       FaceAnalysisStatus.loadingModel => FacePresencePhase.loadingModel,
       FaceAnalysisStatus.modelError => FacePresencePhase.modelError,
@@ -144,11 +151,12 @@ class FrontCameraState {
   /// El último resultado caducó en el motor o Flutter dejó de recibirlo.
   bool get faceExpired =>
       facePhase == FacePresencePhase.waitingResults &&
-      (faceSilent || (face?.expired ?? false));
+      (faceSilent || faceStale || (face?.expired ?? false));
 
   FrontCameraState withFace(
     FaceAnalysisSnapshot? face, {
     bool silent = false,
+    bool stale = false,
   }) => FrontCameraState(
     phase: phase,
     permission: permission,
@@ -157,6 +165,7 @@ class FrontCameraState {
     bridgeFailure: bridgeFailure,
     face: face,
     faceSilent: silent,
+    faceStale: stale,
   );
 }
 
@@ -187,38 +196,74 @@ final frontCameraProvider =
 /// - Fase 5B: solo se aceptan resultados faciales del token vigente, en
 ///   orden (`sequence` creciente, `generation` que no retrocede). Tras
 ///   `stopped`, ningún mensaje de esa apertura reactiva el análisis.
-/// - La vigencia de una observación no se renueva por recibir mensajes: solo
-///   una inferencia nueva (`resultId` distinto) reinicia el plazo de
-///   [faceSilenceLimit]. Un latido o un mensaje repetido con el mismo
-///   `resultId` mantiene vivo el canal, pero no rejuvenece el resultado. No se
-///   comparan relojes de Dart y Android: el plazo se mide en Dart desde que
-///   llegó esa inferencia.
+/// - **Un rostro solo se muestra a partir de una consulta**
+///   ([FrontCameraBridge.queryFaceAnalysis]), cuya demora se mide en Dart:
+///   edad efectiva = `resultAgeMs` (edad en el motor al crear la respuesta)
+///   + tiempo completo de la consulta, medido con un cronómetro monotónico
+///   iniciado antes de llamar. Sobreestima la edad; nunca la rejuvenece. No
+///   se comparan relojes de Dart y Android.
+/// - Si la edad efectiva supera [faceStaleAfter], el resultado no se muestra.
+///   Si no, sigue vigente solo `faceStaleAfter − edad efectiva`. Un mensaje
+///   con el mismo `resultId` nunca alarga ese plazo.
+/// - Los avisos del motor ([FrontCameraBridge.faceAnalysis]) tienen una
+///   demora sin cota: nunca muestran un rostro. Una detección avisada solo
+///   dispara una consulta; los demás estados (cargando, esperando, errores,
+///   detenido) sí se aceptan, porque no afirman la presencia de nadie.
+///   Además, con la cámara abierta se consulta cada [facePollInterval].
+/// - [faceSilenceLimit] es el límite de silencio del motor (sin avisos ni
+///   respuestas), no un plazo de vigencia de un rostro.
 class FrontCameraController extends Notifier<FrontCameraState> {
   static int _tokenSeq = 0;
 
-  /// Silencio máximo del análisis antes de dejar de mostrar su último
-  /// resultado: 3000 ms, propuesta de transporte de Área 04 §9
-  /// (experimental). No sustituye a Tstale, que aplica el motor.
+  /// Silencio máximo del motor (sin avisos ni respuestas): 3000 ms,
+  /// propuesta de transporte de Área 04 §9 (experimental).
   static const faceSilenceLimit = Duration(milliseconds: 3000);
+
+  /// Tstale (Área 05 §7, experimental): edad efectiva máxima de un resultado
+  /// facial para mostrarlo. Igual a 750 ms sigue vigente; más, no.
+  static const faceStaleAfter = Duration(milliseconds: 750);
+
+  /// Periodo de consulta con la cámara abierta (experimental). Menor que
+  /// Tstale para que un rostro estable no se interrumpa entre inferencias.
+  static const facePollInterval = Duration(milliseconds: 200);
 
   /// Último resultado facial aceptado del token vigente, aunque llegue durante
   /// la apertura (antes de que la cámara esté disponible).
   FaceAnalysisSnapshot? _face;
-  Timer? _faceWatchdog;
   bool _restartingFace = false;
 
-  /// Orden de los mensajes de la apertura vigente (ver [_onFace]).
+  /// Orden de los mensajes de la apertura vigente (ver [_accept]).
   int _faceSequence = 0;
   int _faceGeneration = 0;
 
   /// La apertura vigente informó `stopped`: es definitivo.
   bool _faceStopped = false;
 
-  /// Inferencia cuyo plazo de [faceSilenceLimit] está corriendo.
-  int? _faceArmedResultId;
-
-  /// Venció el plazo sin una inferencia nueva.
+  /// Silencio del motor.
+  Timer? _silenceTimer;
   bool _faceSilent = false;
+
+  /// Vigencia del resultado facial mostrado: cuánto le quedaba al aceptarlo
+  /// y un cronómetro monotónico (`clock.stopwatch`) desde entonces.
+  int? _vigenteResultId;
+
+  /// `resultId` crece dentro de la apertura: ningún resultado con un id menor
+  /// o igual a este (caducado o sustituido por un estado sin rostro) vuelve
+  /// a mostrarse.
+  int _retiredUpTo = 0;
+  Duration? _vigenteLeft;
+  Stopwatch? _vigenteWatch;
+  Timer? _vigenciaTimer;
+  bool _faceStale = false;
+
+  /// Consultas: una a la vez; otra pendiente si se pidió durante ella. Una
+  /// consulta sin respuesta durante más de [faceStaleAfter] se abandona (su
+  /// respuesta ya llegaría caducada) para no bloquear las siguientes.
+  Timer? _pollTimer;
+  int _queryId = 0;
+  int? _inFlightQuery;
+  Stopwatch? _inFlightWatch;
+  bool _queryAgain = false;
 
   var _generation = 0;
   var _visible = false;
@@ -437,42 +482,180 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       errorCode: result.errorCode,
       face: available ? _face : null,
       faceSilent: available && _faceSilent,
+      faceStale: available && _faceStale,
     );
-    // Sin ningún mensaje aún, el plazo empieza al abrir; si ya llegó alguno,
-    // sigue corriendo desde su llegada.
-    if (available && _faceWatchdog == null) _armFaceWatchdog(null);
+    if (available) {
+      // Sin ningún mensaje aún, el silencio empieza al abrir; si ya llegó
+      // alguno, sigue corriendo desde su llegada.
+      _silenceTimer ??= _startSilenceTimer();
+      _pollTimer = Timer.periodic(facePollInterval, (_) => _queryFace());
+      _queryFace();
+    }
   }
 
-  /// Resultado facial del motor.
-  ///
-  /// Se descartan: otra apertura; cualquier mensaje tras `stopped` de esta
-  /// apertura; un `sequence` ya visto o menor (repetido o atrasado); una
-  /// `generation` anterior a la última aceptada.
-  ///
-  /// Un mensaje aceptado reinicia el plazo de vigencia solo si trae noticia
-  /// para la vigencia: un estado que no es una detección, o una detección con
-  /// un `resultId` nuevo. Un latido de la misma inferencia no la rejuvenece.
+  /// Aviso del motor. Su demora no tiene cota: una detección avisada solo
+  /// dispara una consulta y nunca se muestra; los demás estados se aceptan
+  /// (ver [_accept]).
   void _onFace(FaceAnalysisSnapshot snapshot) {
     if (snapshot.token != _token || !ref.mounted || _faceStopped) return;
+    if (_isDetection(snapshot.status)) {
+      _queryFace();
+      return;
+    }
+    _accept(snapshot, effectiveAge: null);
+  }
+
+  /// Consulta el estado al motor y mide en Dart el tiempo completo de la
+  /// consulta, con un cronómetro monotónico iniciado antes de llamar. Una a
+  /// la vez; otra petición durante ella se encadena.
+  Future<void> _queryFace() async {
+    final token = _token;
+    if (token == null || !ref.mounted || _faceStopped) return;
+    final pending = _inFlightWatch;
+    if (_inFlightQuery != null &&
+        pending != null &&
+        pending.elapsed <= faceStaleAfter) {
+      _queryAgain = true;
+      return;
+    }
+    final id = ++_queryId;
+    final watch = clock.stopwatch()..start();
+    _inFlightQuery = id;
+    _inFlightWatch = watch;
+    FaceAnalysisSnapshot? answer;
+    try {
+      answer = await _bridge.queryFaceAnalysis(token);
+    } catch (e) {
+      debugPrint('Vigía · consulta del análisis $token no respondida: $e');
+    }
+    watch.stop();
+    if (_inFlightQuery == id) {
+      _inFlightQuery = null;
+      _inFlightWatch = null;
+    }
+    if (!ref.mounted || _token != token) return;
+    if (answer != null && answer.token == token) {
+      final age = answer.resultAgeMs;
+      _accept(
+        answer,
+        effectiveAge: age == null
+            ? null
+            : Duration(milliseconds: age) + watch.elapsed,
+      );
+    }
+    if (_queryAgain && _inFlightQuery == null) {
+      _queryAgain = false;
+      unawaited(_queryFace());
+    }
+  }
+
+  /// Acepta un mensaje del motor, en orden.
+  ///
+  /// Se descartan: cualquier mensaje tras `stopped` de esta apertura; un
+  /// `sequence` ya visto o menor (repetido o atrasado); una `generation`
+  /// anterior a la última aceptada. Una detección solo llega aquí desde una
+  /// consulta, con su [effectiveAge]; sin ella, no se muestra.
+  void _accept(
+    FaceAnalysisSnapshot snapshot, {
+    required Duration? effectiveAge,
+  }) {
+    if (_faceStopped) return;
     if (snapshot.sequence <= _faceSequence) return;
     if (snapshot.generation < _faceGeneration) return;
     _faceSequence = snapshot.sequence;
     _faceGeneration = snapshot.generation;
     _face = snapshot;
+    // Noticia del motor: reinicia el límite de silencio.
+    _faceSilent = false;
+    _silenceTimer?.cancel();
+    _silenceTimer = _startSilenceTimer();
     if (snapshot.status == FaceAnalysisStatus.stopped) {
       _faceStopped = true;
-      _faceWatchdog?.cancel();
+      _silenceTimer?.cancel();
+      _pollTimer?.cancel();
+      _setStale(false);
+    } else if (_isDetection(snapshot.status)) {
+      _applyVigencia(snapshot.resultId, effectiveAge);
     } else {
-      final detection = _isDetection(snapshot.status);
-      final id = snapshot.resultId;
-      final news = !detection || (id != null && id != _faceArmedResultId);
-      if (news) {
-        _faceSilent = false;
-        _armFaceWatchdog(detection ? id : null);
-      }
+      _clearVigencia();
     }
-    if (state.phase != CameraCheckPhase.available) return;
-    state = state.withFace(snapshot, silent: _faceSilent);
+    _publishFace();
+  }
+
+  /// Calcula cuánto le queda al resultado. Con el mismo `resultId`, el
+  /// plazo es el menor de los conocidos: nunca se alarga.
+  void _applyVigencia(int? resultId, Duration? effectiveAge) {
+    if (resultId == null || effectiveAge == null) {
+      _clearVigencia();
+      _setStale(true);
+      return;
+    }
+    final current = _vigenteResultId;
+    if (resultId <= _retiredUpTo || (current != null && resultId < current)) {
+      // Caducado, retirado o anterior al mostrado: no revive.
+      _setStale(true);
+      return;
+    }
+    final remaining = faceStaleAfter - effectiveAge;
+    final sameResult = resultId == current;
+    // Con el mismo resultado, lo que le quede nunca supera lo ya conocido.
+    final known = sameResult ? _vigenteLeftNow() : null;
+    final left = known != null && known < remaining ? known : remaining;
+    _vigenteResultId = resultId;
+    _vigenteLeft = left;
+    _vigenteWatch = clock.stopwatch()..start();
+    _vigenciaTimer?.cancel();
+    if (left.isNegative) {
+      _retire(resultId);
+      return;
+    }
+    _setStale(false);
+    // Vigente mientras edad ≤ Tstale: caduca justo después del límite.
+    _vigenciaTimer = Timer(left + const Duration(microseconds: 1), () {
+      if (!ref.mounted) return;
+      _retire(resultId);
+      _publishFace();
+    });
+  }
+
+  /// Vigencia que le queda ahora al resultado mostrado.
+  Duration? _vigenteLeftNow() {
+    final left = _vigenteLeft;
+    final watch = _vigenteWatch;
+    if (left == null || watch == null) return null;
+    return left - watch.elapsed;
+  }
+
+  /// El resultado [resultId] dejó de ser vigente para siempre.
+  void _retire(int resultId) {
+    if (resultId > _retiredUpTo) _retiredUpTo = resultId;
+    _setStale(true);
+  }
+
+  void _clearVigencia() {
+    final shown = _vigenteResultId;
+    if (shown != null && shown > _retiredUpTo) _retiredUpTo = shown;
+    _vigenciaTimer?.cancel();
+    _vigenciaTimer = null;
+    _vigenteLeft = null;
+    _vigenteWatch = null;
+    _setStale(false);
+  }
+
+  void _setStale(bool stale) => _faceStale = stale;
+
+  Timer _startSilenceTimer() {
+    final token = _token;
+    return Timer(faceSilenceLimit, () {
+      if (!ref.mounted || token == null || _token != token) return;
+      _faceSilent = true;
+      _publishFace();
+    });
+  }
+
+  void _publishFace() {
+    if (!ref.mounted || state.phase != CameraCheckPhase.available) return;
+    state = state.withFace(_face, silent: _faceSilent, stale: _faceStale);
   }
 
   static bool _isDetection(FaceAnalysisStatus s) =>
@@ -480,30 +663,26 @@ class FrontCameraController extends Notifier<FrontCameraState> {
       s == FaceAnalysisStatus.oneFace ||
       s == FaceAnalysisStatus.multipleFaces;
 
-  /// Vigilancia de Flutter: si en [faceSilenceLimit] no llega una inferencia
-  /// nueva (o una noticia que no sea una detección), el último resultado deja
-  /// de mostrarse como vigente.
-  void _armFaceWatchdog(int? resultId) {
-    _faceWatchdog?.cancel();
-    _faceArmedResultId = resultId;
-    final token = _token;
-    _faceWatchdog = Timer(faceSilenceLimit, () {
-      if (!ref.mounted || token == null || _token != token) return;
-      _faceSilent = true;
-      if (state.phase != CameraCheckPhase.available) return;
-      state = state.withFace(_face, silent: true);
-    });
-  }
-
   void _resetFace() {
     _face = null;
-    _faceWatchdog?.cancel();
-    _faceWatchdog = null;
+    _silenceTimer?.cancel();
+    _silenceTimer = null;
+    _vigenciaTimer?.cancel();
+    _vigenciaTimer = null;
+    _pollTimer?.cancel();
+    _pollTimer = null;
     _faceSequence = 0;
     _faceGeneration = 0;
     _faceStopped = false;
-    _faceArmedResultId = null;
     _faceSilent = false;
+    _faceStale = false;
+    _vigenteResultId = null;
+    _retiredUpTo = 0;
+    _vigenteLeft = null;
+    _vigenteWatch = null;
+    _inFlightQuery = null;
+    _inFlightWatch = null;
+    _queryAgain = false;
   }
 
   void _onClosed(PreviewClosedEvent event) {

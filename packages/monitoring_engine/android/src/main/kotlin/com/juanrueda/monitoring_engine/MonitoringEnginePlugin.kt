@@ -110,7 +110,7 @@ class MonitoringEnginePlugin :
     }
 }
 
-private fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
+internal fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
     token = token,
     sequence = sequence,
     generation = generation,

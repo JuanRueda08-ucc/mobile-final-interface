@@ -168,9 +168,10 @@ class FaceAnalysisSnapshot {
   /// solo un valor nuevo es una inferencia nueva.
   int? resultId;
 
-  /// Edad del resultado al aceptarlo en el motor: desde la entrega del cuadro
-  /// al analizador hasta su aplicación en el hilo de análisis, en ms. No
-  /// crece en los latidos; la vigencia la decide el motor con Tstale.
+  /// Edad del resultado **al crear este mensaje** en el motor: reloj
+  /// monotónico de Android en ese instante menos la entrega del cuadro al
+  /// analizador, en ms. No incluye el tiempo del puente: Flutter lo suma
+  /// cuando el mensaje responde a [FrontCameraHostApi.getFaceAnalysis].
   int? resultAgeMs;
 
   /// Rostros como máximo que busca el detector.
@@ -237,6 +238,14 @@ abstract class FrontCameraHostApi {
   /// Vuelve a cargar el modelo y reinicia el análisis facial de [token] tras
   /// un error. `false` si [token] no es la apertura vigente.
   bool restartFaceAnalysis(int token);
+
+  /// Estado del análisis facial de [token], creado en el hilo de análisis en
+  /// el momento de responder (su `resultAgeMs` es la edad en ese instante).
+  /// Nulo si [token] no es la apertura vigente. Es la única vía por la que
+  /// Flutter acepta un rostro como vigente: mide en Dart el tiempo completo
+  /// de esta consulta y lo suma a `resultAgeMs`.
+  @async
+  FaceAnalysisSnapshot? getFaceAnalysis(int token);
 }
 
 /// Avisos de Kotlin hacia Flutter.
@@ -246,5 +255,7 @@ abstract class FrontCameraFlutterApi {
   void onPreviewClosed(PreviewClosedEvent event);
 
   /// Nuevo estado del análisis facial, o latido periódico con el vigente.
+  /// Su demora no se puede acotar: Flutter no muestra un rostro a partir de
+  /// este aviso; ante una detección, consulta [FrontCameraHostApi.getFaceAnalysis].
   void onFaceAnalysis(FaceAnalysisSnapshot snapshot);
 }

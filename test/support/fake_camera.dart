@@ -147,12 +147,61 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   /// Último `sequence` emitido por el doble (todas las aperturas).
   int _sequence = 0;
 
+  /// Estado actual del «motor» por apertura: lo que respondería una consulta.
+  final engineState = <int, FaceAnalysisSnapshot>{};
+
+  /// Retiene las respuestas a consultas en [pendingQueries] (demora del
+  /// puente). La respuesta se crea al consultar, como en el motor.
+  bool holdQueries = false;
+  final pendingQueries =
+      <(Completer<FaceAnalysisSnapshot?>, FaceAnalysisSnapshot?)>[];
+  Object? queryError;
+
+  @override
+  Future<FaceAnalysisSnapshot?> queryFaceAnalysis(int token) {
+    calls.add('query:$token');
+    if (queryError != null) return Future.error(queryError!);
+    final current = engineState[token];
+    final answer = current == null
+        ? null
+        : face(
+            token,
+            current.status,
+            faceCount: current.faceCount,
+            expired: current.expired,
+            errorCode: current.errorCode,
+            generation: current.generation,
+            sequence: ++_sequence,
+            resultId: current.resultId,
+            resultAgeMs: current.resultAgeMs,
+          );
+    if (holdQueries) {
+      final c = Completer<FaceAnalysisSnapshot?>();
+      pendingQueries.add((c, answer));
+      return c.future;
+    }
+    return Future.value(answer);
+  }
+
+  /// Entrega las respuestas retenidas (creadas cuando se consultó).
+  void releaseQueries() {
+    final pending = List.of(pendingQueries);
+    pendingQueries.clear();
+    for (final (c, answer) in pending) {
+      c.complete(answer);
+    }
+  }
+
+  int get queries => calls.where((c) => c.startsWith('query:')).length;
+
   /// Resultado facial del motor para [token] (por defecto, la apertura
-  /// abierta más reciente).
+  /// abierta más reciente): actualiza [engineState] y lo avisa.
   ///
   /// [sequence] es creciente por defecto, como en el motor. En una detección,
   /// [resultId] vale 9 por defecto: emitir dos veces sin indicarlo es el
   /// mismo resultado (un latido o una repetición), no una inferencia nueva.
+  /// [resultAgeMs] es la edad que el motor informa al crear cada mensaje
+  /// (40 ms por defecto en las detecciones).
   void emitFace(
     FaceAnalysisStatus status, {
     int? token,
@@ -162,19 +211,22 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     int generation = 1,
     int? sequence,
     int? resultId,
+    int? resultAgeMs,
   }) {
-    _faces.add(
-      face(
-        token ?? openTokens.last,
-        status,
-        faceCount: faceCount,
-        expired: expired,
-        errorCode: errorCode,
-        generation: generation,
-        sequence: sequence ?? ++_sequence,
-        resultId: resultId,
-      ),
+    final t = token ?? openTokens.last;
+    final snapshot = face(
+      t,
+      status,
+      faceCount: faceCount,
+      expired: expired,
+      errorCode: errorCode,
+      generation: generation,
+      sequence: sequence ?? ++_sequence,
+      resultId: resultId,
+      resultAgeMs: resultAgeMs,
     );
+    engineState[t] = snapshot;
+    _faces.add(snapshot);
   }
 
   /// Entrega otra vez exactamente el mismo mensaje (mismo `sequence`).
@@ -189,6 +241,7 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     int generation = 1,
     int sequence = 1,
     int? resultId,
+    int? resultAgeMs,
   }) => FaceAnalysisSnapshot(
     token: token,
     sequence: sequence,
@@ -211,7 +264,7 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     resultAgeMs: switch (status) {
       FaceAnalysisStatus.noFace ||
       FaceAnalysisStatus.oneFace ||
-      FaceAnalysisStatus.multipleFaces => 40,
+      FaceAnalysisStatus.multipleFaces => resultAgeMs ?? 40,
       _ => null,
     },
     maxFaces: 2,

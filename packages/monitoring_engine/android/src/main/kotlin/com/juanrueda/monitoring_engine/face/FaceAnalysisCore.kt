@@ -35,6 +35,10 @@ internal data class FacePresence(
      * resultado nuevo.
      */
     val resultId: Long?,
+    /**
+     * Edad del resultado **al crear este mensaje**: reloj monotónico de ese
+     * instante menos la entrega de su cuadro al analizador. No se congela.
+     */
     val resultAgeMs: Long?,
     val maxFaces: Int,
     val staleAfterMs: Long,
@@ -103,14 +107,19 @@ internal interface FaceEngineListener {
  * ausencia de rostro: sin resultados durante Tstale ([staleAfterNs]) el estado
  * vuelve a «esperando resultados» con `expired`.
  *
- * La edad de un resultado se mide **al aplicarlo** en el hilo de análisis,
- * con el reloj monotónico de ese instante: desde la entrega de su cuadro al
- * analizador hasta ahora. Incluye la espera del aviso en la cola del hilo,
- * así que un aviso retrasado no se publica con una edad antigua. Si supera
- * Tstale, se descarta. Una marca imposible (entrega posterior a la recepción
- * o a ahora) se descarta como inválida, no como edad cero. Igualdad de edad
- * con Tstale sigue vigente; igualdad de silencio caduca (Área 05 §9.2). El
- * silencio se cuenta desde la aplicación del último resultado aceptado.
+ * La edad de un resultado es siempre `ahora − entrega de su cuadro al
+ * analizador`, con el reloj monotónico del instante en que se usa:
+ * - al **aplicarlo** en el hilo de análisis (incluye la espera del aviso en
+ *   la cola): si supera Tstale, se descarta;
+ * - al **crear cada mensaje** (cambio, latido o consulta) y al **leer el
+ *   estado**: si el resultado vigente ya tiene edad > Tstale, o silencio
+ *   ≥ Tstale desde su aplicación, se retira antes, sin esperar al vigilante.
+ *   Así ningún mensaje anuncia como vigente un resultado caducado, y
+ *   `resultAgeMs` es la edad en ese instante, no la de la aceptación.
+ *
+ * Una marca imposible (entrega posterior a la recepción o a ahora) se
+ * descarta como inválida, no como edad cero. Igualdad de edad con Tstale
+ * sigue vigente; igualdad de silencio caduca (Área 05 §9.2).
  *
  * **Un cuadro cada vez.** No se envía otro cuadro mientras el anterior no
  * tenga resultado: así ninguno espera en la cola de MediaPipe y la edad del
@@ -128,8 +137,14 @@ internal class FaceAnalysisCore<F>(
     private val heartbeatNs: Long = FaceTiming.HEARTBEAT_MS * 1_000_000,
     private val maxFaces: Int = FaceModelSpec.MAX_FACES,
 ) {
-    var status = FacePresenceStatus.LOADING_MODEL
-        private set
+    private var current = FacePresenceStatus.LOADING_MODEL
+
+    /** Estado vigente; antes de leerlo se retira un resultado caducado. */
+    val status: FacePresenceStatus
+        get() {
+            refreshVigencia(clockNs())
+            return current
+        }
     var generation = 0L
         private set
 
@@ -153,7 +168,7 @@ internal class FaceAnalysisCore<F>(
     private var lastResultTs = Long.MIN_VALUE
 
     private var faceCount: Int? = null
-    private var resultAgeNs: Long? = null
+    private var lastAcceptedEntryNs = 0L
     private var lastAcceptedAppliedNs = 0L
     private var resultId: Long? = null
     private var sequence = 0L
@@ -226,7 +241,7 @@ internal class FaceAnalysisCore<F>(
     }
 
     /** Hay un detector listo: merece la pena convertir el siguiente cuadro. */
-    val acceptsFrames: Boolean get() = !stopped && engine != null && status.acceptsFrames
+    val acceptsFrames: Boolean get() = !stopped && engine != null && current.acceptsFrames
 
     /** Cuadro descartado antes de convertirlo (sin detector listo o conversión fallida). */
     fun dropFrame() {
@@ -240,7 +255,7 @@ internal class FaceAnalysisCore<F>(
      */
     fun submit(frame: F, rotationDegrees: Int, entryNs: Long, width: Int, height: Int): Boolean {
         val e = engine
-        if (stopped || e == null || !status.acceptsFrames) {
+        if (stopped || e == null || !current.acceptsFrames) {
             framesDropped++
             return false
         }
@@ -278,13 +293,40 @@ internal class FaceAnalysisCore<F>(
     fun tick() {
         if (stopped) return
         val now = clockNs()
-        if (status.isDetection && now - lastAcceptedAppliedNs >= staleAfterNs) {
-            clearResult()
-            expired = true
-            setStatus(FacePresenceStatus.WAITING_RESULTS)
-            return
-        }
+        if (refreshVigencia(now)) return
         if (isHeartbeatDue(now)) publishNow()
+    }
+
+    /**
+     * Resultado compacto creado ahora, para responder a una consulta de
+     * Flutter. Comparte la numeración de los mensajes (`sequence`) y no se
+     * envía por el aviso. Antes de crearlo se retira un resultado caducado.
+     */
+    fun snapshotNow(): FacePresence {
+        val now = clockNs()
+        expireInPlace(now)
+        return build(now)
+    }
+
+    /** El resultado vigente ya no lo es: edad > Tstale o silencio ≥ Tstale. */
+    private fun isStale(now: Long): Boolean =
+        current.isDetection &&
+            (now - lastAcceptedEntryNs > staleAfterNs || now - lastAcceptedAppliedNs >= staleAfterNs)
+
+    /** Retira un resultado caducado sin publicar. `true` si lo retiró. */
+    private fun expireInPlace(now: Long): Boolean {
+        if (stopped || !isStale(now)) return false
+        clearResult()
+        expired = true
+        current = FacePresenceStatus.WAITING_RESULTS
+        return true
+    }
+
+    /** Retira un resultado caducado y lo avisa. `true` si lo retiró. */
+    private fun refreshVigencia(now: Long): Boolean {
+        if (!expireInPlace(now)) return false
+        publishNow()
+        return true
     }
 
     /** Termina el análisis y libera el detector. Definitivo. */
@@ -300,7 +342,7 @@ internal class FaceAnalysisCore<F>(
     }
 
     private fun onEngineResult(gen: Long, ts: Long, count: Int, receivedNs: Long) {
-        if (stopped || gen != generation || !status.acceptsFrames) return
+        if (stopped || gen != generation || !current.acceptsFrames) return
         if (inFlightTs?.let { ts >= it } == true) inFlightTs = null
         val entryNs = pending[ts]
         // Los cuadros anteriores sin resultado ya no lo tendrán (el limitador
@@ -325,9 +367,10 @@ internal class FaceAnalysisCore<F>(
             return
         }
         maxAcceptedAgeMs = maxOf(maxAcceptedAgeMs, age / 1_000_000)
-        val previous = status to faceCount
+        expireInPlace(now)
+        val previous = current to faceCount
         faceCount = count
-        resultAgeNs = age
+        lastAcceptedEntryNs = entryNs
         lastAcceptedAppliedNs = now
         expired = false
         resultsAccepted++
@@ -337,7 +380,7 @@ internal class FaceAnalysisCore<F>(
             count == 1 -> FacePresenceStatus.ONE_FACE
             else -> FacePresenceStatus.MULTIPLE_FACES
         }
-        status = next
+        current = next
         // Publica también cuando no cambia el estado: es un resultado nuevo
         // (otra identidad), no un latido.
         if (previous != (next to faceCount) || isHeartbeatDue(now)) publishNow()
@@ -362,7 +405,6 @@ internal class FaceAnalysisCore<F>(
     private fun clearResult() {
         faceCount = null
         resultId = null
-        resultAgeNs = null
         expired = false
     }
 
@@ -377,21 +419,27 @@ internal class FaceAnalysisCore<F>(
     }
 
     private fun setStatus(next: FacePresenceStatus) {
-        status = next
+        current = next
         publishNow()
     }
 
+    /** Publica el estado creado ahora; antes retira un resultado caducado. */
     private fun publishNow() {
-        lastPublishNs = clockNs()
-        publish(
+        val now = clockNs()
+        expireInPlace(now)
+        lastPublishNs = now
+        publish(build(now))
+    }
+
+    private fun build(now: Long): FacePresence =
             FacePresence(
                 token = token,
                 sequence = ++sequence,
                 generation = generation,
-                status = status,
+                status = current,
                 faceCount = faceCount,
                 resultId = resultId,
-                resultAgeMs = resultAgeNs?.let { it / 1_000_000 },
+                resultAgeMs = if (current.isDetection) (now - lastAcceptedEntryNs) / 1_000_000 else null,
                 maxFaces = maxFaces,
                 staleAfterMs = staleAfterNs / 1_000_000,
                 framesSubmitted = framesSubmitted,
@@ -403,7 +451,5 @@ internal class FaceAnalysisCore<F>(
                 frameHeight = frameHeight,
                 frameRotationDegrees = frameRotation,
                 errorCode = errorCode,
-            ),
-        )
-    }
+            )
 }
