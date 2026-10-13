@@ -24,6 +24,16 @@ internal data class EyeObservation(
     val earRight: Double? get() = measurement?.earRight
     val earLeft: Double? get() = measurement?.earLeft
 
+    /** Revalida al usar la observación, incluida cualquier espera por el cerrojo. */
+    fun checkedAt(nowNs: Long): EyeObservation = when {
+        tNs < 0 || receivedNs < tNs || nowNs < receivedNs ->
+            invalid(token, tNs, nowNs, QReason.INVALID_TIMESTAMP)
+        nowNs - tNs > ExperimentalProfile.T_STALE_MS * 1_000_000 ||
+            nowNs - receivedNs >= ExperimentalProfile.T_STALE_MS * 1_000_000 ->
+            invalid(token, tNs, nowNs, QReason.STALE_RESULT)
+        else -> this
+    }
+
     companion object {
         /** Construye la observación y sus motivos de Q a partir del resultado. */
         fun of(token: Long, tNs: Long, receivedNs: Long, faceCount: Int, m: EyeMeasurement?): EyeObservation {

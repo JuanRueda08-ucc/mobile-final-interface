@@ -47,6 +47,7 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
     'excessivePerspective' => 'El rostro está demasiado girado.',
     'staleResult' => 'El último resultado llegó tarde y no se usa.',
     'invalidTimestamp' => 'Resultado con una marca de tiempo no válida.',
+    'inferenceError' => 'El análisis se detuvo por un error.',
     'cameraClosed' => 'La cámara está cerrada.',
     'noResults' => 'Sin resultados del análisis.',
     'resultsDelayed' => 'Los resultados llegan con retraso.',
@@ -98,6 +99,9 @@ class _ExperimentalMonitoringScreenState
   late final FrontCameraController _camera;
   late final ExperimentalMonitoringController _exp;
   late final AppLifecycleListener _lifecycle;
+  late final ProviderSubscription<ExperimentalState> _subscription;
+  bool _observedSession = false;
+  bool _openingCamera = false;
 
   /// El resumen se muestra tras finalizar en esta visita; al volver a entrar
   /// se prepara otra sesión.
@@ -108,27 +112,43 @@ class _ExperimentalMonitoringScreenState
     super.initState();
     _camera = ref.read(frontCameraProvider.notifier);
     _exp = ref.read(experimentalMonitoringProvider.notifier);
+    _subscription = ref.listenManual(experimentalMonitoringProvider, (_, s) {
+      if (!mounted || !s.available) return;
+      if (s.sessionVigente) _observedSession = true;
+      if (_observedSession && s.lifecycle == EngineSessionLifecycle.finalized) {
+        setState(() => _showSummary = true);
+      }
+      _syncCamera(s);
+    });
     // Sin servicio en primer plano: en segundo plano la cámara se libera y
     // la sesión queda no evaluable hasta volver.
     _lifecycle = AppLifecycleListener(
-      onHide: _camera.suspend,
-      onShow: _camera.resume,
+      onHide: () {
+        _exp.leave();
+        _camera.suspend();
+      },
+      onShow: _exp.refresh,
     );
     Future.microtask(() {
       _exp.refresh();
-      _camera.enter();
     });
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
+    _subscription.close();
+    _exp.leave();
     _camera.leave();
     super.dispose();
   }
 
   Future<void> _back() async {
     final s = ref.read(experimentalMonitoringProvider);
+    if (s.pending != null || _exp.unresolvedStart) {
+      showNotice('Espera la respuesta del motor antes de salir.');
+      return;
+    }
     if (s.sessionVigente) {
       showNotice(ExperimentalMonitoringScreen.leaveBlockedNotice);
       return;
@@ -150,12 +170,12 @@ class _ExperimentalMonitoringScreenState
   }
 
   Future<void> _pause() async {
-    if (await _exp.pause()) _camera.leave();
+    if (await _exp.pause() && mounted) _camera.leave();
     _reportLast();
   }
 
   Future<void> _resume() async {
-    if (await _exp.resume()) await _camera.enter();
+    await _exp.resume();
     _reportLast();
   }
 
@@ -170,6 +190,7 @@ class _ExperimentalMonitoringScreenState
     );
     if (!confirmed) return;
     if (await _exp.stop()) {
+      if (!mounted) return;
       _camera.leave();
       if (mounted) setState(() => _showSummary = true);
     }
@@ -181,6 +202,23 @@ class _ExperimentalMonitoringScreenState
     final code = ref.read(experimentalMonitoringProvider).rejection;
     if (code != null) {
       showNotice(ExperimentalMonitoringScreen.rejectionText(code));
+    }
+  }
+
+  void _syncCamera(ExperimentalState s) {
+    final paused =
+        s.lifecycle == EngineSessionLifecycle.paused &&
+        !(s.snapshot?.resumePending ?? false);
+    if (paused || _showSummary) {
+      _camera.leave();
+      return;
+    }
+    final cam = ref.read(frontCameraProvider);
+    if (!_openingCamera &&
+        (cam.phase == CameraCheckPhase.closed ||
+            cam.phase == CameraCheckPhase.suspended)) {
+      _openingCamera = true;
+      _camera.enter().whenComplete(() => _openingCamera = false);
     }
   }
 
@@ -229,7 +267,7 @@ class _ExperimentalMonitoringScreenState
   List<Widget> _preparation(ExperimentalState s, FrontCameraState cam) {
     final snap = s.snapshot;
     final cameraOk = cam.phase == CameraCheckPhase.available;
-    final eyesOk = s.connected && (snap?.eyesValid ?? false);
+    final eyesOk = s.eyesValid;
     final step = snap?.calibrationStep ?? CalibrationStep.idle;
     final accepted = step == CalibrationStep.accepted;
     final busy = s.pending != null;
@@ -328,7 +366,7 @@ class _ExperimentalMonitoringScreenState
 
   List<CheckRow> _eyeRows(ExperimentalState s, FrontCameraState cam) {
     final snap = s.snapshot;
-    final eyesOk = s.connected && (snap?.eyesValid ?? false);
+    final eyesOk = s.eyesValid;
     final calibrated = snap?.ratioRight != null;
     return [
       CheckRow(
@@ -350,13 +388,17 @@ class _ExperimentalMonitoringScreenState
         key: const Key('row-eyes'),
         label: 'Ojos medibles',
         ok: eyesOk,
-        value: !s.connected
+        value: !s.available
             ? 'Estado del motor no disponible'
             : eyesOk
             ? 'Sí'
             : 'No',
-        cause: s.connected && !eyesOk
-            ? ExperimentalMonitoringScreen.eyeIssueText(snap?.eyeIssue)
+        cause: s.available && !eyesOk
+            ? ExperimentalMonitoringScreen.eyeIssueText(
+                s.eyesFresh || !(snap?.eyesValid ?? false)
+                    ? snap?.eyeIssue
+                    : 'staleResult',
+              )
             : null,
       ),
       CheckRow(
@@ -472,7 +514,7 @@ class _ExperimentalMonitoringScreenState
     final paused = s.lifecycle == EngineSessionLifecycle.paused;
     final busy = s.pending != null;
     final signal = s.signal;
-    final card = !s.connected
+    final card = !s.available
         ? const StatusCard(
             key: Key('signal'),
             tone: StatusTone.neutral,
@@ -532,7 +574,7 @@ class _ExperimentalMonitoringScreenState
         session: paused
             ? (snap.resumePending ? 'Reanudando' : 'En pausa')
             : 'Activa',
-        measurement: switch (snap.measurement) {
+        measurement: switch (s.measurement) {
           EngineMeasurement.initializing => 'Inicializando',
           EngineMeasurement.usable => 'Utilizable',
           EngineMeasurement.limited => 'Limitada',
@@ -628,6 +670,7 @@ class _ExperimentalMonitoringScreenState
       kind: VigiaButtonKind.secondary,
       onPressed: () {
         setState(() => _showSummary = false);
+        _observedSession = false;
         _camera.enter();
       },
     ),

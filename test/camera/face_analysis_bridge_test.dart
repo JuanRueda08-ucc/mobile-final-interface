@@ -46,6 +46,32 @@ const _channel =
     'dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onFaceAnalysis';
 
 void main() {
+  testWidgets('el aviso facial usa el sufijo del host Pigeon', (tester) async {
+    final bridge = PigeonFrontCameraBridge(
+      host: FrontCameraHostApi(messageChannelSuffix: 'side'),
+    );
+    final received = <FaceAnalysisSnapshot>[];
+    final sub = bridge.faceAnalysis.listen(received.add);
+    final s = FakeFrontCameraBridge.face(
+      1,
+      FaceAnalysisStatus.stopped,
+      sequence: 8,
+    );
+    unawaited(
+      tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        'dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onFaceAnalysis.side',
+        FrontCameraFlutterApi.pigeonChannelCodec.encodeMessage([s]),
+        (_) {},
+      ),
+    );
+    await tester.pump();
+    unawaited(sub.cancel());
+    await tester.pump();
+    FrontCameraFlutterApi.setUp(null);
+    FrontCameraFlutterApi.setUp(null, messageChannelSuffix: 'side');
+    expect(received, hasLength(1));
+    expect(received.single.sequence, 8);
+  });
   late _Host host;
   late ProviderContainer container;
 

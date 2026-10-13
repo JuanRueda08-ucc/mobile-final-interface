@@ -663,6 +663,18 @@ data class MonitoringSnapshot (
   val ratioLeft: Double? = null,
   /** Edad de la última observación al crear este estado, en ms. */
   val observationAgeMs: Long? = null,
+  /**
+   * Identidad de observación creciente en esta instancia del motor, no reloj.
+   * Las consultas/latidos del mismo resultado conservan este identificador.
+   */
+  val observationId: Long? = null,
+  /**
+   * Vigencia restante al crear el estado, redondeada hacia abajo. Flutter
+   * descuenta el tiempo completo de consulta y su despacho; los avisos no
+   * publican mediciones ni señales directamente. No compara relojes.
+   */
+  val eyesValidForMs: Long? = null,
+  val signalValidForMs: Long? = null,
   val calibrationStep: CalibrationStep,
   val calibrationAttempt: Long,
   /** Comprobación de cierre en curso (1..2); 0 si no aplica. */
@@ -719,37 +731,40 @@ data class MonitoringSnapshot (
       val ratioRight = pigeonVar_list[9] as Double?
       val ratioLeft = pigeonVar_list[10] as Double?
       val observationAgeMs = pigeonVar_list[11] as Long?
-      val calibrationStep = pigeonVar_list[12] as CalibrationStep
-      val calibrationAttempt = pigeonVar_list[13] as Long
-      val calibrationProbe = pigeonVar_list[14] as Long
-      val stepElapsedMs = pigeonVar_list[15] as Long?
-      val stepDurationMs = pigeonVar_list[16] as Long?
-      val stepValidSamples = pigeonVar_list[17] as Long?
-      val calibrationId = pigeonVar_list[18] as String?
-      val calibrationRejection = pigeonVar_list[19] as String?
-      val calibrationDetail = pigeonVar_list[20] as String?
-      val openEarRight = pigeonVar_list[21] as Double?
-      val openEarLeft = pigeonVar_list[22] as Double?
-      val calibrationSamples = pigeonVar_list[23] as Long?
-      val calibrationCoverage = pigeonVar_list[24] as Double?
-      val soundTestId = pigeonVar_list[25] as String?
-      val soundTestPlayed = pigeonVar_list[26] as Boolean
-      val soundHeard = pigeonVar_list[27] as Boolean
-      val soundFailure = pigeonVar_list[28] as String?
-      val lifecycle = pigeonVar_list[29] as EngineSessionLifecycle
-      val resumePending = pigeonVar_list[30] as Boolean
-      val sessionId = pigeonVar_list[31] as String?
-      val measurement = pigeonVar_list[32] as EngineMeasurement
-      val signal = pigeonVar_list[33] as EngineSignal
-      val measurementCause = pigeonVar_list[34] as String?
-      val activeMs = pigeonVar_list[35] as Long
-      val pausedMs = pigeonVar_list[36] as Long
-      val evaluableMs = pigeonVar_list[37] as Long
-      val closureActivations = pigeonVar_list[38] as Long
-      val tonesPlayed = pigeonVar_list[39] as Long
-      val tonesFailed = pigeonVar_list[40] as Long
-      val closedRunMs = pigeonVar_list[41] as Long?
-      return MonitoringSnapshot(engineInstanceId, sequence, profileId, qualificationStatus, attachedToken, eyesValid, eyeIssue, earRight, earLeft, ratioRight, ratioLeft, observationAgeMs, calibrationStep, calibrationAttempt, calibrationProbe, stepElapsedMs, stepDurationMs, stepValidSamples, calibrationId, calibrationRejection, calibrationDetail, openEarRight, openEarLeft, calibrationSamples, calibrationCoverage, soundTestId, soundTestPlayed, soundHeard, soundFailure, lifecycle, resumePending, sessionId, measurement, signal, measurementCause, activeMs, pausedMs, evaluableMs, closureActivations, tonesPlayed, tonesFailed, closedRunMs)
+      val observationId = pigeonVar_list[12] as Long?
+      val eyesValidForMs = pigeonVar_list[13] as Long?
+      val signalValidForMs = pigeonVar_list[14] as Long?
+      val calibrationStep = pigeonVar_list[15] as CalibrationStep
+      val calibrationAttempt = pigeonVar_list[16] as Long
+      val calibrationProbe = pigeonVar_list[17] as Long
+      val stepElapsedMs = pigeonVar_list[18] as Long?
+      val stepDurationMs = pigeonVar_list[19] as Long?
+      val stepValidSamples = pigeonVar_list[20] as Long?
+      val calibrationId = pigeonVar_list[21] as String?
+      val calibrationRejection = pigeonVar_list[22] as String?
+      val calibrationDetail = pigeonVar_list[23] as String?
+      val openEarRight = pigeonVar_list[24] as Double?
+      val openEarLeft = pigeonVar_list[25] as Double?
+      val calibrationSamples = pigeonVar_list[26] as Long?
+      val calibrationCoverage = pigeonVar_list[27] as Double?
+      val soundTestId = pigeonVar_list[28] as String?
+      val soundTestPlayed = pigeonVar_list[29] as Boolean
+      val soundHeard = pigeonVar_list[30] as Boolean
+      val soundFailure = pigeonVar_list[31] as String?
+      val lifecycle = pigeonVar_list[32] as EngineSessionLifecycle
+      val resumePending = pigeonVar_list[33] as Boolean
+      val sessionId = pigeonVar_list[34] as String?
+      val measurement = pigeonVar_list[35] as EngineMeasurement
+      val signal = pigeonVar_list[36] as EngineSignal
+      val measurementCause = pigeonVar_list[37] as String?
+      val activeMs = pigeonVar_list[38] as Long
+      val pausedMs = pigeonVar_list[39] as Long
+      val evaluableMs = pigeonVar_list[40] as Long
+      val closureActivations = pigeonVar_list[41] as Long
+      val tonesPlayed = pigeonVar_list[42] as Long
+      val tonesFailed = pigeonVar_list[43] as Long
+      val closedRunMs = pigeonVar_list[44] as Long?
+      return MonitoringSnapshot(engineInstanceId, sequence, profileId, qualificationStatus, attachedToken, eyesValid, eyeIssue, earRight, earLeft, ratioRight, ratioLeft, observationAgeMs, observationId, eyesValidForMs, signalValidForMs, calibrationStep, calibrationAttempt, calibrationProbe, stepElapsedMs, stepDurationMs, stepValidSamples, calibrationId, calibrationRejection, calibrationDetail, openEarRight, openEarLeft, calibrationSamples, calibrationCoverage, soundTestId, soundTestPlayed, soundHeard, soundFailure, lifecycle, resumePending, sessionId, measurement, signal, measurementCause, activeMs, pausedMs, evaluableMs, closureActivations, tonesPlayed, tonesFailed, closedRunMs)
     }
   }
   fun toList(): List<Any?> {
@@ -766,6 +781,9 @@ data class MonitoringSnapshot (
       ratioRight,
       ratioLeft,
       observationAgeMs,
+      observationId,
+      eyesValidForMs,
+      signalValidForMs,
       calibrationStep,
       calibrationAttempt,
       calibrationProbe,
@@ -806,7 +824,7 @@ data class MonitoringSnapshot (
       return true
     }
     val other = other as MonitoringSnapshot
-    return MonitoringApiPigeonUtils.deepEquals(this.engineInstanceId, other.engineInstanceId) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.profileId, other.profileId) && MonitoringApiPigeonUtils.deepEquals(this.qualificationStatus, other.qualificationStatus) && MonitoringApiPigeonUtils.deepEquals(this.attachedToken, other.attachedToken) && MonitoringApiPigeonUtils.deepEquals(this.eyesValid, other.eyesValid) && MonitoringApiPigeonUtils.deepEquals(this.eyeIssue, other.eyeIssue) && MonitoringApiPigeonUtils.deepEquals(this.earRight, other.earRight) && MonitoringApiPigeonUtils.deepEquals(this.earLeft, other.earLeft) && MonitoringApiPigeonUtils.deepEquals(this.ratioRight, other.ratioRight) && MonitoringApiPigeonUtils.deepEquals(this.ratioLeft, other.ratioLeft) && MonitoringApiPigeonUtils.deepEquals(this.observationAgeMs, other.observationAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.calibrationStep, other.calibrationStep) && MonitoringApiPigeonUtils.deepEquals(this.calibrationAttempt, other.calibrationAttempt) && MonitoringApiPigeonUtils.deepEquals(this.calibrationProbe, other.calibrationProbe) && MonitoringApiPigeonUtils.deepEquals(this.stepElapsedMs, other.stepElapsedMs) && MonitoringApiPigeonUtils.deepEquals(this.stepDurationMs, other.stepDurationMs) && MonitoringApiPigeonUtils.deepEquals(this.stepValidSamples, other.stepValidSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationId, other.calibrationId) && MonitoringApiPigeonUtils.deepEquals(this.calibrationRejection, other.calibrationRejection) && MonitoringApiPigeonUtils.deepEquals(this.calibrationDetail, other.calibrationDetail) && MonitoringApiPigeonUtils.deepEquals(this.openEarRight, other.openEarRight) && MonitoringApiPigeonUtils.deepEquals(this.openEarLeft, other.openEarLeft) && MonitoringApiPigeonUtils.deepEquals(this.calibrationSamples, other.calibrationSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationCoverage, other.calibrationCoverage) && MonitoringApiPigeonUtils.deepEquals(this.soundTestId, other.soundTestId) && MonitoringApiPigeonUtils.deepEquals(this.soundTestPlayed, other.soundTestPlayed) && MonitoringApiPigeonUtils.deepEquals(this.soundHeard, other.soundHeard) && MonitoringApiPigeonUtils.deepEquals(this.soundFailure, other.soundFailure) && MonitoringApiPigeonUtils.deepEquals(this.lifecycle, other.lifecycle) && MonitoringApiPigeonUtils.deepEquals(this.resumePending, other.resumePending) && MonitoringApiPigeonUtils.deepEquals(this.sessionId, other.sessionId) && MonitoringApiPigeonUtils.deepEquals(this.measurement, other.measurement) && MonitoringApiPigeonUtils.deepEquals(this.signal, other.signal) && MonitoringApiPigeonUtils.deepEquals(this.measurementCause, other.measurementCause) && MonitoringApiPigeonUtils.deepEquals(this.activeMs, other.activeMs) && MonitoringApiPigeonUtils.deepEquals(this.pausedMs, other.pausedMs) && MonitoringApiPigeonUtils.deepEquals(this.evaluableMs, other.evaluableMs) && MonitoringApiPigeonUtils.deepEquals(this.closureActivations, other.closureActivations) && MonitoringApiPigeonUtils.deepEquals(this.tonesPlayed, other.tonesPlayed) && MonitoringApiPigeonUtils.deepEquals(this.tonesFailed, other.tonesFailed) && MonitoringApiPigeonUtils.deepEquals(this.closedRunMs, other.closedRunMs)
+    return MonitoringApiPigeonUtils.deepEquals(this.engineInstanceId, other.engineInstanceId) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.profileId, other.profileId) && MonitoringApiPigeonUtils.deepEquals(this.qualificationStatus, other.qualificationStatus) && MonitoringApiPigeonUtils.deepEquals(this.attachedToken, other.attachedToken) && MonitoringApiPigeonUtils.deepEquals(this.eyesValid, other.eyesValid) && MonitoringApiPigeonUtils.deepEquals(this.eyeIssue, other.eyeIssue) && MonitoringApiPigeonUtils.deepEquals(this.earRight, other.earRight) && MonitoringApiPigeonUtils.deepEquals(this.earLeft, other.earLeft) && MonitoringApiPigeonUtils.deepEquals(this.ratioRight, other.ratioRight) && MonitoringApiPigeonUtils.deepEquals(this.ratioLeft, other.ratioLeft) && MonitoringApiPigeonUtils.deepEquals(this.observationAgeMs, other.observationAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.observationId, other.observationId) && MonitoringApiPigeonUtils.deepEquals(this.eyesValidForMs, other.eyesValidForMs) && MonitoringApiPigeonUtils.deepEquals(this.signalValidForMs, other.signalValidForMs) && MonitoringApiPigeonUtils.deepEquals(this.calibrationStep, other.calibrationStep) && MonitoringApiPigeonUtils.deepEquals(this.calibrationAttempt, other.calibrationAttempt) && MonitoringApiPigeonUtils.deepEquals(this.calibrationProbe, other.calibrationProbe) && MonitoringApiPigeonUtils.deepEquals(this.stepElapsedMs, other.stepElapsedMs) && MonitoringApiPigeonUtils.deepEquals(this.stepDurationMs, other.stepDurationMs) && MonitoringApiPigeonUtils.deepEquals(this.stepValidSamples, other.stepValidSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationId, other.calibrationId) && MonitoringApiPigeonUtils.deepEquals(this.calibrationRejection, other.calibrationRejection) && MonitoringApiPigeonUtils.deepEquals(this.calibrationDetail, other.calibrationDetail) && MonitoringApiPigeonUtils.deepEquals(this.openEarRight, other.openEarRight) && MonitoringApiPigeonUtils.deepEquals(this.openEarLeft, other.openEarLeft) && MonitoringApiPigeonUtils.deepEquals(this.calibrationSamples, other.calibrationSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationCoverage, other.calibrationCoverage) && MonitoringApiPigeonUtils.deepEquals(this.soundTestId, other.soundTestId) && MonitoringApiPigeonUtils.deepEquals(this.soundTestPlayed, other.soundTestPlayed) && MonitoringApiPigeonUtils.deepEquals(this.soundHeard, other.soundHeard) && MonitoringApiPigeonUtils.deepEquals(this.soundFailure, other.soundFailure) && MonitoringApiPigeonUtils.deepEquals(this.lifecycle, other.lifecycle) && MonitoringApiPigeonUtils.deepEquals(this.resumePending, other.resumePending) && MonitoringApiPigeonUtils.deepEquals(this.sessionId, other.sessionId) && MonitoringApiPigeonUtils.deepEquals(this.measurement, other.measurement) && MonitoringApiPigeonUtils.deepEquals(this.signal, other.signal) && MonitoringApiPigeonUtils.deepEquals(this.measurementCause, other.measurementCause) && MonitoringApiPigeonUtils.deepEquals(this.activeMs, other.activeMs) && MonitoringApiPigeonUtils.deepEquals(this.pausedMs, other.pausedMs) && MonitoringApiPigeonUtils.deepEquals(this.evaluableMs, other.evaluableMs) && MonitoringApiPigeonUtils.deepEquals(this.closureActivations, other.closureActivations) && MonitoringApiPigeonUtils.deepEquals(this.tonesPlayed, other.tonesPlayed) && MonitoringApiPigeonUtils.deepEquals(this.tonesFailed, other.tonesFailed) && MonitoringApiPigeonUtils.deepEquals(this.closedRunMs, other.closedRunMs)
   }
 
   override fun hashCode(): Int {
@@ -823,6 +841,9 @@ data class MonitoringSnapshot (
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.ratioRight)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.ratioLeft)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.observationAgeMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.observationId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.eyesValidForMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.signalValidForMs)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationStep)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationAttempt)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationProbe)
@@ -856,7 +877,7 @@ data class MonitoringSnapshot (
     return result
   }
   override fun toString(): String {
-    return "MonitoringSnapshot(engineInstanceId=$engineInstanceId, sequence=$sequence, profileId=$profileId, qualificationStatus=$qualificationStatus, attachedToken=$attachedToken, eyesValid=$eyesValid, eyeIssue=$eyeIssue, earRight=$earRight, earLeft=$earLeft, ratioRight=$ratioRight, ratioLeft=$ratioLeft, observationAgeMs=$observationAgeMs, calibrationStep=$calibrationStep, calibrationAttempt=$calibrationAttempt, calibrationProbe=$calibrationProbe, stepElapsedMs=$stepElapsedMs, stepDurationMs=$stepDurationMs, stepValidSamples=$stepValidSamples, calibrationId=$calibrationId, calibrationRejection=$calibrationRejection, calibrationDetail=$calibrationDetail, openEarRight=$openEarRight, openEarLeft=$openEarLeft, calibrationSamples=$calibrationSamples, calibrationCoverage=$calibrationCoverage, soundTestId=$soundTestId, soundTestPlayed=$soundTestPlayed, soundHeard=$soundHeard, soundFailure=$soundFailure, lifecycle=$lifecycle, resumePending=$resumePending, sessionId=$sessionId, measurement=$measurement, signal=$signal, measurementCause=$measurementCause, activeMs=$activeMs, pausedMs=$pausedMs, evaluableMs=$evaluableMs, closureActivations=$closureActivations, tonesPlayed=$tonesPlayed, tonesFailed=$tonesFailed, closedRunMs=$closedRunMs)"
+    return "MonitoringSnapshot(engineInstanceId=$engineInstanceId, sequence=$sequence, profileId=$profileId, qualificationStatus=$qualificationStatus, attachedToken=$attachedToken, eyesValid=$eyesValid, eyeIssue=$eyeIssue, earRight=$earRight, earLeft=$earLeft, ratioRight=$ratioRight, ratioLeft=$ratioLeft, observationAgeMs=$observationAgeMs, observationId=$observationId, eyesValidForMs=$eyesValidForMs, signalValidForMs=$signalValidForMs, calibrationStep=$calibrationStep, calibrationAttempt=$calibrationAttempt, calibrationProbe=$calibrationProbe, stepElapsedMs=$stepElapsedMs, stepDurationMs=$stepDurationMs, stepValidSamples=$stepValidSamples, calibrationId=$calibrationId, calibrationRejection=$calibrationRejection, calibrationDetail=$calibrationDetail, openEarRight=$openEarRight, openEarLeft=$openEarLeft, calibrationSamples=$calibrationSamples, calibrationCoverage=$calibrationCoverage, soundTestId=$soundTestId, soundTestPlayed=$soundTestPlayed, soundHeard=$soundHeard, soundFailure=$soundFailure, lifecycle=$lifecycle, resumePending=$resumePending, sessionId=$sessionId, measurement=$measurement, signal=$signal, measurementCause=$measurementCause, activeMs=$activeMs, pausedMs=$pausedMs, evaluableMs=$evaluableMs, closureActivations=$closureActivations, tonesPlayed=$tonesPlayed, tonesFailed=$tonesFailed, closedRunMs=$closedRunMs)"
   }
 }
 

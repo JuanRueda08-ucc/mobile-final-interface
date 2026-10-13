@@ -424,6 +424,8 @@ internal class FaceAnalysisCore<F>(
         inFlightTs = null
         clearResult()
         errorCode = code
+        val now = clockNs()
+        observe(EyeObservation.invalid(token, now, now, QReason.INFERENCE_ERROR))
         setStatus(next)
     }
 

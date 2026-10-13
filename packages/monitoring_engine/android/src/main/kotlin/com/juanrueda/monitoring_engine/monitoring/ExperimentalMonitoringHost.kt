@@ -22,23 +22,46 @@ import java.util.concurrent.TimeUnit
  * micrófono, red ni archivos. Devuelve solo el resultado técnico: no afirma
  * que alguien lo oyera. Un volumen de alarma en cero se informa como fallo.
  */
-internal class ToneAlertSink(private val context: Context) : AlertSink {
+internal interface ToneHandle {
+    fun startTone(tone: Int, millis: Int): Boolean
+    fun stopTone()
+    fun release()
+}
+
+internal class ToneAlertSink(
+    private val alarmVolume: () -> Int,
+    private val createTone: (Int, Int) -> ToneHandle,
+) : AlertSink {
+    constructor(context: Context) : this(
+        { (context.getSystemService(Context.AUDIO_SERVICE) as AudioManager).getStreamVolume(AudioManager.STREAM_ALARM) },
+        { stream, volume ->
+            object : ToneHandle {
+                private val nativeTone = ToneGenerator(stream, volume)
+                override fun startTone(tone: Int, millis: Int) = nativeTone.startTone(tone, millis)
+                override fun stopTone() = nativeTone.stopTone()
+                override fun release() = nativeTone.release()
+            }
+        },
+    )
     private val lock = Any()
-    private var generator: ToneGenerator? = null
+    private var generator: ToneHandle? = null
 
     override fun play(kind: ToneKind): String? = synchronized(lock) {
-        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        if (audio.getStreamVolume(AudioManager.STREAM_ALARM) == 0) return "alarmVolumeZero"
         releaseLocked()
+        if (alarmVolume() == 0) return "alarmVolumeZero"
         val (tone, millis) = when (kind) {
             ToneKind.TEST -> ToneGenerator.TONE_PROP_BEEP to 600
             ToneKind.PROLONGED_CLOSURE -> ToneGenerator.TONE_CDMA_HIGH_L to 1200
         }
         return try {
-            val g = ToneGenerator(AudioManager.STREAM_ALARM, 100)
+            val g = createTone(AudioManager.STREAM_ALARM, 100)
             generator = g
-            if (g.startTone(tone, millis)) null else "toneNotStarted"
+            if (g.startTone(tone, millis)) null else {
+                releaseLocked()
+                "toneNotStarted"
+            }
         } catch (e: RuntimeException) {
+            releaseLocked()
             "toneUnavailable"
         }
     }
@@ -50,9 +73,10 @@ internal class ToneAlertSink(private val context: Context) : AlertSink {
         generator = null
         try {
             g.stopTone()
-            g.release()
         } catch (e: RuntimeException) {
-            // Ya liberado.
+            // Aunque detener falle, la propiedad se libera abajo.
+        } finally {
+            try { g.release() } catch (e: RuntimeException) { /* Ya liberado. */ }
         }
     }
 }
@@ -149,6 +173,9 @@ internal fun MonitoringState.toPigeon() = MonitoringSnapshot(
     ratioRight = ratioRight,
     ratioLeft = ratioLeft,
     observationAgeMs = observationAgeMs,
+    observationId = observationId,
+    eyesValidForMs = eyesValidForMs,
+    signalValidForMs = signalValidForMs,
     calibrationStep = when (calibrationPhase) {
         CalibrationPhase.IDLE -> PigeonStep.IDLE
         CalibrationPhase.OPEN_REFERENCE -> PigeonStep.OPEN_REFERENCE

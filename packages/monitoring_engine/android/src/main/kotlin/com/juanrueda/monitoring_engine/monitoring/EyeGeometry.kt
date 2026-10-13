@@ -14,6 +14,7 @@ internal enum class QReason(val code: String, val eyeFailure: Boolean = false) {
     EXCESSIVE_PERSPECTIVE("excessivePerspective", eyeFailure = true),
     STALE_RESULT("staleResult"),
     INVALID_TIMESTAMP("invalidTimestamp"),
+    INFERENCE_ERROR("inferenceError"),
 }
 
 /**

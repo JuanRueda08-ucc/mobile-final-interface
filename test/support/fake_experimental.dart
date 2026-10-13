@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
+
 import 'package:monitoring_engine/monitoring_engine.dart';
 
 /// Estado compacto del coordinador para pruebas. **No es una medición**: lo
@@ -39,12 +41,19 @@ MonitoringSnapshot fakeSnapshot({
   int closureActivations = 0,
   int tonesPlayed = 0,
   int tonesFailed = 0,
+  int? eyesValidForMs,
+  int? signalValidForMs,
+  int? observationId,
 }) => MonitoringSnapshot(
   engineInstanceId: engine,
   sequence: sequence,
   profileId: 'lab-eye-rules-0.1',
   qualificationStatus: 'experimental',
   eyesValid: eyesValid,
+  observationId: observationId,
+  eyesValidForMs: eyesValidForMs ?? (eyesValid ? 750 : null),
+  signalValidForMs:
+      signalValidForMs ?? (signal == EngineSignal.notEvaluable ? null : 150),
   eyeIssue: eyesValid ? null : eyeIssue,
   earRight: earRight,
   earLeft: earLeft,
@@ -83,11 +92,26 @@ MonitoringSnapshot fakeSnapshot({
 /// con el estado que fija la prueba ([next]) o con un rechazo.
 class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
   FakeExperimentalBridge([MonitoringSnapshot? initial])
-    : current = initial ?? fakeSnapshot();
+    : current = initial ?? fakeSnapshot(),
+      _age = clock.stopwatch()..start() {
+    _stamp(current);
+  }
 
   MonitoringSnapshot current;
   final calls = <String>[];
   final _updates = StreamController<MonitoringSnapshot>.broadcast();
+  Stopwatch _age;
+  final _retired = <String>{};
+  int _observation = 0;
+  void _stamp(MonitoringSnapshot s) {
+    if (s.eyesValid || s.signal != EngineSignal.notEvaluable) {
+      s.observationId ??= ++_observation;
+      if (s.observationId! > _observation) _observation = s.observationId!;
+    }
+  }
+
+  @override
+  Object get queryChannel => this;
 
   /// Estado con el que responderá la siguiente orden (si es nulo, el actual
   /// con otra secuencia).
@@ -104,7 +128,16 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
   /// Publica [s] como aviso del motor.
   void emit(MonitoringSnapshot s) {
     if (s.sequence > _seq) _seq = s.sequence;
-    current = s;
+    if (!_retired.contains(s.engineInstanceId) &&
+        (s.engineInstanceId != current.engineInstanceId ||
+            s.sequence > current.sequence)) {
+      if (s.engineInstanceId != current.engineInstanceId) {
+        _retired.add(current.engineInstanceId);
+      }
+      current = s;
+      _stamp(current);
+      _age = clock.stopwatch()..start();
+    }
     _updates.add(s);
   }
 
@@ -117,6 +150,8 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
     final code = rejectNext;
     rejectNext = null;
     final s = next ?? current;
+    _stamp(s);
+    if (next != null) _age = clock.stopwatch()..start();
     next = null;
     current = _resequence(s);
     return MonitoringCommandResult(
@@ -135,7 +170,15 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
   @override
   Future<MonitoringSnapshot> snapshot() async {
     calls.add('snapshot');
-    return current;
+    final s = MonitoringSnapshot.decode(current.encode());
+    final elapsed = _age.elapsedMilliseconds;
+    s.eyesValidForMs = s.eyesValidForMs == null
+        ? null
+        : s.eyesValidForMs! - elapsed;
+    s.signalValidForMs = s.signalValidForMs == null
+        ? null
+        : s.signalValidForMs! - elapsed;
+    return s;
   }
 
   @override

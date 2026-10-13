@@ -355,6 +355,16 @@ class MonitoringSnapshot {
   /// Edad de la última observación al crear este estado, en ms.
   int? observationAgeMs;
 
+  /// Identidad de observación creciente en esta instancia del motor, no reloj.
+  /// Las consultas/latidos del mismo resultado conservan este identificador.
+  int? observationId;
+
+  /// Vigencia restante al crear el estado, redondeada hacia abajo. Flutter
+  /// descuenta el tiempo completo de consulta y su despacho; los avisos no
+  /// publican mediciones ni señales directamente. No compara relojes.
+  int? eyesValidForMs;
+  int? signalValidForMs;
+
   CalibrationStep calibrationStep;
   int calibrationAttempt;
 

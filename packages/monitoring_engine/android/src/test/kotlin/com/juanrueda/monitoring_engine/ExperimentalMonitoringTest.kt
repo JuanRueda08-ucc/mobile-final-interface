@@ -566,4 +566,96 @@ internal class ExperimentalMonitoringTest {
         assertEquals(1, rig.last.tonesFailed)
         assertNotNull(rig.last.sessionId)
     }
+
+    @Test
+    fun ocularAgeKeepsCountingFromFrameWhenReadingAndStarting() {
+        val rig = Rig().calibrated()
+        val sound = rig.soundConfirmed()
+        val cal = rig.last.calibrationId!!
+        val frame = rig.nowMs + 100
+        rig.nowMs = frame + 650
+        rig.c.observe(EyeObservation.of(1, ms(frame), ms(rig.nowMs), 1, eyes(open)))
+        rig.nowMs = frame + 750
+        assertTrue(rig.c.snapshot().eyesValid, "edad 750 inclusiva")
+        rig.nowMs = frame + 751
+        val stale = rig.c.snapshot()
+        assertFalse(stale.eyesValid, "la recepción no rejuvenece el cuadro")
+        assertNull(stale.earRight)
+        assertEquals("staleResult", stale.eyeIssue)
+        assertEquals("eyesNotEvaluable", rig.c.startSession(cal, sound).errorCode)
+    }
+
+    @Test
+    fun snapshotRefreshesWatchdogBetweenTicks() {
+        val rig = Rig()
+        rig.started()
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1100, open)
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1600, closed)
+        assertEquals(Signal.PROLONGED_EYE_CLOSURE, rig.last.signal)
+        rig.nowMs += 150
+        assertEquals(Signal.PROLONGED_EYE_CLOSURE, rig.c.snapshot().signal)
+        rig.nowMs += 1
+        val lost = rig.c.snapshot()
+        assertEquals(Signal.NOT_EVALUABLE, lost.signal)
+        assertEquals(Measurement.LIMITED, lost.measurement)
+        rig.nowMs += 599
+        assertEquals(Measurement.UNAVAILABLE, rig.c.snapshot().measurement)
+    }
+
+    @Test
+    fun receivingAfterSilenceCannotBypassWatchdogWithoutATick() {
+        val p = SessionPolicy(reference)
+        p.feedOpen(0, 1000)
+        p.onObservation(EyeObservation.of(1, ms(1100), ms(1200), 1, eyes(closed)), ms(1200))
+        assertFalse(p.usable, "200 ms entre recepciones exige Krecover, aunque gap de cuadros=100")
+        assertEquals(Signal.NOT_EVALUABLE, p.signal)
+    }
+
+    @Test
+    fun coordinatorRechecksAgeAfterWaitingForItsLock() {
+        val rig = Rig()
+        rig.c.attach(1)
+        rig.nowMs = 5000
+        rig.c.observe(EyeObservation.of(1, ms(1000), ms(1100), 1, eyes(open)))
+        assertFalse(rig.c.snapshot().eyesValid)
+        val p = SessionPolicy(reference)
+        p.feedOpen(0, 1000)
+        p.onObservation(EyeObservation.of(1, ms(1100), ms(1150), 1, eyes(closed)), ms(2000))
+        assertEquals(Measurement.UNAVAILABLE, p.measurement)
+        assertEquals(Signal.NOT_EVALUABLE, p.signal)
+    }
+
+    @Test
+    fun resumeKeepsSessionActivationAndToneTotals() {
+        val rig = Rig()
+        val id = rig.started()
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1100, open)
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1600, closed)
+        assertEquals(1, rig.c.snapshot().closureActivations)
+        rig.c.pauseSession(id)
+        rig.c.detach(1)
+        rig.c.resumeSession(id)
+        assertEquals(1, rig.c.snapshot().closureActivations, "Krecover nuevo no borra el total de sesión")
+        rig.c.attach(2)
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1100, open, token = 2)
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1600, closed, token = 2)
+        val end = rig.c.stopSession(id).state
+        assertEquals(2, end.closureActivations)
+        assertEquals(2, end.tonesPlayed)
+    }
+
+    @Test
+    fun exitAndCancellationStopPreparationAudio() {
+        val rig = Rig()
+        rig.c.attach(1)
+        rig.c.testSound()
+        val beforeExit = rig.tone.stops
+        rig.c.detach(1)
+        assertTrue(rig.tone.stops > beforeExit, "salir detiene el tono de prueba")
+        rig.c.attach(2)
+        rig.c.beginCalibration()
+        val beforeCancel = rig.tone.stops
+        rig.c.cancelCalibration()
+        assertTrue(rig.tone.stops > beforeCancel, "cancelar detiene el pitido de guía")
+    }
 }

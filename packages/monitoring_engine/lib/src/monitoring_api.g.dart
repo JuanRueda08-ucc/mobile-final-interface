@@ -571,6 +571,9 @@ class MonitoringSnapshot {
     this.ratioRight,
     this.ratioLeft,
     this.observationAgeMs,
+    this.observationId,
+    this.eyesValidForMs,
+    this.signalValidForMs,
     required this.calibrationStep,
     required this.calibrationAttempt,
     required this.calibrationProbe,
@@ -636,6 +639,17 @@ class MonitoringSnapshot {
 
   /// Edad de la última observación al crear este estado, en ms.
   int? observationAgeMs;
+
+  /// Identidad de observación creciente en esta instancia del motor, no reloj.
+  /// Las consultas/latidos del mismo resultado conservan este identificador.
+  int? observationId;
+
+  /// Vigencia restante al crear el estado, redondeada hacia abajo. Flutter
+  /// descuenta el tiempo completo de consulta y su despacho; los avisos no
+  /// publican mediciones ni señales directamente. No compara relojes.
+  int? eyesValidForMs;
+
+  int? signalValidForMs;
 
   CalibrationStep calibrationStep;
 
@@ -721,6 +735,9 @@ class MonitoringSnapshot {
       ratioRight,
       ratioLeft,
       observationAgeMs,
+      observationId,
+      eyesValidForMs,
+      signalValidForMs,
       calibrationStep,
       calibrationAttempt,
       calibrationProbe,
@@ -773,36 +790,39 @@ class MonitoringSnapshot {
       ratioRight: result[9] as double?,
       ratioLeft: result[10] as double?,
       observationAgeMs: result[11] as int?,
-      calibrationStep: result[12]! as CalibrationStep,
-      calibrationAttempt: result[13]! as int,
-      calibrationProbe: result[14]! as int,
-      stepElapsedMs: result[15] as int?,
-      stepDurationMs: result[16] as int?,
-      stepValidSamples: result[17] as int?,
-      calibrationId: result[18] as String?,
-      calibrationRejection: result[19] as String?,
-      calibrationDetail: result[20] as String?,
-      openEarRight: result[21] as double?,
-      openEarLeft: result[22] as double?,
-      calibrationSamples: result[23] as int?,
-      calibrationCoverage: result[24] as double?,
-      soundTestId: result[25] as String?,
-      soundTestPlayed: result[26]! as bool,
-      soundHeard: result[27]! as bool,
-      soundFailure: result[28] as String?,
-      lifecycle: result[29]! as EngineSessionLifecycle,
-      resumePending: result[30]! as bool,
-      sessionId: result[31] as String?,
-      measurement: result[32]! as EngineMeasurement,
-      signal: result[33]! as EngineSignal,
-      measurementCause: result[34] as String?,
-      activeMs: result[35]! as int,
-      pausedMs: result[36]! as int,
-      evaluableMs: result[37]! as int,
-      closureActivations: result[38]! as int,
-      tonesPlayed: result[39]! as int,
-      tonesFailed: result[40]! as int,
-      closedRunMs: result[41] as int?,
+      observationId: result[12] as int?,
+      eyesValidForMs: result[13] as int?,
+      signalValidForMs: result[14] as int?,
+      calibrationStep: result[15]! as CalibrationStep,
+      calibrationAttempt: result[16]! as int,
+      calibrationProbe: result[17]! as int,
+      stepElapsedMs: result[18] as int?,
+      stepDurationMs: result[19] as int?,
+      stepValidSamples: result[20] as int?,
+      calibrationId: result[21] as String?,
+      calibrationRejection: result[22] as String?,
+      calibrationDetail: result[23] as String?,
+      openEarRight: result[24] as double?,
+      openEarLeft: result[25] as double?,
+      calibrationSamples: result[26] as int?,
+      calibrationCoverage: result[27] as double?,
+      soundTestId: result[28] as String?,
+      soundTestPlayed: result[29]! as bool,
+      soundHeard: result[30]! as bool,
+      soundFailure: result[31] as String?,
+      lifecycle: result[32]! as EngineSessionLifecycle,
+      resumePending: result[33]! as bool,
+      sessionId: result[34] as String?,
+      measurement: result[35]! as EngineMeasurement,
+      signal: result[36]! as EngineSignal,
+      measurementCause: result[37] as String?,
+      activeMs: result[38]! as int,
+      pausedMs: result[39]! as int,
+      evaluableMs: result[40]! as int,
+      closureActivations: result[41]! as int,
+      tonesPlayed: result[42]! as int,
+      tonesFailed: result[43]! as int,
+      closedRunMs: result[44] as int?,
     );
   }
 
@@ -827,6 +847,9 @@ class MonitoringSnapshot {
         _deepEquals(ratioRight, other.ratioRight) &&
         _deepEquals(ratioLeft, other.ratioLeft) &&
         _deepEquals(observationAgeMs, other.observationAgeMs) &&
+        _deepEquals(observationId, other.observationId) &&
+        _deepEquals(eyesValidForMs, other.eyesValidForMs) &&
+        _deepEquals(signalValidForMs, other.signalValidForMs) &&
         _deepEquals(calibrationStep, other.calibrationStep) &&
         _deepEquals(calibrationAttempt, other.calibrationAttempt) &&
         _deepEquals(calibrationProbe, other.calibrationProbe) &&
@@ -865,7 +888,7 @@ class MonitoringSnapshot {
 
   @override
   String toString() {
-    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs)';
+    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, observationId: $observationId, eyesValidForMs: $eyesValidForMs, signalValidForMs: $signalValidForMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs)';
   }
 }
 

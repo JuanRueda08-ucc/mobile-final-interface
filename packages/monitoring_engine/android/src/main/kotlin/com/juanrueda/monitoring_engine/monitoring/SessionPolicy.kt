@@ -45,6 +45,7 @@ internal class SessionPolicy(
 
     private var lastValidT: Long? = null
     private var lastReceivedNs: Long? = null
+    private var lastObservationNs: Long? = null
     private var runStart: Long? = null
     private var runLast: Long? = null
     private var h = false
@@ -68,8 +69,12 @@ internal class SessionPolicy(
      * Procesa una observación. Devuelve `true` si hay que pedir un aviso de
      * cierre prolongado ahora ([nowNs] es la decisión).
      */
-    fun onObservation(o: EyeObservation, nowNs: Long): Boolean {
+    fun onObservation(input: EyeObservation, nowNs: Long): Boolean {
+        // El callback puede adelantarse al tick: no borra un silencio vencido.
+        tick(nowNs)
+        val o = input.checkedAt(nowNs)
         lastReceivedNs = o.receivedNs
+        lastObservationNs = o.tNs
         if (!o.valid) {
             val r = o.reasons.firstOrNull() ?: QReason.INVALID_GEOMETRY
             lose(
@@ -141,7 +146,7 @@ internal class SessionPolicy(
     fun tick(nowNs: Long) {
         val last = lastReceivedNs ?: return
         val silence = nowNs - last
-        if (silence >= ns(p.T_STALE_MS)) {
+        if (silence >= ns(p.T_STALE_MS) || lastObservationNs?.let { nowNs - it > ns(p.T_STALE_MS) } == true) {
             if (measurement != Measurement.UNAVAILABLE) lose(Measurement.UNAVAILABLE, "noResults")
         } else if (silence > ns(p.G_MAX_MS)) {
             if (measurement == Measurement.USABLE || recoverFirst != null) lose(Measurement.LIMITED, "resultsDelayed")
@@ -152,6 +157,7 @@ internal class SessionPolicy(
     fun cameraLost() {
         lose(Measurement.UNAVAILABLE, "cameraClosed")
         lastReceivedNs = null
+        lastObservationNs = null
     }
 
     private fun lose(m: Measurement, why: String) {

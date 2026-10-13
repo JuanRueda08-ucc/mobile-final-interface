@@ -49,7 +49,13 @@ abstract interface class FrontCameraBridge {
 class PigeonFrontCameraBridge implements FrontCameraBridge {
   PigeonFrontCameraBridge({FrontCameraHostApi? host})
     : _host = host ?? FrontCameraHostApi() {
-    FrontCameraFlutterApi.setUp(_Events(_closures, _faceAnalysis));
+    FrontCameraFlutterApi.setUp(
+      _Events(_closures, _faceAnalysis),
+      binaryMessenger: _host.pigeonVar_binaryMessenger,
+      messageChannelSuffix: _host.pigeonVar_messageChannelSuffix.isEmpty
+          ? ''
+          : _host.pigeonVar_messageChannelSuffix.substring(1),
+    );
   }
 
   final FrontCameraHostApi _host;

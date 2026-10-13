@@ -31,6 +31,9 @@ internal data class MonitoringState(
     val ratioRight: Double?,
     val ratioLeft: Double?,
     val observationAgeMs: Long?,
+    val observationId: Long?,
+    val eyesValidForMs: Long?,
+    val signalValidForMs: Long?,
     // Calibración.
     val calibrationPhase: CalibrationPhase,
     val calibrationAttempt: Long,
@@ -106,6 +109,7 @@ internal class MonitoringCoordinator(
 
     private var token: Long? = null
     private var last: EyeObservation? = null
+    private var observationSequence = 0L
 
     private var calibrationAttempt = 0L
     private var calibration: CalibrationRun? = null
@@ -149,6 +153,7 @@ internal class MonitoringCoordinator(
         if (token != t) return@synchronized
         token = null
         last = null
+        alerts.stop()
         val now = clockNs()
         calibration?.let { cancelCalibrationLocked(CalibrationPhase.REJECTED, CalibrationRejection.INSUFFICIENT_OBSERVATIONS, "cameraClosed") }
         policy?.let {
@@ -160,10 +165,12 @@ internal class MonitoringCoordinator(
 
     // ------------------------------------------------------ observaciones
 
-    fun observe(o: EyeObservation) = synchronized(lock) {
-        if (o.token != token) return@synchronized
+    fun observe(input: EyeObservation) = synchronized(lock) {
+        if (input.token != token) return@synchronized
         val now = clockNs()
+        val o = input.checkedAt(now)
         last = o
+        observationSequence++
         var changed = false
         calibration?.let { run ->
             val before = run.step to run.probe
@@ -253,7 +260,7 @@ internal class MonitoringCoordinator(
             ref == null || ref.calibrationId != calibrationId -> reject("calibrationNotApplicable")
             soundId != soundTestId || !soundPlayed || !soundHeard -> reject("soundNotConfirmed")
             token == null -> reject("cameraNotReady")
-            o == null || !o.valid || now - o.receivedNs >= STALE_NS -> reject("eyesNotEvaluable")
+            o == null || !o.checkedAt(now).valid -> reject("eyesNotEvaluable")
             else -> {
                 lifecycle = SessionLifecycle.ACTIVE
                 sessionId = newId()
@@ -295,7 +302,8 @@ internal class MonitoringCoordinator(
         if (resumePending) return@synchronized accept()
         resumePending = true
         // Segmento nuevo: nada anterior a la pausa se reutiliza.
-        policy = SessionPolicy(reference!!).also { if (last == null) it.cameraLost() }
+        // El segmento se corta, pero activaciones/Rrepeat son de la sesión.
+        policy!!.cameraLost()
         accept()
     }
 
@@ -377,6 +385,7 @@ internal class MonitoringCoordinator(
     }
 
     private fun cancelCalibrationLocked(phase: CalibrationPhase, why: CalibrationRejection?, detail: String?) {
+        alerts.stop()
         calibration = null
         reference = null
         calibrationPhase = phase
@@ -407,11 +416,22 @@ internal class MonitoringCoordinator(
     }
 
     private fun build(now: Long): MonitoringState {
+        // Todas las lecturas/publicaciones evalúan la vigilancia con el reloj
+        // actual, sin depender de que el tick de 50 ms haya corrido.
+        val pol = policy
+        if (pol != null && (lifecycle == SessionLifecycle.ACTIVE || resumePending)) {
+            pol.tick(now)
+            settleEvaluable(now)
+        }
         val o = last
         val ref = reference
         val run = calibration
-        val pol = policy
-        val vigente = o != null && now - o.receivedNs < STALE_NS
+        val vigente = o != null && o.checkedAt(now) === o
+        val valid = vigente && o!!.valid
+        val eyeBudget = if (valid) minOf(STALE_NS - (now - o!!.tNs), STALE_NS - (now - o.receivedNs)) else null
+        val signalBudget = if (eyeBudget != null && lifecycle == SessionLifecycle.ACTIVE && pol?.usable == true) {
+            minOf(eyeBudget, ExperimentalProfile.G_MAX_MS * 1_000_000 - (now - o!!.receivedNs))
+        } else null
         val evaluable = evaluableNs + (usableSinceNs?.let { now - it } ?: 0)
         val end = endNs ?: now
         val paused = pausedNs + (pauseStartNs?.let { now - it } ?: 0)
@@ -420,10 +440,10 @@ internal class MonitoringCoordinator(
             engineInstanceId = engineInstanceId,
             sequence = ++sequence,
             attachedToken = token,
-            eyesValid = vigente && o!!.valid,
+            eyesValid = valid,
             eyeIssue = when {
                 o == null -> if (token == null) "cameraClosed" else "noResults"
-                !vigente -> QReason.STALE_RESULT.code
+                !vigente -> o.checkedAt(now).reasons.firstOrNull()?.code ?: QReason.STALE_RESULT.code
                 else -> o.reasons.firstOrNull()?.code
             },
             earRight = if (vigente) o!!.earRight else null,
@@ -431,6 +451,11 @@ internal class MonitoringCoordinator(
             ratioRight = if (vigente && ref != null) o!!.earRight?.div(ref.openEarRight) else null,
             ratioLeft = if (vigente && ref != null) o!!.earLeft?.div(ref.openEarLeft) else null,
             observationAgeMs = o?.let { (now - it.tNs) / 1_000_000 },
+            observationId = o?.let { observationSequence },
+            // Presupuestos redondeados hacia abajo: Dart descuenta el viaje
+            // completo, sin comparar el reloj Android con el suyo.
+            eyesValidForMs = eyeBudget?.let { it.coerceAtLeast(0) / 1_000_000 },
+            signalValidForMs = signalBudget?.let { it.coerceAtLeast(0) / 1_000_000 },
             calibrationPhase = calibrationPhase,
             calibrationAttempt = calibrationAttempt,
             calibrationProbe = run?.probe ?: 0,

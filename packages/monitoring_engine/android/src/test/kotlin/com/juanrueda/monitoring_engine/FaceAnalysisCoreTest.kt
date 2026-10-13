@@ -116,6 +116,7 @@ internal class FaceAnalysisCoreTest {
         val queue = ArrayDeque<Runnable>()
         val published = mutableListOf<FacePresence>()
         val engines = mutableListOf<FakeEngine>()
+        val observations = mutableListOf<com.juanrueda.monitoring_engine.monitoring.EyeObservation>()
         val core = FaceAnalysisCore(
             token = 7,
             loadModel = { model() },
@@ -126,6 +127,7 @@ internal class FaceAnalysisCoreTest {
             post = { queue.addLast(it) },
             clockNs = { nowMs * 1_000_000 },
             publish = { published += it },
+            observe = { observations += it },
         )
         val engine get() = engines.last()
         val last get() = published.last()
@@ -145,6 +147,23 @@ internal class FaceAnalysisCoreTest {
             engine.listener.onResult(ts, faces)
             drain()
         }
+    }
+
+    @Test
+    fun engineFailureImmediatelyInvalidatesOcularObservationAndOldErrorsAreIgnored() {
+        val h = Harness()
+        h.core.start()
+        val old = h.engine
+        old.listener.onError("failed")
+        h.drain()
+        assertEquals(1, h.observations.size)
+        assertEquals("inferenceError", h.observations.single().reasons.first().code)
+        assertFalse(h.observations.single().valid)
+        assertTrue(h.core.restart())
+        old.listener.onError("old failure")
+        h.drain()
+        assertEquals(1, h.observations.size)
+        assertEquals(FacePresenceStatus.WAITING_RESULTS, h.core.status)
     }
 
     @Test

@@ -64,6 +64,9 @@ void main() {
           fakeSnapshot(
             lifecycle: EngineSessionLifecycle.active,
             sessionId: 's1',
+            sequence: 2,
+            eyesValid: true,
+            measurement: EngineMeasurement.usable,
             signal: EngineSignal.prolongedEyeClosure,
           ),
         );
@@ -104,6 +107,7 @@ void main() {
         bridge.emit(
           fakeSnapshot(
             calibrationId: 'cal-7',
+            sequence: 2,
             step: CalibrationStep.accepted,
             soundTestId: 'snd-3',
             soundTestPlayed: true,
@@ -328,6 +332,19 @@ void main() {
           sequence: 2,
           lifecycle: EngineSessionLifecycle.active,
           sessionId: 'S1',
+          eyesValid: true,
+          measurement: EngineMeasurement.usable,
+          signal: EngineSignal.prolongedEyeClosure,
+        ),
+      );
+      await emit(
+        tester,
+        fakeSnapshot(
+          sequence: 3,
+          eyesValid: true,
+          lifecycle: EngineSessionLifecycle.active,
+          sessionId: 'S1',
+          measurement: EngineMeasurement.usable,
           signal: EngineSignal.prolongedEyeClosure,
         ),
       );
