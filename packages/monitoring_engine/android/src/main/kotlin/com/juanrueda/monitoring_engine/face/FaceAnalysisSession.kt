@@ -12,6 +12,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
+import com.juanrueda.monitoring_engine.monitoring.EyeObservation
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -40,6 +41,8 @@ internal class FaceAnalysisSession(
     context: Context,
     private val token: Long,
     onPresence: (FacePresence) -> Unit,
+    /** Fase 5C: observaciones oculares compactas, en el hilo de análisis. */
+    onObservation: (EyeObservation) -> Unit = {},
     loadModel: () -> ModelLoad = {
         FaceModelLoader.load({ context.assets.open(FaceModelSpec.ASSET_PATH) })
     },
@@ -75,6 +78,7 @@ internal class FaceAnalysisSession(
             lastPresence = presence
             main.post { onPresence(presence) }
         },
+        observe = onObservation,
     )
 
     val useCase: ImageAnalysis = ImageAnalysis.Builder()

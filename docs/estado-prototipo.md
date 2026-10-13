@@ -1,8 +1,8 @@
 # Vigía · Estado del prototipo
 
-Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) y `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe). Entorno: `docs/toolchain.md`.
+Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) y `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-13 (fase 5B: cuarta corrección, registro por canal y plazo al recibir; pendiente de nueva revisión de Codex).
+**Actualizado:** 2026-10-13 (bloque integrado: quinta corrección de 5B y fase 5C «Monitoreo experimental»; pendiente de una única revisión de Codex).
 
 ## Fases
 
@@ -13,7 +13,8 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 3. App DEMO separada, persistencia, Historial y Ajustes | **Aprobada por Codex dentro de su alcance y publicada en `origin/main`** (`486bf725737be06fe25f25227646e55e9240f2d8`, confirmado con `git fetch`). La revisión corrigió P1/P2 (`7c91f46`), el aviso de Ajustes (`f86c6ed`) y los avisos de Sonido (P13, `486bf72`) | `7481d87`, `07528db`, `96bf5e9`, `f9b4828`, `9d54956`, `7c91f46`, `f86c6ed`, `486bf72` |
 | 4. Comprobación final y entrega | **Aprobada por Codex (dictamen final favorable) dentro del alcance DEMO**, respaldada por el recorrido en emulador (sección «Fase 4»). Pendientes declarados abajo: D1, TalkBack, revisión visual completa de ambos temas y una observación no reproducida | `cad9f51`, `f696ffe`, `4ea6a56`, `2356cad` y el commit documental de cierre |
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
-| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729` y `8f715dd` (consultas). **Corregidos; pendiente de nueva revisión.** Commits locales en `main`, sin publicar. Sin evaluación ocular, calibración, sesiones ni alertas de fatiga | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd` y el commit de la cuarta corrección |
+| 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729`, `8f715dd` y `b08cfec` (consultas). **Corregidos; entra en la revisión integrada.** Commits locales en `main`, sin publicar | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd`, `b08cfec`, `9a95cce` |
+| 5C. Monitoreo experimental (variante normal) | **Implementado; pendiente de la revisión integrada de Codex.** Commit local en `main`, sin publicar. Valores de laboratorio `lab-eye-rules-0.1` (experimental) | commit de la fase 5C |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -460,6 +461,59 @@ Se mantienen documentados el incidente inicial de telemetría y las limitaciones
 
 **APK:** todos los existentes son **anteriores** a las correcciones tercera y cuarta.
 
+### Quinta corrección (bloque integrado)
+
+**Dictamen sobre `b08cfec`: desfavorable.** Corregido en `9a95cce` sin revisión intermedia, por el cambio de plan. Detalle en `docs/fase5b-mediapipe.md`, «Quinta corrección».
+
+- Mensajero efectivo (`null` = predeterminado): una RPC por canal.
+- Edad medida al aplicar, con el cronómetro de la consulta en marcha.
+- Consumidores desvinculados del ticket al salir o desecharse.
+- Resultados: 8 casos nuevos (3 hallazgos) y `test/camera` 125/125; los dos P1 de Codex pasan.
+
+## Fase 5C · Monitoreo experimental (2026-10-13; pendiente de revisión integrada)
+
+**Autorización:** cambio de plan del usuario, 2026-10-13 (`AGENTS.md`). Detalle, parámetros pendientes, pruebas y recorrido reproducible en `docs/fase5c-monitoreo-experimental.md`.
+
+- **Implementado (variante normal):**
+  - Inicio → «Monitoreo experimental»;
+  - EAR y Q geométrica en Kotlin (`mp-eye6-v1`);
+  - Kcal con muestras reales;
+  - prueba de sonido y «Lo escuché»;
+  - una sola sesión con Krecover, C/Tclose y Rrepeat decididos en el motor con tiempo monotónico;
+  - tono local (`ToneGenerator`);
+  - pausa, que libera la cámara; reanudación, que espera Krecover;
+  - finalizar, que libera cámara, análisis y audio, con resumen en memoria.
+- **Reutiliza** la cámara y MediaPipe de 5A/5B. Sin red: el APK normal solo pide `CAMERA`. El DEMO no cambia.
+- **No implementado o pendiente:**
+  - W, episodios y Eend;
+  - luz, nitidez y postura de Q;
+  - conversión del reloj de captura;
+  - manifiestos;
+  - persistencia y servicio en primer plano;
+  - además, los parámetros de prototipo que añade la guía.
+
+**Resultados reales:**
+
+- `flutter analyze` (app y plugin): sin problemas.
+- `flutter test`: pasan 741 pruebas, entre ellas 9 de 5C y 22 renderizados nuevos; se regeneraron 4 de P03.
+- Plugin: 3 pruebas Dart.
+- JVM: pasan 73, de ellas 24 nuevas con secuencias controladas.
+- `spec_registry.py check`: OK.
+- **MediaPipe real con fotos** (`am instrument`): 14/14. Las nuevas miden el EAR de un retrato con los ojos abiertos (0,316/0,311), su giro de 90° (0,310/0,308) y el rechazo por resolución. Esta prueba detectó y corrigió un error de escala con giro.
+- **Emulador** (imagen fija con los ojos abiertos):
+  - rostro y ojos medibles, EAR 0,28/0,26;
+  - referencia abierta aceptada (unas 17 observaciones válidas por segundo);
+  - la comprobación de cierre se rechaza (`probe1NotClosed`, ratio 1,000), que es lo correcto;
+  - tono técnico, cancelación, salida y segundo plano con la cámara liberada;
+  - sin `FATAL`.
+
+**No demostrado en Android:**
+
+- ojos cerrados, calibración aceptada, sesión, cierre prolongado con tono, pausa/reanudación y finalización. La fuente disponible no cierra los ojos, y no se sustituyó por una simulación;
+- D1, webcam y TalkBack.
+
+**APK:** `D:\dev\vigia-entrega\vigia-normal-fase5c-release.apk`, 94 516 725 bytes, SHA-256 `b205b972bc5dc58c925f2e2381cc3903e2d8edc3578131ca6e5395e18f0567ad` (añadido a `SHA256SUMS.txt`). Evidencia: `D:\dev\vigia-entrega\evidencia-fase5c\`.
+
 ## Siguiente acción
 
-Nueva revisión de Codex de la fase 5B, con la cuarta corrección. No se avanza a calibración, sesiones ni fatiga. No se avanza a reglas ni alertas de fatiga, calibración ni sesiones sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.
+Revisión integrada de Codex del bloque (quinta corrección de 5B y fase 5C). Para demostrar el cierre ocular en Android hace falta una cámara física con una persona (teléfono D1 o webcam con consentimiento): ver «Recorrido reproducible» en la guía de 5C. No se avanza a otro bloque sin una nueva autorización expresa. La secuencia VIG del Área 08 sigue aplazada.

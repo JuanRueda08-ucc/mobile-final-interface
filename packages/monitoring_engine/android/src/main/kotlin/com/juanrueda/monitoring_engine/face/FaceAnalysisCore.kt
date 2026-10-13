@@ -1,5 +1,8 @@
 package com.juanrueda.monitoring_engine.face
 
+import com.juanrueda.monitoring_engine.monitoring.EyeGeometry
+import com.juanrueda.monitoring_engine.monitoring.EyeObservation
+import com.juanrueda.monitoring_engine.monitoring.QReason
 import java.nio.ByteBuffer
 
 /** Estado del análisis de presencia facial (espejo de `FaceAnalysisStatus` de Pigeon). */
@@ -86,7 +89,12 @@ internal interface FaceEngine<F> {
 
 /** Avisos del detector; pueden llegar en cualquier hilo. */
 internal interface FaceEngineListener {
-    fun onResult(timestampMs: Long, faceCount: Int)
+    /**
+     * [points]: con exactamente un rostro, sus puntos normalizados (x0, y0,
+     * x1, y1, …) respecto al cuadro entregado; si no, nulo. Fase 5C: solo
+     * se usan para medir los ojos en Kotlin y no se conservan.
+     */
+    fun onResult(timestampMs: Long, faceCount: Int, points: FloatArray? = null)
     fun onError(code: String)
 }
 
@@ -136,6 +144,11 @@ internal class FaceAnalysisCore<F>(
     private val staleAfterNs: Long = FaceTiming.STALE_AFTER_MS * 1_000_000,
     private val heartbeatNs: Long = FaceTiming.HEARTBEAT_MS * 1_000_000,
     private val maxFaces: Int = FaceModelSpec.MAX_FACES,
+    /**
+     * Fase 5C: cada resultado aplicado (o descartado por antiguo o por marca
+     * imposible) se entrega como observación ocular compacta al coordinador.
+     */
+    private val observe: (EyeObservation) -> Unit = {},
 ) {
     private var current = FacePresenceStatus.LOADING_MODEL
 
@@ -209,9 +222,9 @@ internal class FaceAnalysisCore<F>(
             is ModelLoad.Ready -> {
                 val gen = generation
                 val listener = object : FaceEngineListener {
-                    override fun onResult(timestampMs: Long, faceCount: Int) {
+                    override fun onResult(timestampMs: Long, faceCount: Int, points: FloatArray?) {
                         val receivedNs = clockNs()
-                        post { onEngineResult(gen, timestampMs, faceCount, receivedNs) }
+                        post { onEngineResult(gen, timestampMs, faceCount, receivedNs, points) }
                     }
 
                     override fun onError(code: String) {
@@ -341,7 +354,7 @@ internal class FaceAnalysisCore<F>(
         setStatus(FacePresenceStatus.STOPPED)
     }
 
-    private fun onEngineResult(gen: Long, ts: Long, count: Int, receivedNs: Long) {
+    private fun onEngineResult(gen: Long, ts: Long, count: Int, receivedNs: Long, points: FloatArray? = null) {
         if (stopped || gen != generation || !current.acceptsFrames) return
         if (inFlightTs?.let { ts >= it } == true) inFlightTs = null
         val entryNs = pending[ts]
@@ -358,12 +371,14 @@ internal class FaceAnalysisCore<F>(
         if (entryNs > receivedNs || receivedNs > now) {
             resultsDiscarded++
             discardedInvalidTime++
+            observe(EyeObservation.invalid(token, now, now, QReason.INVALID_TIMESTAMP))
             return
         }
         val age = now - entryNs
         if (age > staleAfterNs) {
             resultsDiscarded++
             discardedTooOld++
+            observe(EyeObservation.invalid(token, entryNs, now, QReason.STALE_RESULT))
             return
         }
         maxAcceptedAgeMs = maxOf(maxAcceptedAgeMs, age / 1_000_000)
@@ -381,9 +396,21 @@ internal class FaceAnalysisCore<F>(
             else -> FacePresenceStatus.MULTIPLE_FACES
         }
         current = next
+        observe(EyeObservation.of(token, entryNs, now, count, measureEyes(count, points)))
         // Publica también cuando no cambia el estado: es un resultado nuevo
         // (otra identidad), no un latido.
         if (previous != (next to faceCount) || isHeartbeatDue(now)) publishNow()
+    }
+
+    /** Medición ocular en Kotlin (fase 5C); los puntos no se conservan. */
+    private fun measureEyes(count: Int, points: FloatArray?): com.juanrueda.monitoring_engine.monitoring.EyeMeasurement? {
+        if (count != 1 || points == null) return null
+        val w = frameWidth ?: return null
+        val h = frameHeight ?: return null
+        // Escala según el tamaño entregado (sin intercambiar por el giro):
+        // comprobado con MediaPipe real en `EyeMeasurementInstrumentedTest`
+        // (misma EAR con la imagen derecha y girada 90°).
+        return EyeGeometry.measure(points, w, h)
     }
 
     private fun onEngineError(gen: Long, code: String) {

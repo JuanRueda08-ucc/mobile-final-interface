@@ -198,6 +198,43 @@ enum FaceAnalysisStatus {
   analysisError,
 }
 
+/// Paso de la calibración experimental (Kcal, Área 05 §8).
+enum CalibrationStep {
+  /// Sin calibración en curso ni resultado en este motor.
+  idle,
+
+  /// Referencia con los ojos abiertos (8000 ms).
+  openReference,
+
+  /// Aviso «Cierra los ojos» antes de medir el cierre (prototipo).
+  closeLeadIn,
+
+  /// Medición del cierre voluntario (1000 ms).
+  closedProbe,
+
+  /// Reapertura comprobada (2000 ms continuos con los ojos abiertos).
+  reopen,
+
+  /// Referencia aceptada ([MonitoringSnapshot.calibrationId]).
+  accepted,
+
+  /// Rechazada ([MonitoringSnapshot.calibrationRejection]).
+  rejected,
+
+  /// Cancelada; nunca aceptada.
+  canceled,
+}
+
+/// Ciclo de la sesión experimental (Área 04 §4.1, subconjunto).
+enum EngineSessionLifecycle { none, active, paused, finalized }
+
+/// Eje de medición (Área 04 §4.1).
+enum EngineMeasurement { initializing, usable, limited, unavailable }
+
+/// Señal que admite la política (Área 04 §4.1). La advertencia por
+/// acumulación (W) no está implementada en esta fase.
+enum EngineSignal { notEvaluable, noPersistentSignals, prolongedEyeClosure }
+
 class PreviewOpenResult {
   PreviewOpenResult({
     required this.token,
@@ -518,6 +555,376 @@ class PreviewClosedEvent {
   }
 }
 
+/// Estado compacto del coordinador experimental (fase 5C). Sin imágenes ni
+/// puntos faciales: solo mediciones oculares agregadas por observación.
+class MonitoringSnapshot {
+  MonitoringSnapshot({
+    required this.engineInstanceId,
+    required this.sequence,
+    required this.profileId,
+    required this.qualificationStatus,
+    this.attachedToken,
+    required this.eyesValid,
+    this.eyeIssue,
+    this.earRight,
+    this.earLeft,
+    this.ratioRight,
+    this.ratioLeft,
+    this.observationAgeMs,
+    required this.calibrationStep,
+    required this.calibrationAttempt,
+    required this.calibrationProbe,
+    this.stepElapsedMs,
+    this.stepDurationMs,
+    this.stepValidSamples,
+    this.calibrationId,
+    this.calibrationRejection,
+    this.calibrationDetail,
+    this.openEarRight,
+    this.openEarLeft,
+    this.calibrationSamples,
+    this.calibrationCoverage,
+    this.soundTestId,
+    required this.soundTestPlayed,
+    required this.soundHeard,
+    this.soundFailure,
+    required this.lifecycle,
+    required this.resumePending,
+    this.sessionId,
+    required this.measurement,
+    required this.signal,
+    this.measurementCause,
+    required this.activeMs,
+    required this.pausedMs,
+    required this.evaluableMs,
+    required this.closureActivations,
+    required this.tonesPlayed,
+    required this.tonesFailed,
+    this.closedRunMs,
+  });
+
+  /// Instancia del coordinador; cambia si el plugin se recrea.
+  String engineInstanceId;
+
+  /// Orden de emisión dentro de la instancia: estrictamente creciente.
+  int sequence;
+
+  /// Perfil de parámetros (`lab-eye-rules-0.1`) y su calificación
+  /// (`experimental`): no es una política aceptada.
+  String profileId;
+
+  String qualificationStatus;
+
+  /// Apertura de cámara vinculada al coordinador, si la hay.
+  int? attachedToken;
+
+  /// Última observación ocular vigente y con Q válida.
+  bool eyesValid;
+
+  /// Motivo técnico por el que los ojos no son medibles (código de Q).
+  String? eyeIssue;
+
+  /// EAR de cada ojo anatómico en la última observación vigente.
+  double? earRight;
+
+  double? earLeft;
+
+  /// EAR / referencia abierta de cada ojo, si hay referencia.
+  double? ratioRight;
+
+  double? ratioLeft;
+
+  /// Edad de la última observación al crear este estado, en ms.
+  int? observationAgeMs;
+
+  CalibrationStep calibrationStep;
+
+  int calibrationAttempt;
+
+  /// Comprobación de cierre en curso (1..2); 0 si no aplica.
+  int calibrationProbe;
+
+  int? stepElapsedMs;
+
+  int? stepDurationMs;
+
+  int? stepValidSamples;
+
+  String? calibrationId;
+
+  /// insufficientObservations, invalidEyeQuality o unstableReference.
+  String? calibrationRejection;
+
+  /// Causa técnica del rechazo (diagnóstico, no texto de interfaz).
+  String? calibrationDetail;
+
+  double? openEarRight;
+
+  double? openEarLeft;
+
+  int? calibrationSamples;
+
+  double? calibrationCoverage;
+
+  /// Prueba de sonido técnica y confirmación humana (sin micrófono).
+  String? soundTestId;
+
+  bool soundTestPlayed;
+
+  bool soundHeard;
+
+  String? soundFailure;
+
+  EngineSessionLifecycle lifecycle;
+
+  /// Reanudación pedida: la pausa sigue abierta hasta cumplir Krecover.
+  bool resumePending;
+
+  String? sessionId;
+
+  EngineMeasurement measurement;
+
+  EngineSignal signal;
+
+  /// Causa técnica de la última pérdida de medición.
+  String? measurementCause;
+
+  /// Tiempos de la sesión (monotónicos, en ms).
+  int activeMs;
+
+  int pausedMs;
+
+  int evaluableMs;
+
+  /// Activaciones del cierre ocular prolongado (no son reproducciones).
+  int closureActivations;
+
+  /// Intentos de tono de aviso: iniciados y fallidos.
+  int tonesPlayed;
+
+  int tonesFailed;
+
+  /// Duración del tramo cerrado en curso, en ms.
+  int? closedRunMs;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      engineInstanceId,
+      sequence,
+      profileId,
+      qualificationStatus,
+      attachedToken,
+      eyesValid,
+      eyeIssue,
+      earRight,
+      earLeft,
+      ratioRight,
+      ratioLeft,
+      observationAgeMs,
+      calibrationStep,
+      calibrationAttempt,
+      calibrationProbe,
+      stepElapsedMs,
+      stepDurationMs,
+      stepValidSamples,
+      calibrationId,
+      calibrationRejection,
+      calibrationDetail,
+      openEarRight,
+      openEarLeft,
+      calibrationSamples,
+      calibrationCoverage,
+      soundTestId,
+      soundTestPlayed,
+      soundHeard,
+      soundFailure,
+      lifecycle,
+      resumePending,
+      sessionId,
+      measurement,
+      signal,
+      measurementCause,
+      activeMs,
+      pausedMs,
+      evaluableMs,
+      closureActivations,
+      tonesPlayed,
+      tonesFailed,
+      closedRunMs,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MonitoringSnapshot decode(Object result) {
+    result as List<Object?>;
+    return MonitoringSnapshot(
+      engineInstanceId: result[0]! as String,
+      sequence: result[1]! as int,
+      profileId: result[2]! as String,
+      qualificationStatus: result[3]! as String,
+      attachedToken: result[4] as int?,
+      eyesValid: result[5]! as bool,
+      eyeIssue: result[6] as String?,
+      earRight: result[7] as double?,
+      earLeft: result[8] as double?,
+      ratioRight: result[9] as double?,
+      ratioLeft: result[10] as double?,
+      observationAgeMs: result[11] as int?,
+      calibrationStep: result[12]! as CalibrationStep,
+      calibrationAttempt: result[13]! as int,
+      calibrationProbe: result[14]! as int,
+      stepElapsedMs: result[15] as int?,
+      stepDurationMs: result[16] as int?,
+      stepValidSamples: result[17] as int?,
+      calibrationId: result[18] as String?,
+      calibrationRejection: result[19] as String?,
+      calibrationDetail: result[20] as String?,
+      openEarRight: result[21] as double?,
+      openEarLeft: result[22] as double?,
+      calibrationSamples: result[23] as int?,
+      calibrationCoverage: result[24] as double?,
+      soundTestId: result[25] as String?,
+      soundTestPlayed: result[26]! as bool,
+      soundHeard: result[27]! as bool,
+      soundFailure: result[28] as String?,
+      lifecycle: result[29]! as EngineSessionLifecycle,
+      resumePending: result[30]! as bool,
+      sessionId: result[31] as String?,
+      measurement: result[32]! as EngineMeasurement,
+      signal: result[33]! as EngineSignal,
+      measurementCause: result[34] as String?,
+      activeMs: result[35]! as int,
+      pausedMs: result[36]! as int,
+      evaluableMs: result[37]! as int,
+      closureActivations: result[38]! as int,
+      tonesPlayed: result[39]! as int,
+      tonesFailed: result[40]! as int,
+      closedRunMs: result[41] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MonitoringSnapshot || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(engineInstanceId, other.engineInstanceId) &&
+        _deepEquals(sequence, other.sequence) &&
+        _deepEquals(profileId, other.profileId) &&
+        _deepEquals(qualificationStatus, other.qualificationStatus) &&
+        _deepEquals(attachedToken, other.attachedToken) &&
+        _deepEquals(eyesValid, other.eyesValid) &&
+        _deepEquals(eyeIssue, other.eyeIssue) &&
+        _deepEquals(earRight, other.earRight) &&
+        _deepEquals(earLeft, other.earLeft) &&
+        _deepEquals(ratioRight, other.ratioRight) &&
+        _deepEquals(ratioLeft, other.ratioLeft) &&
+        _deepEquals(observationAgeMs, other.observationAgeMs) &&
+        _deepEquals(calibrationStep, other.calibrationStep) &&
+        _deepEquals(calibrationAttempt, other.calibrationAttempt) &&
+        _deepEquals(calibrationProbe, other.calibrationProbe) &&
+        _deepEquals(stepElapsedMs, other.stepElapsedMs) &&
+        _deepEquals(stepDurationMs, other.stepDurationMs) &&
+        _deepEquals(stepValidSamples, other.stepValidSamples) &&
+        _deepEquals(calibrationId, other.calibrationId) &&
+        _deepEquals(calibrationRejection, other.calibrationRejection) &&
+        _deepEquals(calibrationDetail, other.calibrationDetail) &&
+        _deepEquals(openEarRight, other.openEarRight) &&
+        _deepEquals(openEarLeft, other.openEarLeft) &&
+        _deepEquals(calibrationSamples, other.calibrationSamples) &&
+        _deepEquals(calibrationCoverage, other.calibrationCoverage) &&
+        _deepEquals(soundTestId, other.soundTestId) &&
+        _deepEquals(soundTestPlayed, other.soundTestPlayed) &&
+        _deepEquals(soundHeard, other.soundHeard) &&
+        _deepEquals(soundFailure, other.soundFailure) &&
+        _deepEquals(lifecycle, other.lifecycle) &&
+        _deepEquals(resumePending, other.resumePending) &&
+        _deepEquals(sessionId, other.sessionId) &&
+        _deepEquals(measurement, other.measurement) &&
+        _deepEquals(signal, other.signal) &&
+        _deepEquals(measurementCause, other.measurementCause) &&
+        _deepEquals(activeMs, other.activeMs) &&
+        _deepEquals(pausedMs, other.pausedMs) &&
+        _deepEquals(evaluableMs, other.evaluableMs) &&
+        _deepEquals(closureActivations, other.closureActivations) &&
+        _deepEquals(tonesPlayed, other.tonesPlayed) &&
+        _deepEquals(tonesFailed, other.tonesFailed) &&
+        _deepEquals(closedRunMs, other.closedRunMs);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs)';
+  }
+}
+
+/// Resultado de una orden al coordinador experimental.
+class MonitoringCommandResult {
+  MonitoringCommandResult({
+    required this.accepted,
+    this.errorCode,
+    required this.snapshot,
+  });
+
+  bool accepted;
+
+  /// Código técnico del rechazo (p. ej. `sessionActive`), o nulo.
+  String? errorCode;
+
+  MonitoringSnapshot snapshot;
+
+  List<Object?> _toList() {
+    return <Object?>[accepted, errorCode, snapshot];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MonitoringCommandResult decode(Object result) {
+    result as List<Object?>;
+    return MonitoringCommandResult(
+      accepted: result[0]! as bool,
+      errorCode: result[1] as String?,
+      snapshot: result[2]! as MonitoringSnapshot,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MonitoringCommandResult || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(accepted, other.accepted) &&
+        _deepEquals(errorCode, other.errorCode) &&
+        _deepEquals(snapshot, other.snapshot);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MonitoringCommandResult(accepted: $accepted, errorCode: $errorCode, snapshot: $snapshot)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -537,14 +944,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is FaceAnalysisStatus) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    } else if (value is PreviewOpenResult) {
+    } else if (value is CalibrationStep) {
       buffer.putUint8(133);
+      writeValue(buffer, value.index);
+    } else if (value is EngineSessionLifecycle) {
+      buffer.putUint8(134);
+      writeValue(buffer, value.index);
+    } else if (value is EngineMeasurement) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.index);
+    } else if (value is EngineSignal) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.index);
+    } else if (value is PreviewOpenResult) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else if (value is FaceAnalysisSnapshot) {
-      buffer.putUint8(134);
+      buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else if (value is PreviewClosedEvent) {
-      buffer.putUint8(135);
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    } else if (value is MonitoringSnapshot) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else if (value is MonitoringCommandResult) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -567,11 +992,27 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : FaceAnalysisStatus.values[value];
       case 133:
-        return PreviewOpenResult.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : CalibrationStep.values[value];
       case 134:
-        return FaceAnalysisSnapshot.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : EngineSessionLifecycle.values[value];
       case 135:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : EngineMeasurement.values[value];
+      case 136:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : EngineSignal.values[value];
+      case 137:
+        return PreviewOpenResult.decode(readValue(buffer)!);
+      case 138:
+        return FaceAnalysisSnapshot.decode(readValue(buffer)!);
+      case 139:
         return PreviewClosedEvent.decode(readValue(buffer)!);
+      case 140:
+        return MonitoringSnapshot.decode(readValue(buffer)!);
+      case 141:
+        return MonitoringCommandResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -815,6 +1256,260 @@ abstract class FrontCameraFlutterApi {
               args[0]! as FaceAnalysisSnapshot;
           try {
             api.onFaceAnalysis(arg_snapshot);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
+          }
+        });
+      }
+    }
+  }
+}
+
+/// Órdenes del recorrido experimental (fase 5C). Kotlin vuelve a comprobar
+/// cada precondición: la habilitación de un botón no la sustituye.
+class ExperimentalMonitoringHostApi {
+  /// Constructor for [ExperimentalMonitoringHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  ExperimentalMonitoringHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<MonitoringSnapshot> getMonitoringSnapshot() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.getMonitoringSnapshot$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringSnapshot;
+  }
+
+  /// Requiere cámara vinculada y ninguna sesión vigente.
+  Future<MonitoringCommandResult> beginCalibration() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.beginCalibration$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  Future<MonitoringCommandResult> cancelCalibration() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.cancelCalibration$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Tono local de prueba; devuelve el identificador de la prueba.
+  Future<MonitoringCommandResult> testSound() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.testSound$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  Future<MonitoringCommandResult> confirmSoundHeard(String soundTestId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.confirmSoundHeard$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[soundTestId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Única sesión: con la referencia y la prueba de sonido indicadas.
+  Future<MonitoringCommandResult> startSession(
+    String calibrationId,
+    String soundTestId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.startSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[calibrationId, soundTestId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Corta la medición, detiene el tono y libera la cámara.
+  Future<MonitoringCommandResult> pauseSession(String sessionId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.pauseSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// La pausa sigue abierta hasta reunir observaciones válidas (Krecover).
+  Future<MonitoringCommandResult> resumeSession(String sessionId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.resumeSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Termina la sesión: detiene evaluación y tono y libera la cámara.
+  Future<MonitoringCommandResult> stopSession(String sessionId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.stopSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+}
+
+/// Avisos del coordinador experimental hacia Flutter: cada cambio y un
+/// latido cada 1000 ms.
+abstract class ExperimentalMonitoringFlutterApi {
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  void onMonitoring(MonitoringSnapshot snapshot);
+
+  static void setUp(
+    ExperimentalMonitoringFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringFlutterApi.onMonitoring$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          final List<Object?> args = message! as List<Object?>;
+          final MonitoringSnapshot arg_snapshot =
+              args[0]! as MonitoringSnapshot;
+          try {
+            api.onMonitoring(arg_snapshot);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

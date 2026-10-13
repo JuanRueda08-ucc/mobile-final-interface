@@ -304,6 +304,76 @@ enum class FaceAnalysisStatus(val raw: Int) {
   }
 }
 
+/** Paso de la calibración experimental (Kcal, Área 05 §8). */
+enum class CalibrationStep(val raw: Int) {
+  /** Sin calibración en curso ni resultado en este motor. */
+  IDLE(0),
+  /** Referencia con los ojos abiertos (8000 ms). */
+  OPEN_REFERENCE(1),
+  /** Aviso «Cierra los ojos» antes de medir el cierre (prototipo). */
+  CLOSE_LEAD_IN(2),
+  /** Medición del cierre voluntario (1000 ms). */
+  CLOSED_PROBE(3),
+  /** Reapertura comprobada (2000 ms continuos con los ojos abiertos). */
+  REOPEN(4),
+  /** Referencia aceptada ([MonitoringSnapshot.calibrationId]). */
+  ACCEPTED(5),
+  /** Rechazada ([MonitoringSnapshot.calibrationRejection]). */
+  REJECTED(6),
+  /** Cancelada; nunca aceptada. */
+  CANCELED(7);
+
+  companion object {
+    fun ofRaw(raw: Int): CalibrationStep? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Ciclo de la sesión experimental (Área 04 §4.1, subconjunto). */
+enum class EngineSessionLifecycle(val raw: Int) {
+  NONE(0),
+  ACTIVE(1),
+  PAUSED(2),
+  FINALIZED(3);
+
+  companion object {
+    fun ofRaw(raw: Int): EngineSessionLifecycle? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Eje de medición (Área 04 §4.1). */
+enum class EngineMeasurement(val raw: Int) {
+  INITIALIZING(0),
+  USABLE(1),
+  LIMITED(2),
+  UNAVAILABLE(3);
+
+  companion object {
+    fun ofRaw(raw: Int): EngineMeasurement? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
+ * Señal que admite la política (Área 04 §4.1). La advertencia por
+ * acumulación (W) no está implementada en esta fase.
+ */
+enum class EngineSignal(val raw: Int) {
+  NOT_EVALUABLE(0),
+  NO_PERSISTENT_SIGNALS(1),
+  PROLONGED_EYE_CLOSURE(2);
+
+  companion object {
+    fun ofRaw(raw: Int): EngineSignal? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class PreviewOpenResult (
   /** Identificador de la petición, elegido por Flutter. */
@@ -561,6 +631,284 @@ data class PreviewClosedEvent (
     return "PreviewClosedEvent(token=$token, reason=$reason, errorCode=$errorCode)"
   }
 }
+
+/**
+ * Estado compacto del coordinador experimental (fase 5C). Sin imágenes ni
+ * puntos faciales: solo mediciones oculares agregadas por observación.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MonitoringSnapshot (
+  /** Instancia del coordinador; cambia si el plugin se recrea. */
+  val engineInstanceId: String,
+  /** Orden de emisión dentro de la instancia: estrictamente creciente. */
+  val sequence: Long,
+  /**
+   * Perfil de parámetros (`lab-eye-rules-0.1`) y su calificación
+   * (`experimental`): no es una política aceptada.
+   */
+  val profileId: String,
+  val qualificationStatus: String,
+  /** Apertura de cámara vinculada al coordinador, si la hay. */
+  val attachedToken: Long? = null,
+  /** Última observación ocular vigente y con Q válida. */
+  val eyesValid: Boolean,
+  /** Motivo técnico por el que los ojos no son medibles (código de Q). */
+  val eyeIssue: String? = null,
+  /** EAR de cada ojo anatómico en la última observación vigente. */
+  val earRight: Double? = null,
+  val earLeft: Double? = null,
+  /** EAR / referencia abierta de cada ojo, si hay referencia. */
+  val ratioRight: Double? = null,
+  val ratioLeft: Double? = null,
+  /** Edad de la última observación al crear este estado, en ms. */
+  val observationAgeMs: Long? = null,
+  val calibrationStep: CalibrationStep,
+  val calibrationAttempt: Long,
+  /** Comprobación de cierre en curso (1..2); 0 si no aplica. */
+  val calibrationProbe: Long,
+  val stepElapsedMs: Long? = null,
+  val stepDurationMs: Long? = null,
+  val stepValidSamples: Long? = null,
+  val calibrationId: String? = null,
+  /** insufficientObservations, invalidEyeQuality o unstableReference. */
+  val calibrationRejection: String? = null,
+  /** Causa técnica del rechazo (diagnóstico, no texto de interfaz). */
+  val calibrationDetail: String? = null,
+  val openEarRight: Double? = null,
+  val openEarLeft: Double? = null,
+  val calibrationSamples: Long? = null,
+  val calibrationCoverage: Double? = null,
+  /** Prueba de sonido técnica y confirmación humana (sin micrófono). */
+  val soundTestId: String? = null,
+  val soundTestPlayed: Boolean,
+  val soundHeard: Boolean,
+  val soundFailure: String? = null,
+  val lifecycle: EngineSessionLifecycle,
+  /** Reanudación pedida: la pausa sigue abierta hasta cumplir Krecover. */
+  val resumePending: Boolean,
+  val sessionId: String? = null,
+  val measurement: EngineMeasurement,
+  val signal: EngineSignal,
+  /** Causa técnica de la última pérdida de medición. */
+  val measurementCause: String? = null,
+  /** Tiempos de la sesión (monotónicos, en ms). */
+  val activeMs: Long,
+  val pausedMs: Long,
+  val evaluableMs: Long,
+  /** Activaciones del cierre ocular prolongado (no son reproducciones). */
+  val closureActivations: Long,
+  /** Intentos de tono de aviso: iniciados y fallidos. */
+  val tonesPlayed: Long,
+  val tonesFailed: Long,
+  /** Duración del tramo cerrado en curso, en ms. */
+  val closedRunMs: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MonitoringSnapshot {
+      val engineInstanceId = pigeonVar_list[0] as String
+      val sequence = pigeonVar_list[1] as Long
+      val profileId = pigeonVar_list[2] as String
+      val qualificationStatus = pigeonVar_list[3] as String
+      val attachedToken = pigeonVar_list[4] as Long?
+      val eyesValid = pigeonVar_list[5] as Boolean
+      val eyeIssue = pigeonVar_list[6] as String?
+      val earRight = pigeonVar_list[7] as Double?
+      val earLeft = pigeonVar_list[8] as Double?
+      val ratioRight = pigeonVar_list[9] as Double?
+      val ratioLeft = pigeonVar_list[10] as Double?
+      val observationAgeMs = pigeonVar_list[11] as Long?
+      val calibrationStep = pigeonVar_list[12] as CalibrationStep
+      val calibrationAttempt = pigeonVar_list[13] as Long
+      val calibrationProbe = pigeonVar_list[14] as Long
+      val stepElapsedMs = pigeonVar_list[15] as Long?
+      val stepDurationMs = pigeonVar_list[16] as Long?
+      val stepValidSamples = pigeonVar_list[17] as Long?
+      val calibrationId = pigeonVar_list[18] as String?
+      val calibrationRejection = pigeonVar_list[19] as String?
+      val calibrationDetail = pigeonVar_list[20] as String?
+      val openEarRight = pigeonVar_list[21] as Double?
+      val openEarLeft = pigeonVar_list[22] as Double?
+      val calibrationSamples = pigeonVar_list[23] as Long?
+      val calibrationCoverage = pigeonVar_list[24] as Double?
+      val soundTestId = pigeonVar_list[25] as String?
+      val soundTestPlayed = pigeonVar_list[26] as Boolean
+      val soundHeard = pigeonVar_list[27] as Boolean
+      val soundFailure = pigeonVar_list[28] as String?
+      val lifecycle = pigeonVar_list[29] as EngineSessionLifecycle
+      val resumePending = pigeonVar_list[30] as Boolean
+      val sessionId = pigeonVar_list[31] as String?
+      val measurement = pigeonVar_list[32] as EngineMeasurement
+      val signal = pigeonVar_list[33] as EngineSignal
+      val measurementCause = pigeonVar_list[34] as String?
+      val activeMs = pigeonVar_list[35] as Long
+      val pausedMs = pigeonVar_list[36] as Long
+      val evaluableMs = pigeonVar_list[37] as Long
+      val closureActivations = pigeonVar_list[38] as Long
+      val tonesPlayed = pigeonVar_list[39] as Long
+      val tonesFailed = pigeonVar_list[40] as Long
+      val closedRunMs = pigeonVar_list[41] as Long?
+      return MonitoringSnapshot(engineInstanceId, sequence, profileId, qualificationStatus, attachedToken, eyesValid, eyeIssue, earRight, earLeft, ratioRight, ratioLeft, observationAgeMs, calibrationStep, calibrationAttempt, calibrationProbe, stepElapsedMs, stepDurationMs, stepValidSamples, calibrationId, calibrationRejection, calibrationDetail, openEarRight, openEarLeft, calibrationSamples, calibrationCoverage, soundTestId, soundTestPlayed, soundHeard, soundFailure, lifecycle, resumePending, sessionId, measurement, signal, measurementCause, activeMs, pausedMs, evaluableMs, closureActivations, tonesPlayed, tonesFailed, closedRunMs)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      engineInstanceId,
+      sequence,
+      profileId,
+      qualificationStatus,
+      attachedToken,
+      eyesValid,
+      eyeIssue,
+      earRight,
+      earLeft,
+      ratioRight,
+      ratioLeft,
+      observationAgeMs,
+      calibrationStep,
+      calibrationAttempt,
+      calibrationProbe,
+      stepElapsedMs,
+      stepDurationMs,
+      stepValidSamples,
+      calibrationId,
+      calibrationRejection,
+      calibrationDetail,
+      openEarRight,
+      openEarLeft,
+      calibrationSamples,
+      calibrationCoverage,
+      soundTestId,
+      soundTestPlayed,
+      soundHeard,
+      soundFailure,
+      lifecycle,
+      resumePending,
+      sessionId,
+      measurement,
+      signal,
+      measurementCause,
+      activeMs,
+      pausedMs,
+      evaluableMs,
+      closureActivations,
+      tonesPlayed,
+      tonesFailed,
+      closedRunMs,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MonitoringSnapshot
+    return MonitoringApiPigeonUtils.deepEquals(this.engineInstanceId, other.engineInstanceId) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.profileId, other.profileId) && MonitoringApiPigeonUtils.deepEquals(this.qualificationStatus, other.qualificationStatus) && MonitoringApiPigeonUtils.deepEquals(this.attachedToken, other.attachedToken) && MonitoringApiPigeonUtils.deepEquals(this.eyesValid, other.eyesValid) && MonitoringApiPigeonUtils.deepEquals(this.eyeIssue, other.eyeIssue) && MonitoringApiPigeonUtils.deepEquals(this.earRight, other.earRight) && MonitoringApiPigeonUtils.deepEquals(this.earLeft, other.earLeft) && MonitoringApiPigeonUtils.deepEquals(this.ratioRight, other.ratioRight) && MonitoringApiPigeonUtils.deepEquals(this.ratioLeft, other.ratioLeft) && MonitoringApiPigeonUtils.deepEquals(this.observationAgeMs, other.observationAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.calibrationStep, other.calibrationStep) && MonitoringApiPigeonUtils.deepEquals(this.calibrationAttempt, other.calibrationAttempt) && MonitoringApiPigeonUtils.deepEquals(this.calibrationProbe, other.calibrationProbe) && MonitoringApiPigeonUtils.deepEquals(this.stepElapsedMs, other.stepElapsedMs) && MonitoringApiPigeonUtils.deepEquals(this.stepDurationMs, other.stepDurationMs) && MonitoringApiPigeonUtils.deepEquals(this.stepValidSamples, other.stepValidSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationId, other.calibrationId) && MonitoringApiPigeonUtils.deepEquals(this.calibrationRejection, other.calibrationRejection) && MonitoringApiPigeonUtils.deepEquals(this.calibrationDetail, other.calibrationDetail) && MonitoringApiPigeonUtils.deepEquals(this.openEarRight, other.openEarRight) && MonitoringApiPigeonUtils.deepEquals(this.openEarLeft, other.openEarLeft) && MonitoringApiPigeonUtils.deepEquals(this.calibrationSamples, other.calibrationSamples) && MonitoringApiPigeonUtils.deepEquals(this.calibrationCoverage, other.calibrationCoverage) && MonitoringApiPigeonUtils.deepEquals(this.soundTestId, other.soundTestId) && MonitoringApiPigeonUtils.deepEquals(this.soundTestPlayed, other.soundTestPlayed) && MonitoringApiPigeonUtils.deepEquals(this.soundHeard, other.soundHeard) && MonitoringApiPigeonUtils.deepEquals(this.soundFailure, other.soundFailure) && MonitoringApiPigeonUtils.deepEquals(this.lifecycle, other.lifecycle) && MonitoringApiPigeonUtils.deepEquals(this.resumePending, other.resumePending) && MonitoringApiPigeonUtils.deepEquals(this.sessionId, other.sessionId) && MonitoringApiPigeonUtils.deepEquals(this.measurement, other.measurement) && MonitoringApiPigeonUtils.deepEquals(this.signal, other.signal) && MonitoringApiPigeonUtils.deepEquals(this.measurementCause, other.measurementCause) && MonitoringApiPigeonUtils.deepEquals(this.activeMs, other.activeMs) && MonitoringApiPigeonUtils.deepEquals(this.pausedMs, other.pausedMs) && MonitoringApiPigeonUtils.deepEquals(this.evaluableMs, other.evaluableMs) && MonitoringApiPigeonUtils.deepEquals(this.closureActivations, other.closureActivations) && MonitoringApiPigeonUtils.deepEquals(this.tonesPlayed, other.tonesPlayed) && MonitoringApiPigeonUtils.deepEquals(this.tonesFailed, other.tonesFailed) && MonitoringApiPigeonUtils.deepEquals(this.closedRunMs, other.closedRunMs)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.engineInstanceId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.sequence)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.profileId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.qualificationStatus)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.attachedToken)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.eyesValid)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.eyeIssue)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.earRight)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.earLeft)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.ratioRight)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.ratioLeft)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.observationAgeMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationStep)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationAttempt)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationProbe)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.stepElapsedMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.stepDurationMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.stepValidSamples)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationRejection)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationDetail)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.openEarRight)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.openEarLeft)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationSamples)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.calibrationCoverage)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.soundTestId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.soundTestPlayed)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.soundHeard)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.soundFailure)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.lifecycle)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.resumePending)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.sessionId)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.measurement)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.signal)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.measurementCause)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.activeMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.pausedMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.evaluableMs)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.closureActivations)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.tonesPlayed)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.tonesFailed)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.closedRunMs)
+    return result
+  }
+  override fun toString(): String {
+    return "MonitoringSnapshot(engineInstanceId=$engineInstanceId, sequence=$sequence, profileId=$profileId, qualificationStatus=$qualificationStatus, attachedToken=$attachedToken, eyesValid=$eyesValid, eyeIssue=$eyeIssue, earRight=$earRight, earLeft=$earLeft, ratioRight=$ratioRight, ratioLeft=$ratioLeft, observationAgeMs=$observationAgeMs, calibrationStep=$calibrationStep, calibrationAttempt=$calibrationAttempt, calibrationProbe=$calibrationProbe, stepElapsedMs=$stepElapsedMs, stepDurationMs=$stepDurationMs, stepValidSamples=$stepValidSamples, calibrationId=$calibrationId, calibrationRejection=$calibrationRejection, calibrationDetail=$calibrationDetail, openEarRight=$openEarRight, openEarLeft=$openEarLeft, calibrationSamples=$calibrationSamples, calibrationCoverage=$calibrationCoverage, soundTestId=$soundTestId, soundTestPlayed=$soundTestPlayed, soundHeard=$soundHeard, soundFailure=$soundFailure, lifecycle=$lifecycle, resumePending=$resumePending, sessionId=$sessionId, measurement=$measurement, signal=$signal, measurementCause=$measurementCause, activeMs=$activeMs, pausedMs=$pausedMs, evaluableMs=$evaluableMs, closureActivations=$closureActivations, tonesPlayed=$tonesPlayed, tonesFailed=$tonesFailed, closedRunMs=$closedRunMs)"
+  }
+}
+
+/**
+ * Resultado de una orden al coordinador experimental.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MonitoringCommandResult (
+  val accepted: Boolean,
+  /** Código técnico del rechazo (p. ej. `sessionActive`), o nulo. */
+  val errorCode: String? = null,
+  val snapshot: MonitoringSnapshot
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MonitoringCommandResult {
+      val accepted = pigeonVar_list[0] as Boolean
+      val errorCode = pigeonVar_list[1] as String?
+      val snapshot = pigeonVar_list[2] as MonitoringSnapshot
+      return MonitoringCommandResult(accepted, errorCode, snapshot)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      accepted,
+      errorCode,
+      snapshot,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MonitoringCommandResult
+    return MonitoringApiPigeonUtils.deepEquals(this.accepted, other.accepted) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode) && MonitoringApiPigeonUtils.deepEquals(this.snapshot, other.snapshot)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.accepted)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.errorCode)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.snapshot)
+    return result
+  }
+  override fun toString(): String {
+    return "MonitoringCommandResult(accepted=$accepted, errorCode=$errorCode, snapshot=$snapshot)"
+  }
+}
 private open class MonitoringApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -585,18 +933,48 @@ private open class MonitoringApiPigeonCodec : StandardMessageCodec() {
         }
       }
       133.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          CalibrationStep.ofRaw(it.toInt())
+        }
+      }
+      134.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          EngineSessionLifecycle.ofRaw(it.toInt())
+        }
+      }
+      135.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          EngineMeasurement.ofRaw(it.toInt())
+        }
+      }
+      136.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          EngineSignal.ofRaw(it.toInt())
+        }
+      }
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PreviewOpenResult.fromList(it)
         }
       }
-      134.toByte() -> {
+      138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           FaceAnalysisSnapshot.fromList(it)
         }
       }
-      135.toByte() -> {
+      139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PreviewClosedEvent.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MonitoringSnapshot.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MonitoringCommandResult.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -620,16 +998,40 @@ private open class MonitoringApiPigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PreviewOpenResult -> {
+      is CalibrationStep -> {
         stream.write(133)
+        writeValue(stream, value.raw.toLong())
+      }
+      is EngineSessionLifecycle -> {
+        stream.write(134)
+        writeValue(stream, value.raw.toLong())
+      }
+      is EngineMeasurement -> {
+        stream.write(135)
+        writeValue(stream, value.raw.toLong())
+      }
+      is EngineSignal -> {
+        stream.write(136)
+        writeValue(stream, value.raw.toLong())
+      }
+      is PreviewOpenResult -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       is FaceAnalysisSnapshot -> {
-        stream.write(134)
+        stream.write(138)
         writeValue(stream, value.toList())
       }
       is PreviewClosedEvent -> {
-        stream.write(135)
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is MonitoringSnapshot -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is MonitoringCommandResult -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -858,6 +1260,220 @@ class FrontCameraFlutterApi(private val binaryMessenger: BinaryMessenger, privat
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     return suspendCancellableCoroutine { continuation ->
       val channelName = "dev.flutter.pigeon.monitoring_engine.FrontCameraFlutterApi.onFaceAnalysis$separatedMessageChannelSuffix"
+      val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+      channel.send(listOf(snapshotArg)) {
+        if (it is List<*>) {
+          if (it.size > 1) {
+            continuation.resumeWithException(FlutterError(it[0] as String, it[1] as String, it[2] as String?))
+          } else {
+            continuation.resume(Unit)
+          }
+        } else {
+          continuation.resumeWithException(MonitoringApiPigeonUtils.createConnectionError(channelName))
+        }
+      }
+    }
+  }
+}
+/**
+ * Órdenes del recorrido experimental (fase 5C). Kotlin vuelve a comprobar
+ * cada precondición: la habilitación de un botón no la sustituye.
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface ExperimentalMonitoringHostApi {
+  fun getMonitoringSnapshot(): MonitoringSnapshot
+  /** Requiere cámara vinculada y ninguna sesión vigente. */
+  fun beginCalibration(): MonitoringCommandResult
+  fun cancelCalibration(): MonitoringCommandResult
+  /** Tono local de prueba; devuelve el identificador de la prueba. */
+  fun testSound(): MonitoringCommandResult
+  fun confirmSoundHeard(soundTestId: String): MonitoringCommandResult
+  /** Única sesión: con la referencia y la prueba de sonido indicadas. */
+  fun startSession(calibrationId: String, soundTestId: String): MonitoringCommandResult
+  /** Corta la medición, detiene el tono y libera la cámara. */
+  fun pauseSession(sessionId: String): MonitoringCommandResult
+  /** La pausa sigue abierta hasta reunir observaciones válidas (Krecover). */
+  fun resumeSession(sessionId: String): MonitoringCommandResult
+  /** Termina la sesión: detiene evaluación y tono y libera la cámara. */
+  fun stopSession(sessionId: String): MonitoringCommandResult
+
+  companion object {
+    /** The codec used by ExperimentalMonitoringHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MonitoringApiPigeonCodec()
+    }
+    /** Sets up an instance of `ExperimentalMonitoringHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: ExperimentalMonitoringHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.getMonitoringSnapshot$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getMonitoringSnapshot())
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.beginCalibration$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.beginCalibration())
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.cancelCalibration$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.cancelCalibration())
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.testSound$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.testSound())
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.confirmSoundHeard$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val soundTestIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.confirmSoundHeard(soundTestIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.startSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val calibrationIdArg = args[0] as String
+            val soundTestIdArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.startSession(calibrationIdArg, soundTestIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.pauseSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.pauseSession(sessionIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.resumeSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.resumeSession(sessionIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.stopSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.stopSession(sessionIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/**
+ * Avisos del coordinador experimental hacia Flutter: cada cambio y un
+ * latido cada 1000 ms.
+ *
+ * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.
+ */
+class ExperimentalMonitoringFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
+  companion object {
+    /** The codec used by ExperimentalMonitoringFlutterApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MonitoringApiPigeonCodec()
+    }
+  }
+  suspend fun onMonitoring(snapshotArg: MonitoringSnapshot)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    return suspendCancellableCoroutine { continuation ->
+      val channelName = "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringFlutterApi.onMonitoring$separatedMessageChannelSuffix"
       val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
       channel.send(listOf(snapshotArg)) {
         if (it is List<*>) {

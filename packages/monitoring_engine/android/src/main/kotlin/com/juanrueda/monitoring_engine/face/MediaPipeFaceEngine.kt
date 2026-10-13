@@ -14,10 +14,12 @@ import java.nio.ByteBuffer
  * [FaceEngine] sobre MediaPipe Tasks Vision 1.0.0 (Face Landmarker,
  * LIVE_STREAM, CPU, hasta [FaceModelSpec.MAX_FACES] rostros).
  *
- * - Sin blendshapes ni matrices: esta fase solo cuenta rostros.
- * - Los puntos faciales del resultado se leen aquí para contar rostros y no
- *   salen de este método: no se envían a Flutter, no se guardan ni se
- *   registran.
+ * - Sin blendshapes ni matrices (la postura de la Q del Área 05 queda
+ *   pendiente).
+ * - Los puntos faciales del resultado se leen aquí para contar rostros y,
+ *   con exactamente un rostro (fase 5C), se copian a un `FloatArray` que el
+ *   núcleo usa para medir los ojos en Kotlin y descarta. No se envían a
+ *   Flutter, no se guardan ni se registran.
  * - **Propiedad de la imagen.** Con un `MPImage` sobre `Bitmap`,
  *   `detectAsync` copia los píxeles en un `ImageFrame` nativo antes de volver
  *   (`AndroidPacketCreator.createImage` → `CreateImageFrameFromBitmap`, que
@@ -61,9 +63,21 @@ internal class MediaPipeFaceEngine private constructor(
                 .setOutputFaceBlendshapes(false)
                 .setOutputFacialTransformationMatrixes(false)
                 .setResultListener { result, input ->
-                    val faces = result.faceLandmarks().size
+                    val all = result.faceLandmarks()
+                    val faces = all.size
+                    val points = if (faces == 1) {
+                        val l = all[0]
+                        FloatArray(2 * l.size).also { a ->
+                            for (i in l.indices) {
+                                a[2 * i] = l[i].x()
+                                a[2 * i + 1] = l[i].y()
+                            }
+                        }
+                    } else {
+                        null
+                    }
                     input.close()
-                    listener.onResult(result.timestampMs(), faces)
+                    listener.onResult(result.timestampMs(), faces, points)
                 }
                 .setErrorListener { _ ->
                     // Solo el código: el mensaje de MediaPipe no se reenvía ni se registra.

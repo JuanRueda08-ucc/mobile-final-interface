@@ -22,6 +22,7 @@ import com.juanrueda.monitoring_engine.PreviewOpenResult
 import com.juanrueda.monitoring_engine.PreviewOpenStatus
 import com.juanrueda.monitoring_engine.face.FaceAnalysisSession
 import com.juanrueda.monitoring_engine.face.FacePresence
+import com.juanrueda.monitoring_engine.monitoring.MonitoringCoordinator
 import io.flutter.view.TextureRegistry
 import java.util.concurrent.Executor
 import kotlin.coroutines.resume
@@ -54,6 +55,8 @@ internal class FrontCameraPreview(
     private val textures: TextureRegistry,
     private val onClosed: (token: Long, reason: PreviewCloseReason, errorCode: String?) -> Unit,
     private val onFacePresence: (FacePresence) -> Unit,
+    /** Fase 5C: coordinador del recorrido experimental (observaciones y apertura vinculada). */
+    private val monitoring: MonitoringCoordinator? = null,
 ) {
     private val gate = PreviewGate()
     private var active: Active? = null
@@ -134,6 +137,7 @@ internal class FrontCameraPreview(
             return result(token, status, code)
         }
         a.opened = true
+        monitoring?.attach(token)
         val producer = a.producer!!
         val info = a.transformation
         val rotation = CameraRules.displayRotation(
@@ -173,7 +177,12 @@ internal class FrontCameraPreview(
                 if (a.released && a.surfacesInUse == 0) producer.release()
             }
         }
-        val analysis = FaceAnalysisSession(context, a.token, onFacePresence)
+        val analysis = FaceAnalysisSession(
+            context,
+            a.token,
+            onFacePresence,
+            onObservation = { monitoring?.observe(it) },
+        )
         a.analysis = analysis
         a.owner.start()
         val camera = provider.bindToLifecycle(
@@ -254,6 +263,7 @@ internal class FrontCameraPreview(
         val a = active?.takeIf { it.token == token } ?: return
         active = null
         a.released = true
+        monitoring?.detach(token)
         a.outcome.complete(PreviewOpenStatus.SUPERSEDED to null)
         a.camera?.cameraInfo?.cameraState?.removeObserver(a.stateObserver)
         // Primero el análisis: retira el analizador y cierra el detector.

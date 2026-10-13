@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/calibration/calibration_screen.dart';
 import '../features/camera/front_camera_screen.dart';
+import '../features/experimental/experimental_monitoring_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/session_detail_screen.dart';
 import '../features/inicio/inicio_screen.dart';
@@ -32,6 +33,9 @@ abstract final class VigiaRoutes {
   /// Fase 5A: cámara frontal real y permiso, solo en la variante normal.
   static const camara = '/camara';
 
+  /// Fase 5C: monitoreo experimental real, solo en la variante normal.
+  static const experimental = '/experimental';
+
   /// P07 de una sesión guardada.
   static String resumen(String sessionId) => '/resumen/$sessionId';
 
@@ -55,7 +59,7 @@ String? vigiaRedirect({
   if (location == VigiaRoutes.inicio) return null;
   // Cámara frontal real: solo la variante normal. El recorrido DEMO no abre
   // ninguna cámara ni pide el permiso.
-  if (location == VigiaRoutes.camara) {
+  if (location == VigiaRoutes.camara || location == VigiaRoutes.experimental) {
     return mode is RealMode ? null : VigiaRoutes.inicio;
   }
   // Sin modo demostración no hay recorrido: solo Inicio (motor no comprobado
@@ -132,6 +136,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'camara',
             pageBuilder: (context, state) =>
                 _page(state, const FrontCameraScreen()),
+          ),
+          GoRoute(
+            path: 'experimental',
+            pageBuilder: (context, state) =>
+                _page(state, const ExperimentalMonitoringScreen()),
           ),
           GoRoute(
             path: 'resumen/:id',

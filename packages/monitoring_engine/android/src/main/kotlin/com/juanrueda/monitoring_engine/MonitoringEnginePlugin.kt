@@ -5,6 +5,7 @@ import com.juanrueda.monitoring_engine.camera.FrontCameraHost
 import com.juanrueda.monitoring_engine.camera.FrontCameraPreview
 import com.juanrueda.monitoring_engine.face.FacePresence
 import com.juanrueda.monitoring_engine.face.FacePresenceStatus
+import com.juanrueda.monitoring_engine.monitoring.ExperimentalMonitoringHost
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -27,6 +28,9 @@ import kotlinx.coroutines.launch
  *   previa frontal; [FrontCameraFlutterApi] avisa de los cierres nativos.
  * - Fase 5B: [FrontCameraFlutterApi.onFaceAnalysis] entrega el resultado
  *   compacto de presencia facial (sin imágenes ni puntos faciales).
+ * - Fase 5C: [ExperimentalMonitoringHostApi] con el recorrido experimental
+ *   (calibración, sesión única, cierre ocular prolongado y tono local);
+ *   [ExperimentalMonitoringFlutterApi.onMonitoring] entrega su estado.
  */
 class MonitoringEnginePlugin :
     FlutterPlugin,
@@ -35,6 +39,7 @@ class MonitoringEnginePlugin :
     private lateinit var channel: MethodChannel
     private var camera: FrontCameraHost? = null
     private var scope: CoroutineScope? = null
+    private var monitoring: ExperimentalMonitoringHost? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "monitoring_engine")
@@ -43,6 +48,23 @@ class MonitoringEnginePlugin :
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         this.scope = scope
         val events = FrontCameraFlutterApi(flutterPluginBinding.binaryMessenger)
+        val monitoringEvents = ExperimentalMonitoringFlutterApi(flutterPluginBinding.binaryMessenger)
+        // La cámara la libera su propietario: se resuelve tras crearlo.
+        var previewRef: FrontCameraPreview? = null
+        val monitoring = ExperimentalMonitoringHost(
+            flutterPluginBinding.applicationContext,
+            publish = { snapshot ->
+                scope.launch {
+                    try {
+                        monitoringEvents.onMonitoring(snapshot)
+                    } catch (e: Exception) {
+                        Log.w("VigiaMonitoring", "Estado no entregado")
+                    }
+                }
+            },
+            onRelease = { token -> previewRef?.close(token) },
+        )
+        this.monitoring = monitoring
         val preview = FrontCameraPreview(
             flutterPluginBinding.applicationContext,
             flutterPluginBinding.textureRegistry,
@@ -67,10 +89,13 @@ class MonitoringEnginePlugin :
                     }
                 }
             },
+            monitoring = monitoring.coordinator,
         )
+        previewRef = preview
         val host = FrontCameraHost(flutterPluginBinding.applicationContext, preview)
         camera = host
         FrontCameraHostApi.setUp(flutterPluginBinding.binaryMessenger, host)
+        ExperimentalMonitoringHostApi.setUp(flutterPluginBinding.binaryMessenger, monitoring)
     }
 
     override fun onMethodCall(
@@ -87,7 +112,10 @@ class MonitoringEnginePlugin :
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
         FrontCameraHostApi.setUp(binding.binaryMessenger, null)
+        ExperimentalMonitoringHostApi.setUp(binding.binaryMessenger, null)
         camera?.detachActivity()
+        monitoring?.close()
+        monitoring = null
         camera = null
         scope?.cancel()
         scope = null

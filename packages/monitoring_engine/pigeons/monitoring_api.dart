@@ -2,9 +2,10 @@
 //
 // Fase 5A: vista previa de la cámara frontal y permiso CAMERA.
 // Fase 5B: presencia facial con MediaPipe Face Landmarker (resultados
-// compactos; los puntos faciales no salen de Kotlin). Sin calibración,
-// sesiones ni alertas: esas operaciones del Área 04 §7 se añadirán cuando se
-// autoricen.
+// compactos; los puntos faciales no salen de Kotlin).
+// Fase 5C: recorrido experimental (calibración, sesión única, cierre ocular
+// prolongado y tono) con el perfil candidato `lab-eye-rules-0.1`. Es un
+// subconjunto del Área 04 §7: sin journal, registros ni borrado.
 //
 // Regenerar (desde packages/monitoring_engine):
 //   dart run pigeon --input pigeons/monitoring_api.dart
@@ -258,4 +259,199 @@ abstract class FrontCameraFlutterApi {
   /// Su demora no se puede acotar: Flutter no muestra un rostro a partir de
   /// este aviso; ante una detección, consulta [FrontCameraHostApi.getFaceAnalysis].
   void onFaceAnalysis(FaceAnalysisSnapshot snapshot);
+}
+
+/// Paso de la calibración experimental (Kcal, Área 05 §8).
+enum CalibrationStep {
+  /// Sin calibración en curso ni resultado en este motor.
+  idle,
+
+  /// Referencia con los ojos abiertos (8000 ms).
+  openReference,
+
+  /// Aviso «Cierra los ojos» antes de medir el cierre (prototipo).
+  closeLeadIn,
+
+  /// Medición del cierre voluntario (1000 ms).
+  closedProbe,
+
+  /// Reapertura comprobada (2000 ms continuos con los ojos abiertos).
+  reopen,
+
+  /// Referencia aceptada ([MonitoringSnapshot.calibrationId]).
+  accepted,
+
+  /// Rechazada ([MonitoringSnapshot.calibrationRejection]).
+  rejected,
+
+  /// Cancelada; nunca aceptada.
+  canceled,
+}
+
+/// Ciclo de la sesión experimental (Área 04 §4.1, subconjunto).
+enum EngineSessionLifecycle { none, active, paused, finalized }
+
+/// Eje de medición (Área 04 §4.1).
+enum EngineMeasurement { initializing, usable, limited, unavailable }
+
+/// Señal que admite la política (Área 04 §4.1). La advertencia por
+/// acumulación (W) no está implementada en esta fase.
+enum EngineSignal { notEvaluable, noPersistentSignals, prolongedEyeClosure }
+
+/// Estado compacto del coordinador experimental (fase 5C). Sin imágenes ni
+/// puntos faciales: solo mediciones oculares agregadas por observación.
+class MonitoringSnapshot {
+  MonitoringSnapshot({
+    required this.engineInstanceId,
+    required this.sequence,
+    required this.profileId,
+    required this.qualificationStatus,
+    required this.eyesValid,
+    required this.calibrationStep,
+    required this.calibrationAttempt,
+    required this.calibrationProbe,
+    required this.soundTestPlayed,
+    required this.soundHeard,
+    required this.lifecycle,
+    required this.resumePending,
+    required this.measurement,
+    required this.signal,
+    required this.activeMs,
+    required this.pausedMs,
+    required this.evaluableMs,
+    required this.closureActivations,
+    required this.tonesPlayed,
+    required this.tonesFailed,
+  });
+
+  /// Instancia del coordinador; cambia si el plugin se recrea.
+  String engineInstanceId;
+
+  /// Orden de emisión dentro de la instancia: estrictamente creciente.
+  int sequence;
+
+  /// Perfil de parámetros (`lab-eye-rules-0.1`) y su calificación
+  /// (`experimental`): no es una política aceptada.
+  String profileId;
+  String qualificationStatus;
+
+  /// Apertura de cámara vinculada al coordinador, si la hay.
+  int? attachedToken;
+
+  /// Última observación ocular vigente y con Q válida.
+  bool eyesValid;
+
+  /// Motivo técnico por el que los ojos no son medibles (código de Q).
+  String? eyeIssue;
+
+  /// EAR de cada ojo anatómico en la última observación vigente.
+  double? earRight;
+  double? earLeft;
+
+  /// EAR / referencia abierta de cada ojo, si hay referencia.
+  double? ratioRight;
+  double? ratioLeft;
+
+  /// Edad de la última observación al crear este estado, en ms.
+  int? observationAgeMs;
+
+  CalibrationStep calibrationStep;
+  int calibrationAttempt;
+
+  /// Comprobación de cierre en curso (1..2); 0 si no aplica.
+  int calibrationProbe;
+  int? stepElapsedMs;
+  int? stepDurationMs;
+  int? stepValidSamples;
+  String? calibrationId;
+
+  /// insufficientObservations, invalidEyeQuality o unstableReference.
+  String? calibrationRejection;
+
+  /// Causa técnica del rechazo (diagnóstico, no texto de interfaz).
+  String? calibrationDetail;
+  double? openEarRight;
+  double? openEarLeft;
+  int? calibrationSamples;
+  double? calibrationCoverage;
+
+  /// Prueba de sonido técnica y confirmación humana (sin micrófono).
+  String? soundTestId;
+  bool soundTestPlayed;
+  bool soundHeard;
+  String? soundFailure;
+
+  EngineSessionLifecycle lifecycle;
+
+  /// Reanudación pedida: la pausa sigue abierta hasta cumplir Krecover.
+  bool resumePending;
+  String? sessionId;
+  EngineMeasurement measurement;
+  EngineSignal signal;
+
+  /// Causa técnica de la última pérdida de medición.
+  String? measurementCause;
+
+  /// Tiempos de la sesión (monotónicos, en ms).
+  int activeMs;
+  int pausedMs;
+  int evaluableMs;
+
+  /// Activaciones del cierre ocular prolongado (no son reproducciones).
+  int closureActivations;
+
+  /// Intentos de tono de aviso: iniciados y fallidos.
+  int tonesPlayed;
+  int tonesFailed;
+
+  /// Duración del tramo cerrado en curso, en ms.
+  int? closedRunMs;
+}
+
+/// Resultado de una orden al coordinador experimental.
+class MonitoringCommandResult {
+  MonitoringCommandResult({required this.accepted, required this.snapshot});
+
+  bool accepted;
+
+  /// Código técnico del rechazo (p. ej. `sessionActive`), o nulo.
+  String? errorCode;
+  MonitoringSnapshot snapshot;
+}
+
+/// Órdenes del recorrido experimental (fase 5C). Kotlin vuelve a comprobar
+/// cada precondición: la habilitación de un botón no la sustituye.
+@HostApi()
+abstract class ExperimentalMonitoringHostApi {
+  MonitoringSnapshot getMonitoringSnapshot();
+
+  /// Requiere cámara vinculada y ninguna sesión vigente.
+  MonitoringCommandResult beginCalibration();
+  MonitoringCommandResult cancelCalibration();
+
+  /// Tono local de prueba; devuelve el identificador de la prueba.
+  MonitoringCommandResult testSound();
+  MonitoringCommandResult confirmSoundHeard(String soundTestId);
+
+  /// Única sesión: con la referencia y la prueba de sonido indicadas.
+  MonitoringCommandResult startSession(
+    String calibrationId,
+    String soundTestId,
+  );
+
+  /// Corta la medición, detiene el tono y libera la cámara.
+  MonitoringCommandResult pauseSession(String sessionId);
+
+  /// La pausa sigue abierta hasta reunir observaciones válidas (Krecover).
+  MonitoringCommandResult resumeSession(String sessionId);
+
+  /// Termina la sesión: detiene evaluación y tono y libera la cámara.
+  MonitoringCommandResult stopSession(String sessionId);
+}
+
+/// Avisos del coordinador experimental hacia Flutter: cada cambio y un
+/// latido cada 1000 ms.
+@FlutterApi()
+abstract class ExperimentalMonitoringFlutterApi {
+  void onMonitoring(MonitoringSnapshot snapshot);
 }

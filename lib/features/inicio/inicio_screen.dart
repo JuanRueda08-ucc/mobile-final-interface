@@ -211,6 +211,21 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
               icon: VigiaIcon.target,
               onPressed: () => context.go(VigiaRoutes.camara),
             ),
+            // Fase 5C: recorrido real experimental (cierre ocular sostenido).
+            const VigiaSectionTitle('Monitoreo experimental'),
+            const VigiaParagraph(
+              'Prueba experimental con la cámara: calibración de los ojos y '
+              'aviso con tono ante un cierre ocular sostenido. Valores de '
+              'laboratorio sin validar; no es una ayuda para conducir.',
+              secondary: true,
+            ),
+            VigiaButton(
+              key: const Key('open-experimental'),
+              label: 'Monitoreo experimental',
+              kind: VigiaButtonKind.secondary,
+              icon: VigiaIcon.eyeClosed,
+              onPressed: () => context.go(VigiaRoutes.experimental),
+            ),
           ],
         ];
       case InicioMotorDesconocido():
