@@ -130,8 +130,9 @@ actualizado ningún patrón 5C para ocultar diferencias.
 
 APK anterior conservado en `build/review-5d/vigia-normal-fase5d-before.apk`,
 SHA-256 `7af8088e8fd1fb9e91d5003fc831b312059566d5d5fd215fd1eab4d3b0c36afe`.
-Código reparado: commit local `be7ab5be658ffc4a43835598357efa6fc7888500`.
-APK reparado: `build/review-5d/vigia-normal-fase5d-repaired-release.apk`,
+Primera reparación: commit local `be7ab5be658ffc4a43835598357efa6fc7888500`.
+Primer APK reparado (conservado; solo vista previa):
+`build/review-5d/vigia-normal-fase5d-repaired-release.apk`,
 **95 237 621 bytes**, SHA-256
 `0b6252249f042d2bceb17159d47f5a6e9a1b017c6dd1833569c53b6bb3edde1c`.
 Compilación release satisfactoria. `com.juanrueda.vigia`, «Vigía», versión
@@ -172,6 +173,57 @@ y se genera otro APK antes de iniciar una sesión. La vista previa se cerró
 temporalmente para liberar carga; el AVD se reabre con `QT_OPENGL=desktop`,
 `-gpu host -feature -Vulkan`. No se modifican los archivos originales del AVD
 ni se inventa que la nueva versión haya sido probada por una persona.
+
+### APK utilizado para el recorrido guiado
+
+Corrección del instante: `74a20836b88a7a42ffae0aa71473f9c54d9b1e6c`.
+APK nuevo: `build/review-5d/vigia-normal-fase5d-repaired-v2-release.apk`,
+95 237 621 bytes, SHA-256
+`9b16e67001012f7604cb1a143039199cf7af39c72750ff02c0b480685daa2f48`.
+Firma v2 válida, mismo certificado debug, identidad normal y mismos permisos
+CAMERA/interno de AndroidX. El APK extraído después de instalar tiene el
+mismo hash. El anterior se conserva. No se modificó el formato de las bases
+ni se borraron datos para instalarlo.
+
+El usuario confirmó «Ya detecta un rostro». Se dejó visible «Calibrar» y se
+pidió que lo pulsara cuando se habilite y siguiera el asistente. Pendiente
+el resultado; todavía no se afirma calibración aceptada, audibilidad ni
+una sesión real guardada.
+
+### Cierre de esta ejecución: iluminación insuficiente
+
+El usuario indicó: «en el momento no tengo buena iluminacion para testear
+\"calibrar\"». La prueba guiada queda pendiente hasta disponer de iluminación
+adecuada. No se sustituye por una simulación ni se cambian umbrales.
+
+Antes del cierre, el motor del APK V2 registró un intento de referencia:
+`OPEN_REFERENCE` a 16:02:42.552 UTC y `REJECTED/insufficientObservations` a
+16:02:50.558, `open(samples=59, coverage=0.561)`. Son observaciones del motor,
+no una confirmación humana de cada gesto. No hubo calibración aceptada.
+La iluminación insuficiente es la condición declarada por el usuario;
+no se demuestra que explique por sí sola todos los huecos de recepción.
+
+No se realizó la prueba de tono ni se confirmó audibilidad; tampoco se
+inició una sesión, se probó una alerta ocular en sesión ni se completaron
+pausa/reanudación, finalización, consulta de una sesión real y reapertura.
+Esos pasos **no están acreditados por webcam en 5D**. Los registros sintéticos
+y las regresiones SQLite anteriores mantienen su alcance propio.
+
+Se salió de la vista previa, se detuvo la app y se conservaron las bases en
+`build/review-5d/preserved-normal/`: `integrity_check=ok` en ambas, cero
+sesiones y cero hechos nativos, cero sesiones proyectadas. El disco del AVD
+aislado también se conserva; no se borraron los datos del AVD original.
+Cámara sin clientes antes de cerrar el AVD. Emulador y recolectores propios
+terminados; adb sin dispositivos y sin procesos emulator/qemu al comprobar.
+Los tres archivos originales (INI del AVD, config y posición de ventana)
+conservan los hashes iniciales; no hizo falta sobrescribirlos. Las variables
+Qt y los modos GPU solo se aplicaron al proceso de prueba.
+
+Se conservan los tres APK y `build/review-5d/SHA256SUMS.txt`. Siguiente paso
+humano: preparar buena iluminación y retomar **Calibrar**, con el APK V2 y el
+AVD aislado, comprobando primero la vista previa. Después: probar tono →
+confirmación personal de audición → iniciar → señal ocular → pausa/reanudación
+→ finalizar → Historial → detener proceso y reabrir. Una acción humana cada vez.
 
 Siguen pendientes D1 y la intermitencia de «No evaluable». No se amplía la
 fase ni se convierten los pendientes de producción en tareas.

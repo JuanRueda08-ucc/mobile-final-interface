@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) y `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-15 (Codex revisa y repara 5D por autorización del usuario; Claude detenido; falta cerrar la prueba guiada y la entrega).
+**Actualizado:** 2026-10-15 (Codex reparó 5D y validó sus cambios; Claude detenido. Prueba guiada pendiente por iluminación insuficiente; emulador cerrado y datos conservados).
 
 ## Fases
 
@@ -15,7 +15,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
 | 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729`, `8f715dd` y `b08cfec` (consultas). **Corregidos; entra en la revisión integrada.** Commits locales en `main`, sin publicar | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd`, `b08cfec`, `9a95cce` |
 | 5C. Monitoreo experimental (variante normal) | **Implementado; pendiente de la revisión integrada de Codex.** Commit local en `main`, sin publicar. Valores de laboratorio `lab-eye-rules-0.1` (experimental) | commit de la fase 5C |
-| 5D. Persistencia e Historial experimental (variante normal) | **Implementada (2026-10-15); pendiente de la revisión de Codex.** Commits locales sin publicar. Guía: `docs/fase5d-historial-experimental.md` | commits de la fase 5D |
+| 5D. Persistencia e Historial experimental (variante normal) | **Revisada y reparada por Codex; validación propia de las reparaciones.** Prueba guiada pendiente por iluminación insuficiente. Commits locales sin publicar. Guía: `docs/fase5d-historial-experimental.md` | `eae1c78`, `2000f76`, `be7ab5b`, `74a2083` y documentación |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -671,30 +671,37 @@ limpio al empezar, sin cambios ajenos). Detalle: `docs/fase5d-historial-experime
 
 ## Siguiente acción
 
-Cerrar la revisión y reparación de 5D que el usuario encargó a Codex. Claude
-permanece detenido. Evidencia y estado: `docs/evidence/fase5d-revision-codex.md`.
-Reparados con regresiones: apertura fallida que permitía inicio sin journal,
-recuperación tras cierre fallido en la misma instancia, espera de Resumen,
-totales con pérdida/conflicto e importación con más de 5000 hechos o ACK sin
-avance. La E/S del recorrido pasa a un escritor FIFO acotado tras medir su
-interferencia; no se modifican umbrales. JVM 102/102, historial Dart 30/30 y
-plugin Dart 3/3; SQLite real y reinicios entre PID comprobados. Ocho renders
-nuevos de 5D. La suite completa conserva los cuatro fallos visuales conocidos
-y reproduce otros dos también en una copia exacta de la base publicada;
-ningún golden 5C actualizado. Pasada dirigida final 79/79. APK anterior
-conservado y APK nuevo verificado en `build/review-5d/`, SHA-256
-`0b6252249f042d2bceb17159d47f5a6e9a1b017c6dd1833569c53b6bb3edde1c`.
-Código: `be7ab5be658ffc4a43835598357efa6fc7888500`. AVD aislado visible
-`vigia_review`, con webcam y renderizador SwiftShader. El usuario confirmó
-movimiento en directo; pendiente centrar el rostro, calibrar y completar
-la sesión guiada. Al validar la cola se detectó y corrigió un desfase de la fecha
-civil del cierre: ahora se captura al pulsar Finalizar; JVM 103/103. El APK
-`0b625224…` se conserva y se genera otro antes de iniciar la sesión. La vista
-previa está temporalmente cerrada y el AVD se reabre con GPU host y
-`QT_OPENGL=desktop`. La sesión de webcam de 5B/5C anterior ya
-estaba cerrada; no acredita todavía la persistencia de una sesión de 5D.
+Retomar la prueba guiada de 5D cuando haya buena iluminación. Claude permanece
+detenido. Código reparado y comprobaciones: `docs/evidence/fase5d-revision-codex.md`.
+JVM 103/103, dirigida Flutter 79/79, plugin Dart 3/3; análisis limpio y registro
+500 OK. SQLite real y reinicios entre PID comprobados con hechos sintéticos.
+Ocho renders nuevos de 5D. Suite completa: 797 pasan / 6 fallan; los cuatro
+goldens conocidos y otros dos fallan también en una copia exacta de la base
+publicada. Ningún patrón 5C actualizado. Sin cambios de umbrales.
 
-Entrega autorizada: commits locales y APK, **sin amend, push ni PR**.
+APK V2 instalado y comprobado por extracción:
+SHA-256 `9b16e67001012f7604cb1a143039199cf7af39c72750ff02c0b480685daa2f48`,
+código `74a20836b88a7a42ffae0aa71473f9c54d9b1e6c`. Los APK anteriores se
+conservan en `build/review-5d/`. Usuario confirmó movimiento en el primer APK
+reparado y un rostro detectado tras preparar V2. Luego indicó iluminación
+insuficiente para probar Calibrar. Motor V2: un intento rechazado,
+`insufficientObservations`, 59 muestras y cobertura 0,561; no se demuestra
+que toda la pérdida de recepción sea causada por la luz. **Sin calibración
+aceptada, audibilidad confirmada ni sesión real iniciada de 5D.** No dar por
+completados los pasos restantes. Pruebas SQLite y vectores: sintéticos.
+
+Se salió de la vista, se detuvo la app y se conservaron ambas bases normales
+(vacías, `integrity_check=ok`) en `build/review-5d/preserved-normal/`; también
+se conserva el disco del AVD aislado. Cámara sin clientes antes del cierre;
+AVD y recolectores cerrados, sin dispositivos adb ni procesos del emulador.
+INI/config/posición del AVD original con los mismos hashes iniciales.
+Recolector de texto: `webcam-v2-session.log`; lector sin imágenes:
+`build/review-5d/probe.py`. Para retomar con buena iluminación: abrir el AVD
+aislado con Qt desktop/GPU host y APK V2, comprobar vista previa y continuar
+desde Calibrar, una acción humana cada vez. Persistencia, historial y reinicio
+tras una sesión **real** siguen pendientes de esa prueba guiada.
+
+Entrega realizada con commits locales y APK, **sin amend, push ni PR**.
 La comprobación de estas reparaciones es validación propia. Siguen pendientes
 D1, «No evaluable» y revisión independiente de las reparaciones; no se avanza
 a otro bloque ni se ejecuta la secuencia VIG aplazada.

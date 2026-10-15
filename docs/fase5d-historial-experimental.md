@@ -186,8 +186,22 @@ adb shell am instrument -w -e class com.juanrueda.monitoring_engine.JournalSqlit
 | Variante | Archivo | Bytes | SHA-256 |
 |---|---|---|---|
 | Normal | `D:\dev\vigia-entrega\vigia-normal-fase5d-release.apk` | 95 221 237 | `7af8088e8fd1fb9e91d5003fc831b312059566d5d5fd215fd1eab4d3b0c36afe` |
+| Normal reparada V2 | `build/review-5d/vigia-normal-fase5d-repaired-v2-release.apk` | 95 237 621 | `9b16e67001012f7604cb1a143039199cf7af39c72750ff02c0b480685daa2f48` |
 
 Compilado en release desde el árbol de trabajo con el código de esta fase
 (antes del commit), firmado con la clave de depuración; `com.juanrueda.vigia`,
 «Vigía», permisos `CAMERA` y el permiso interno
 `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` de AndroidX; sin permisos de red.
+
+**Cierre de la reparación (2026-10-15):** código final en `74a2083`, validación
+propia (JVM 103/103, dirigida Flutter 79/79, plugin Dart 3/3; análisis y registro
+de especificaciones correctos). Se conservan los goldens preexistentes y los
+APK anteriores. La prueba guiada con el APK V2 se detuvo porque el usuario
+declaró iluminación insuficiente. Hubo vista previa real y un intento de
+calibración rechazado (59 observaciones, cobertura 0,561); **no hubo sesión
+real iniciada ni confirmación de audibilidad**. Las bases normales conservadas
+están vacías y sanas. AVD y recolectores cerrados; configuración original
+intacta. El recorrido completo queda pendiente para buena iluminación.
+Detalle y distinción entre pruebas sintéticas, validación propia y webcam:
+`docs/evidence/fase5d-revision-codex.md`. No hay aprobación independiente de
+las reparaciones ni publicación de estos commits.
