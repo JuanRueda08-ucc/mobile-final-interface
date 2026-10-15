@@ -311,6 +311,34 @@ internal class ExperimentalJournalTest {
     }
 
     @Test
+    fun closeCivilTime_isTheStopRequest_notTheTimeAfterDrainingWrites() {
+        val writer = java.util.concurrent.ThreadPoolExecutor(1, 1, 0,
+            java.util.concurrent.TimeUnit.MILLISECONDS, java.util.concurrent.LinkedBlockingQueue())
+        val control = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val gate = java.util.concurrent.CountDownLatch(1)
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val wall = java.util.concurrent.atomic.AtomicLong(1000)
+        try {
+            val store = MemoryJournalStore()
+            val j = SessionJournal(store, wall::get, { -300 }, { java.util.UUID.randomUUID().toString() }, writer)
+            assertTrue(j.started(com.juanrueda.monitoring_engine.journal.SessionStart(
+                "s", "e", "lab-eye-rules-0.1", "experimental", "eye", "model", "0".repeat(64), "cal", .3, .3, 120, .95)))
+            store.beforeCommit = { entered.countDown(); check(gate.await(10, java.util.concurrent.TimeUnit.SECONDS)) }
+            wall.set(2000)
+            j.checkpoint(com.juanrueda.monitoring_engine.journal.SessionTotals(1000, 1000, 0, 0, 0, 0, 0, 0), JournalLifecycle.ACTIVE)
+            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            val close = control.submit<Boolean> { j.finalized(com.juanrueda.monitoring_engine.journal.SessionTotals(1000, 1000, 0, 0, 0, 0, 0, 0)) }
+            val deadline = System.nanoTime() + 2_000_000_000L
+            while (writer.queue.isEmpty() && System.nanoTime() < deadline) Thread.yield()
+            assertFalse(writer.queue.isEmpty(), "el cierre ya espera detrás del checkpoint")
+            wall.set(9000)
+            gate.countDown()
+            assertTrue(close.get(5, java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(2000, store.ofType(RecordType.SESSION_FINALIZED).single().long("endedEpochMs"))
+        } finally { gate.countDown(); writer.shutdownNow(); control.shutdownNow() }
+    }
+
+    @Test
     fun failedJournalOpen_doesNotDisableDurabilityOnRetry() {
         val rig = Rig()
         rig.factoryFails = true

@@ -687,7 +687,11 @@ conservado y APK nuevo verificado en `build/review-5d/`, SHA-256
 Código: `be7ab5be658ffc4a43835598357efa6fc7888500`. AVD aislado visible
 `vigia_review`, con webcam y renderizador SwiftShader. El usuario confirmó
 movimiento en directo; pendiente centrar el rostro, calibrar y completar
-la sesión guiada. La sesión de webcam de 5B/5C anterior ya
+la sesión guiada. Al validar la cola se detectó y corrigió un desfase de la fecha
+civil del cierre: ahora se captura al pulsar Finalizar; JVM 103/103. El APK
+`0b625224…` se conserva y se genera otro antes de iniciar la sesión. La vista
+previa está temporalmente cerrada y el AVD se reabre con GPU host y
+`QT_OPENGL=desktop`. La sesión de webcam de 5B/5C anterior ya
 estaba cerrada; no acredita todavía la persistencia de una sesión de 5D.
 
 Entrega autorizada: commits locales y APK, **sin amend, push ni PR**.

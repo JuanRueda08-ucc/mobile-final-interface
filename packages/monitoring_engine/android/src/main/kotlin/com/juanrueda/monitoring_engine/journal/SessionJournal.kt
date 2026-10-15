@@ -257,11 +257,14 @@ internal class SessionJournal(
         }
 
     /** Cierre único y durable. `false` si no se escribió. */
-    fun finalized(totals: SessionTotals): Boolean = serialized { finalizedNow(totals) }
+    fun finalized(totals: SessionTotals): Boolean {
+        // Fecha del hecho, no del momento posterior a vaciar la cola.
+        val occurred = wallClockMs()
+        return serialized { finalizedNow(totals, occurred) }
+    }
 
-    private fun finalizedNow(totals: SessionTotals): Boolean {
+    private fun finalizedNow(totals: SessionTotals, now: Long): Boolean {
         val id = sessionId ?: return false
-        val now = wallClockMs()
         return try {
             store.commit(
                 listOf(

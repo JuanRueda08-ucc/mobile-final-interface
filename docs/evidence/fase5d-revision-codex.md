@@ -106,7 +106,8 @@ Otra regresión agota la cola: conserva 256 hechos y declara 44 perdidos.
 
 ## Validación y renderizados
 
-- JVM del plugin: **102/102**.
+- JVM del plugin: **103/103** (102 iniciales y la regresión adicional de fecha
+  de cierre descrita abajo).
 - Dart del plugin: **3/3**, análisis limpio.
 - Historial experimental: **30/30**, incluidos vector Kotlin y conflictos.
 - Pasada dirigida final: **79/79** (recorrido experimental, historial,
@@ -155,6 +156,22 @@ no se sembraron fixtures en esta app. El usuario confirmó expresamente
 análisis nativo iniciado. Todavía no hay calibración aceptada ni sesión
 iniciada: la lectura actual indica «Rostro no detectado» y se ha pedido al
 usuario centrar el rostro. No se atribuyen audibilidad ni gestos al usuario.
+
+### Ajuste detectado al validar nuestra propia cola
+
+La primera reparación calculaba la fecha civil del cierre dentro del
+escritor, después de vaciar las operaciones anteriores. Regresión con reloj
+y escritor bloqueado: se pide finalizar en 2000, el disco se libera en 9000,
+y el hecho guardaba 9000. `close-time-before.txt` registra el fallo sobre
+nuestra reparación, no sobre la implementación recibida. Ahora se captura
+la fecha al pedir finalizar, igual que el offset monotónico del motor; esperar
+al disco no cambia el instante del hecho. JVM completa: 103/103.
+
+Se conserva el APK `0b625224…`, que solo se usó para comprobar la vista previa,
+y se genera otro APK antes de iniciar una sesión. La vista previa se cerró
+temporalmente para liberar carga; el AVD se reabre con `QT_OPENGL=desktop`,
+`-gpu host -feature -Vulkan`. No se modifican los archivos originales del AVD
+ni se inventa que la nueva versión haya sido probada por una persona.
 
 Siguen pendientes D1 y la intermitencia de «No evaluable». No se amplía la
 fase ni se convierten los pendientes de producción en tareas.
