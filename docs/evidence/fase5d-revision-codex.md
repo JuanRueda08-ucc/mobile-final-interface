@@ -109,9 +109,10 @@ Otra regresión agota la cola: conserva 256 hechos y declara 44 perdidos.
 - JVM del plugin: **102/102**.
 - Dart del plugin: **3/3**, análisis limpio.
 - Historial experimental: **30/30**, incluidos vector Kotlin y conflictos.
-- Recorrido experimental y 20 renderizados de 5D comprobados en las pasadas
-  dirigidas; se ajustó una aserción antigua que pedía totales de un cierre
-  conflictivo, comprobando además que los valores originales siguen en SQLite.
+- Pasada dirigida final: **79/79** (recorrido experimental, historial,
+  interoperabilidad y 20 renderizados de 5D). Se ajustó una aserción antigua
+  que pedía totales de un cierre conflictivo, comprobando además que los
+  valores originales siguen en SQLite.
 - Análisis de la app limpio; registro de especificaciones: **500, OK**.
 - Suite Flutter completa ejecutada: **797 pasan / 6 fallan**, todos los
   fallos en goldens 5C. Esta pasada precede al último refuerzo de integridad;
@@ -128,8 +129,32 @@ actualizado ningún patrón 5C para ocultar diferencias.
 
 APK anterior conservado en `build/review-5d/vigia-normal-fase5d-before.apk`,
 SHA-256 `7af8088e8fd1fb9e91d5003fc831b312059566d5d5fd215fd1eab4d3b0c36afe`.
-APK reparado, identidad, firma y resultado de la sesión: pendientes de cerrar
-en esta revisión. Hasta entonces **no se acredita una sesión de cámara de 5D**.
+Código reparado: commit local `be7ab5be658ffc4a43835598357efa6fc7888500`.
+APK reparado: `build/review-5d/vigia-normal-fase5d-repaired-release.apk`,
+**95 237 621 bytes**, SHA-256
+`0b6252249f042d2bceb17159d47f5a6e9a1b017c6dd1833569c53b6bb3edde1c`.
+Compilación release satisfactoria. `com.juanrueda.vigia`, «Vigía», versión
+0.1.0/1, minSdk 26, target/compile 36, tres ABI. Firma debug v2 válida;
+certificado SHA-256
+`dd6dbeb4d913a16de01e08990d232b5b8d1bd988f0d4613a86d42f124f27dead`.
+Permisos: CAMERA y el interno de AndroidX; sin red, micrófono ni ubicación.
+El listado del APK no contiene fixtures, semillas ni bases precargadas.
+
+Preparación guiada: AVD aislado sin sesiones en la app normal. El primer
+arranque visible se cerró al inicializar OpenGL; el reintento usa
+`-gpu swiftshader -feature -Vulkan`, sin modificar el AVD original. Un intento
+de instalar antes de estar disponibles los servicios Android falló y se
+repite esperando `sys.boot_completed=1`; no es un fallo de Vigía.
+Resultado humano de la sesión todavía pendiente: **no se acredita aún una
+sesión de cámara de 5D**.
+
+El APK extraído de la instalación tiene el mismo SHA-256 que el entregable.
+Inicio mostró «Aún no hay sesiones experimentales» antes de abrir la cámara;
+no se sembraron fixtures en esta app. El usuario confirmó expresamente
+«Sí, veo movimiento en directo». La cámara figura abierta en Android y el
+análisis nativo iniciado. Todavía no hay calibración aceptada ni sesión
+iniciada: la lectura actual indica «Rostro no detectado» y se ha pedido al
+usuario centrar el rostro. No se atribuyen audibilidad ni gestos al usuario.
 
 Siguen pendientes D1 y la intermitencia de «No evaluable». No se amplía la
 fase ni se convierten los pendientes de producción en tareas.

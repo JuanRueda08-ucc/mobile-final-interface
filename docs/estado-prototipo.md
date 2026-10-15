@@ -681,8 +681,13 @@ interferencia; no se modifican umbrales. JVM 102/102, historial Dart 30/30 y
 plugin Dart 3/3; SQLite real y reinicios entre PID comprobados. Ocho renders
 nuevos de 5D. La suite completa conserva los cuatro fallos visuales conocidos
 y reproduce otros dos también en una copia exacta de la base publicada;
-ningún golden 5C actualizado. APK anterior conservado; nuevo APK y sesión
-guiada por webcam en preparación. La sesión de webcam de 5B/5C anterior ya
+ningún golden 5C actualizado. Pasada dirigida final 79/79. APK anterior
+conservado y APK nuevo verificado en `build/review-5d/`, SHA-256
+`0b6252249f042d2bceb17159d47f5a6e9a1b017c6dd1833569c53b6bb3edde1c`.
+Código: `be7ab5be658ffc4a43835598357efa6fc7888500`. AVD aislado visible
+`vigia_review`, con webcam y renderizador SwiftShader. El usuario confirmó
+movimiento en directo; pendiente centrar el rostro, calibrar y completar
+la sesión guiada. La sesión de webcam de 5B/5C anterior ya
 estaba cerrada; no acredita todavía la persistencia de una sesión de 5D.
 
 Entrega autorizada: commits locales y APK, **sin amend, push ni PR**.
