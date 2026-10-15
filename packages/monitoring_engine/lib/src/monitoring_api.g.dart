@@ -604,6 +604,8 @@ class MonitoringSnapshot {
     required this.tonesPlayed,
     required this.tonesFailed,
     this.closedRunMs,
+    this.recordStatus,
+    this.latestDurableOffsetMs,
   });
 
   /// Instancia del coordinador; cambia si el plugin se recrea.
@@ -721,6 +723,14 @@ class MonitoringSnapshot {
   /// Duración del tramo cerrado en curso, en ms.
   int? closedRunMs;
 
+  /// Fase 5D: estado del registro durable de la sesión en el journal nativo
+  /// (`none`, `durable` o `incomplete`). Nulo sin journal.
+  String? recordStatus;
+
+  /// Fase 5D: último límite de la sesión confirmado en el journal, en ms
+  /// desde su inicio. No es «todo hasta ahora».
+  int? latestDurableOffsetMs;
+
   List<Object?> _toList() {
     return <Object?>[
       engineInstanceId,
@@ -768,6 +778,8 @@ class MonitoringSnapshot {
       tonesPlayed,
       tonesFailed,
       closedRunMs,
+      recordStatus,
+      latestDurableOffsetMs,
     ];
   }
 
@@ -823,6 +835,8 @@ class MonitoringSnapshot {
       tonesPlayed: result[42]! as int,
       tonesFailed: result[43]! as int,
       closedRunMs: result[44] as int?,
+      recordStatus: result[45] as String?,
+      latestDurableOffsetMs: result[46] as int?,
     );
   }
 
@@ -879,7 +893,9 @@ class MonitoringSnapshot {
         _deepEquals(closureActivations, other.closureActivations) &&
         _deepEquals(tonesPlayed, other.tonesPlayed) &&
         _deepEquals(tonesFailed, other.tonesFailed) &&
-        _deepEquals(closedRunMs, other.closedRunMs);
+        _deepEquals(closedRunMs, other.closedRunMs) &&
+        _deepEquals(recordStatus, other.recordStatus) &&
+        _deepEquals(latestDurableOffsetMs, other.latestDurableOffsetMs);
   }
 
   @override
@@ -888,7 +904,7 @@ class MonitoringSnapshot {
 
   @override
   String toString() {
-    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, observationId: $observationId, eyesValidForMs: $eyesValidForMs, signalValidForMs: $signalValidForMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs)';
+    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, observationId: $observationId, eyesValidForMs: $eyesValidForMs, signalValidForMs: $signalValidForMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs, recordStatus: $recordStatus, latestDurableOffsetMs: $latestDurableOffsetMs)';
   }
 }
 
@@ -948,6 +964,171 @@ class MonitoringCommandResult {
   }
 }
 
+/// Hecho inmutable del journal experimental (fase 5D; Área 04 §11). El
+/// `payloadHash` es SHA-256 del sobre canónico (ver `JournalCodec.kt`):
+/// Flutter lo recalcula antes de importarlo.
+class JournalRecordMessage {
+  JournalRecordMessage({
+    required this.journalSequence,
+    required this.recordId,
+    this.sessionId,
+    required this.recordType,
+    required this.occurredEpochMs,
+    required this.occurredOffsetMinutes,
+    this.sessionOffsetMs,
+    required this.payloadSchemaVersion,
+    required this.payloadJson,
+    required this.payloadHash,
+  });
+
+  int journalSequence;
+
+  String recordId;
+
+  String? sessionId;
+
+  String recordType;
+
+  int occurredEpochMs;
+
+  int occurredOffsetMinutes;
+
+  int? sessionOffsetMs;
+
+  int payloadSchemaVersion;
+
+  String payloadJson;
+
+  String payloadHash;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      journalSequence,
+      recordId,
+      sessionId,
+      recordType,
+      occurredEpochMs,
+      occurredOffsetMinutes,
+      sessionOffsetMs,
+      payloadSchemaVersion,
+      payloadJson,
+      payloadHash,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static JournalRecordMessage decode(Object result) {
+    result as List<Object?>;
+    return JournalRecordMessage(
+      journalSequence: result[0]! as int,
+      recordId: result[1]! as String,
+      sessionId: result[2] as String?,
+      recordType: result[3]! as String,
+      occurredEpochMs: result[4]! as int,
+      occurredOffsetMinutes: result[5]! as int,
+      sessionOffsetMs: result[6] as int?,
+      payloadSchemaVersion: result[7]! as int,
+      payloadJson: result[8]! as String,
+      payloadHash: result[9]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! JournalRecordMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(journalSequence, other.journalSequence) &&
+        _deepEquals(recordId, other.recordId) &&
+        _deepEquals(sessionId, other.sessionId) &&
+        _deepEquals(recordType, other.recordType) &&
+        _deepEquals(occurredEpochMs, other.occurredEpochMs) &&
+        _deepEquals(occurredOffsetMinutes, other.occurredOffsetMinutes) &&
+        _deepEquals(sessionOffsetMs, other.sessionOffsetMs) &&
+        _deepEquals(payloadSchemaVersion, other.payloadSchemaVersion) &&
+        _deepEquals(payloadJson, other.payloadJson) &&
+        _deepEquals(payloadHash, other.payloadHash);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'JournalRecordMessage(journalSequence: $journalSequence, recordId: $recordId, sessionId: $sessionId, recordType: $recordType, occurredEpochMs: $occurredEpochMs, occurredOffsetMinutes: $occurredOffsetMinutes, sessionOffsetMs: $sessionOffsetMs, payloadSchemaVersion: $payloadSchemaVersion, payloadJson: $payloadJson, payloadHash: $payloadHash)';
+  }
+}
+
+/// Lote de hechos sin ACK, en orden de secuencia.
+class JournalBatch {
+  JournalBatch({
+    required this.batchId,
+    required this.records,
+    required this.highWatermark,
+    required this.hasMore,
+  });
+
+  /// Identifica la lectura; no garantiza nada por sí mismo (Área 04 §12).
+  String batchId;
+
+  List<JournalRecordMessage> records;
+
+  /// Última secuencia asignada en el journal al leer el lote.
+  int highWatermark;
+
+  bool hasMore;
+
+  List<Object?> _toList() {
+    return <Object?>[batchId, records, highWatermark, hasMore];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static JournalBatch decode(Object result) {
+    result as List<Object?>;
+    return JournalBatch(
+      batchId: result[0]! as String,
+      records: (result[1]! as List<Object?>).cast<JournalRecordMessage>(),
+      highWatermark: result[2]! as int,
+      hasMore: result[3]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! JournalBatch || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(batchId, other.batchId) &&
+        _deepEquals(records, other.records) &&
+        _deepEquals(highWatermark, other.highWatermark) &&
+        _deepEquals(hasMore, other.hasMore);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'JournalBatch(batchId: $batchId, records: $records, highWatermark: $highWatermark, hasMore: $hasMore)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -994,6 +1175,12 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is MonitoringCommandResult) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
+    } else if (value is JournalRecordMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    } else if (value is JournalBatch) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1036,6 +1223,10 @@ class _PigeonCodec extends StandardMessageCodec {
         return MonitoringSnapshot.decode(readValue(buffer)!);
       case 141:
         return MonitoringCommandResult.decode(readValue(buffer)!);
+      case 142:
+        return JournalRecordMessage.decode(readValue(buffer)!);
+      case 143:
+        return JournalBatch.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1544,5 +1735,71 @@ abstract class ExperimentalMonitoringFlutterApi {
         });
       }
     }
+  }
+}
+
+/// Lectura y ACK del journal experimental (Área 04 §7: readPendingRecords y
+/// acknowledgeRecords). El ACK es de revisiones exactas (ID y hash) y solo se
+/// envía después del commit en Drift.
+class ExperimentalJournalHostApi {
+  /// Constructor for [ExperimentalJournalHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  ExperimentalJournalHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<JournalBatch> readPendingRecords(int limit) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalJournalHostApi.readPendingRecords$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[limit],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as JournalBatch;
+  }
+
+  Future<int> acknowledgeRecords(
+    List<String> recordIds,
+    List<String> payloadHashes,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalJournalHostApi.acknowledgeRecords$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[recordIds, payloadHashes],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as int;
   }
 }

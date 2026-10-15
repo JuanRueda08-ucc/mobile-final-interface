@@ -1,5 +1,12 @@
 package com.juanrueda.monitoring_engine.monitoring
 
+import com.juanrueda.monitoring_engine.face.FaceModelSpec
+import com.juanrueda.monitoring_engine.journal.JournalLifecycle
+import com.juanrueda.monitoring_engine.journal.RecordStatus
+import com.juanrueda.monitoring_engine.journal.SessionJournal
+import com.juanrueda.monitoring_engine.journal.SessionStart
+import com.juanrueda.monitoring_engine.journal.SessionTotals
+
 /** Aviso sonoro local (en Android, `ToneGenerator`). */
 internal interface AlertSink {
     /** Reproduce el tono de [kind]. Nulo si se inició; si no, el código del fallo. */
@@ -67,6 +74,9 @@ internal data class MonitoringState(
     val tonesPlayed: Int,
     val tonesFailed: Int,
     val closedRunMs: Long?,
+    // Registro durable (fase 5D).
+    val recordStatus: RecordStatus = RecordStatus.NONE,
+    val latestDurableOffsetMs: Long? = null,
 )
 
 /** Resultado de una orden: aceptada o rechazada con un código técnico. */
@@ -91,9 +101,16 @@ internal data class CommandOutcome(val accepted: Boolean, val errorCode: String?
  *   propietario ([onRelease]). **Reanudar** deja la pausa abierta
  *   (`resumePending`) hasta cumplir Krecover con la cámara reabierta.
  * - **Finalizar** detiene la evaluación y el tono y libera la cámara; la
- *   sesión queda terminal con su resumen en memoria (sin persistencia).
+ *   sesión queda terminal.
  * - El aviso de cierre prolongado se decide y se reproduce aquí, sin pasar
  *   por Flutter.
+ * - **Journal (fase 5D).** Con [journalFactory], el inicio solo se acepta si
+ *   su hecho es durable; pausa, reanudación confirmada, activaciones, tonos,
+ *   puntos de control (≤ 1 por segundo) y el cierre se escriben en el
+ *   journal nativo, que Flutter importa después. El journal se abre la
+ *   primera vez que se necesita ([ensureJournal] o un inicio) —la app DEMO,
+ *   que comparte el plugin, no lo abre nunca— y en ese momento marca como
+ *   interrumpidas las sesiones abiertas de instancias anteriores.
  */
 internal class MonitoringCoordinator(
     private val clockNs: () -> Long,
@@ -102,10 +119,39 @@ internal class MonitoringCoordinator(
     private val publish: (MonitoringState) -> Unit,
     /** Libera la cámara de la apertura vinculada (pausa y fin). */
     private val onRelease: (token: Long) -> Unit = {},
+    private val journalFactory: (() -> SessionJournal)? = null,
 ) {
     private val lock = Any()
     private val engineInstanceId = newId()
     private var sequence = 0L
+
+    private var journalOpened = false
+    private var journalRef: SessionJournal? = null
+
+    /** Sesiones de instancias anteriores marcadas como interrumpidas al abrir el journal. */
+    var recoveredSessions = 0
+        private set
+
+    /** Solo dentro del cerrojo. */
+    private val journal: SessionJournal?
+        get() {
+            if (!journalOpened) {
+                journalOpened = true
+                journalRef = journalFactory?.invoke()?.also { recoveredSessions = it.recover(engineInstanceId) }
+            }
+            return journalRef
+        }
+
+    /** Abre el journal y recupera las sesiones abiertas si aún no se hizo. */
+    fun ensureJournal(): Int = synchronized(lock) {
+        journal
+        recoveredSessions
+    }
+
+    private var pauseCount = 0
+    private var lastCheckpointNs = 0L
+    private var lastActivation = 0
+    private var playbacksOfActivation = 0
 
     private var token: Long? = null
     private var last: EyeObservation? = null
@@ -183,7 +229,14 @@ internal class MonitoringCoordinator(
             val dispatch = pol.onObservation(o, now)
             if (resumePending && pol.usable) confirmResume(now)
             settleEvaluable(now)
-            if (dispatch) dispatchTone(ToneKind.PROLONGED_CLOSURE)
+            // El tono va antes que cualquier escritura: no espera al journal.
+            val toneError = if (dispatch) dispatchTone(ToneKind.PROLONGED_CLOSURE) else null
+            if (pol.activations != before.third) {
+                lastActivation = pol.activations
+                playbacksOfActivation = 0
+                journal?.closureDetected(pol.activations, offsetMs(now))
+            }
+            if (dispatch) journal?.playback(lastActivation, ++playbacksOfActivation, offsetMs(now), toneError)
             changed = changed || dispatch || before != Triple(pol.measurement, pol.signal, pol.activations)
         }
         if (changed) publishNow() else publishEyeThrottled(now)
@@ -199,6 +252,10 @@ internal class MonitoringCoordinator(
             pol.tick(now)
             settleEvaluable(now)
             changed = changed || before != (pol.measurement to pol.signal)
+        }
+        if (sessionVigente() && now - lastCheckpointNs >= CHECKPOINT_NS) {
+            lastCheckpointNs = now
+            journal?.checkpoint(totals(now), journalLifecycle())
         }
         when {
             changed || now - lastPublishNs >= HEARTBEAT_NS -> publishNow()
@@ -262,8 +319,18 @@ internal class MonitoringCoordinator(
             token == null -> reject("cameraNotReady")
             o == null || !o.checkedAt(now).valid -> reject("eyesNotEvaluable")
             else -> {
+                val id = newId()
+                // Fase 5D: sin hecho de inicio durable no hay sesión.
+                val j = journal
+                if (j != null && !j.started(sessionStart(id, ref))) {
+                    return@synchronized reject("journalWriteFailed")
+                }
                 lifecycle = SessionLifecycle.ACTIVE
-                sessionId = newId()
+                sessionId = id
+                pauseCount = 0
+                lastActivation = 0
+                playbacksOfActivation = 0
+                lastCheckpointNs = now
                 policy = SessionPolicy(ref)
                 resumePending = false
                 startNs = now
@@ -293,6 +360,7 @@ internal class MonitoringCoordinator(
         settleEvaluable(now)
         alerts.stop()
         token?.let(onRelease)
+        journal?.pauseStarted(++pauseCount, totals(now))
         accept()
     }
 
@@ -319,14 +387,25 @@ internal class MonitoringCoordinator(
         endNs = now
         alerts.stop()
         token?.let(onRelease)
+        // Cierre único: si no se escribe, el journal conserva la sesión
+        // abierta y la próxima instancia la recupera como interrumpida.
+        journal?.finalized(totals(now))
         accept()
     }
 
-    /** El plugin se desconecta: termina sin sesión viva ni tono. */
+    /**
+     * El plugin se desconecta: termina sin sesión viva ni tono. No es un
+     * cierre confirmado por la persona: se guarda el último punto de control
+     * y la sesión queda abierta en el journal, para que la próxima instancia
+     * la recupere como interrumpida.
+     */
     fun shutdown() = synchronized(lock) {
         calibration = null
         if (sessionVigente()) {
             val now = clockNs()
+            settleEvaluable(now)
+            journal?.checkpoint(totals(now), journalLifecycle())
+            journal?.abandon()
             settleEvaluable(now, ending = true)
             pauseStartNs?.let { pausedNs += now - it }
             pauseStartNs = null
@@ -346,7 +425,45 @@ internal class MonitoringCoordinator(
         lifecycle = SessionLifecycle.ACTIVE
         pauseStartNs?.let { pausedNs += now - it }
         pauseStartNs = null
+        journal?.pauseEnded(pauseCount, totals(now))
     }
+
+    private fun offsetMs(now: Long) = (now - startNs) / 1_000_000
+
+    private fun journalLifecycle() =
+        if (lifecycle == SessionLifecycle.PAUSED) JournalLifecycle.PAUSED else JournalLifecycle.ACTIVE
+
+    /** Totales hasta [now] con el mismo reloj monotónico, sin extrapolar. */
+    private fun totals(now: Long): SessionTotals {
+        val end = endNs ?: now
+        val paused = pausedNs + (pauseStartNs?.let { end - it } ?: 0)
+        val evaluable = evaluableNs + (usableSinceNs?.let { now - it } ?: 0)
+        return SessionTotals(
+            offsetMs = (end - startNs) / 1_000_000,
+            activeMs = (end - startNs - paused) / 1_000_000,
+            evaluableMs = evaluable / 1_000_000,
+            pausedMs = paused / 1_000_000,
+            closureActivations = policy?.activations ?: 0,
+            tonesPlayed = tonesPlayed,
+            tonesFailed = tonesFailed,
+            pauseCount = pauseCount,
+        )
+    }
+
+    private fun sessionStart(id: String, ref: CalibrationReference) = SessionStart(
+        sessionId = id,
+        engineInstanceId = engineInstanceId,
+        profileId = ExperimentalProfile.PROFILE_ID,
+        qualificationStatus = ExperimentalProfile.QUALIFICATION_STATUS,
+        landmarkSchema = ExperimentalProfile.LANDMARK_SCHEMA,
+        modelId = FaceModelSpec.MODEL_ID,
+        modelSha256 = FaceModelSpec.SHA256,
+        calibrationId = ref.calibrationId,
+        openEarRight = ref.openEarRight,
+        openEarLeft = ref.openEarLeft,
+        calibrationSamples = ref.openSamples,
+        calibrationCoverage = ref.openCoverage,
+    )
 
     /** Cuenta el tiempo evaluable (usable con sesión activa) hasta [now]. */
     private fun settleEvaluable(now: Long, ending: Boolean = false) {
@@ -393,9 +510,12 @@ internal class MonitoringCoordinator(
         calibrationDetail = detail
     }
 
-    private fun dispatchTone(kind: ToneKind) {
+    /** Devuelve el código del fallo, o nulo si el tono se inició. */
+    private fun dispatchTone(kind: ToneKind): String? {
         // Un fallo también consume el intento (Área 05 §13).
-        if (alerts.play(kind) == null) tonesPlayed++ else tonesFailed++
+        val error = alerts.play(kind)
+        if (error == null) tonesPlayed++ else tonesFailed++
+        return error
     }
 
     private fun accept() = CommandOutcome(true, null, publishNow())
@@ -486,11 +606,16 @@ internal class MonitoringCoordinator(
             tonesPlayed = tonesPlayed,
             tonesFailed = tonesFailed,
             closedRunMs = if (lifecycle == SessionLifecycle.ACTIVE) pol?.closedRunMs else null,
+            recordStatus = if (sessionShown) journal?.status ?: RecordStatus.NONE else RecordStatus.NONE,
+            latestDurableOffsetMs = if (sessionShown) journal?.latestDurableOffset else null,
         )
     }
 
     companion object {
         const val HEARTBEAT_NS = 1_000_000_000L
+
+        /** Propuesta inicial del Área 04 §11: como mucho un punto de control por segundo. */
+        const val CHECKPOINT_NS = 1_000_000_000L
         const val EYE_PUBLISH_NS = 200_000_000L
         const val STALE_NS = ExperimentalProfile.T_STALE_MS * 1_000_000
         const val TICK_MS = 50L

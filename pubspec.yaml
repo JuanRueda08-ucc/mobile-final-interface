@@ -47,6 +47,9 @@ dependencies:
   drift: ^2.35.1
   drift_flutter: ^0.3.1
   path_provider: ^2.1.6
+  # Fase 5D: SHA-256 para verificar el hash de cada hecho del journal nativo
+  # antes de importarlo. Ya estaba en el grafo (transitiva); versión exacta.
+  crypto: 3.0.7
 
 dev_dependencies:
   flutter_test:

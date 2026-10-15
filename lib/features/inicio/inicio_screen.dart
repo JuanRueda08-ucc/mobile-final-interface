@@ -11,6 +11,8 @@ import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../data/demo_history/history_providers.dart';
+import '../../data/experimental_history/experimental_history_providers.dart';
+import '../experimental_history/experimental_home_section.dart';
 import '../preparation/preparation_controller.dart';
 import 'inicio_providers.dart';
 import 'inicio_state.dart';
@@ -89,8 +91,11 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
 
   void _nav(int index) {
     final mode = ref.read(appModeProvider);
+    final realHistory =
+        mode is RealMode &&
+        ref.read(experimentalHistoryRepositoryProvider) != null;
     switch (index) {
-      case 1 when mode is DemoMode:
+      case 1 when mode is DemoMode || realHistory:
         context.go(VigiaRoutes.historial);
       case 2 when mode is DemoMode:
         context.go(VigiaRoutes.ajustes);
@@ -226,6 +231,9 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
               icon: VigiaIcon.eyeClosed,
               onPressed: () => context.go(VigiaRoutes.experimental),
             ),
+            // Fase 5D: última sesión experimental guardada.
+            if (ref.read(experimentalHistoryRepositoryProvider) != null)
+              const ExperimentalHomeSection(),
           ],
         ];
       case InicioMotorDesconocido():

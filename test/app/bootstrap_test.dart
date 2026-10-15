@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' show QueryExecutor, driftRuntimeOptions;
+import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/app/app_config.dart';
@@ -11,6 +13,7 @@ import 'package:vigia/demo/inicio_demo.dart';
 /// `aapt` (docs/fase3-historial-ajustes.md).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   test('cada modo exige su applicationId', () {
     expect(expectedApplicationId(const DemoMode()), demoApplicationId);
@@ -50,13 +53,54 @@ void main() {
       (call) async => realApplicationId,
     );
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
-    expect(await bootstrap(const RealMode()), isEmpty);
+    final opened = <String>[];
+    QueryExecutor open(String name) {
+      opened.add(name);
+      return NativeDatabase.memory();
+    }
+
+    // Fase 5D: la app normal abre solo su proyección real experimental.
+    final real = await bootstrap(const RealMode(), openDatabase: open);
+    expect(real, hasLength(1));
+    expect(opened, [realHistoryDatabaseName]);
+    expect(realHistoryDatabaseName, 'vigia_history_real_v1');
     expect(
-      await bootstrap(InicioReviewMode(InicioDemoVariant.sinHistorial.state)),
+      await bootstrap(
+        InicioReviewMode(InicioDemoVariant.sinHistorial.state),
+        openDatabase: open,
+      ),
       isEmpty,
     );
     // El recorrido DEMO en la app normal se rechaza antes de abrir la base.
-    await expectLater(bootstrap(const DemoMode()), throwsStateError);
+    await expectLater(
+      bootstrap(const DemoMode(), openDatabase: open),
+      throwsStateError,
+    );
+    expect(opened, [realHistoryDatabaseName], reason: 'sin base DEMO');
+  });
+
+  test('la app DEMO abre solo su base DEMO, nunca la real', () async {
+    const channel = MethodChannel('vigia/app');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (call) async => demoApplicationId,
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final opened = <String>[];
+    final overrides = await bootstrap(
+      const DemoMode(),
+      openDatabase: (name) {
+        opened.add(name);
+        return NativeDatabase.memory();
+      },
+    );
+    expect(opened, [demoHistoryDatabaseName]);
+    expect(demoHistoryDatabaseName, isNot(realHistoryDatabaseName));
+    expect(overrides, isNotEmpty);
+    // Y la app normal en el proceso DEMO no arranca.
+    await expectLater(bootstrap(const RealMode()), throwsStateError);
   });
 
   test('el canal vigia/app devuelve el applicationId', () async {

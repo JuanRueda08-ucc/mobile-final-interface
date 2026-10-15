@@ -1,9 +1,12 @@
 import 'monitoring_engine_platform_interface.dart';
 
+export 'src/experimental_journal.dart';
 export 'src/experimental_monitoring.dart';
 export 'src/front_camera.dart';
 export 'src/monitoring_api.g.dart'
     show
+        JournalBatch,
+        JournalRecordMessage,
         CalibrationStep,
         EngineMeasurement,
         EngineSessionLifecycle,

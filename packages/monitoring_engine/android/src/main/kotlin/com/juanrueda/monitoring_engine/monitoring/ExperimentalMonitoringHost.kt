@@ -12,6 +12,7 @@ import com.juanrueda.monitoring_engine.EngineSignal
 import com.juanrueda.monitoring_engine.ExperimentalMonitoringHostApi
 import com.juanrueda.monitoring_engine.MonitoringCommandResult
 import com.juanrueda.monitoring_engine.MonitoringSnapshot
+import com.juanrueda.monitoring_engine.journal.SessionJournal
 import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -89,6 +90,7 @@ internal class ExperimentalMonitoringHost(
     context: Context,
     publish: (MonitoringSnapshot) -> Unit,
     onRelease: (Long) -> Unit,
+    journalFactory: (() -> SessionJournal)? = null,
 ) : ExperimentalMonitoringHostApi {
     private val alerts = ToneAlertSink(context)
     val coordinator = MonitoringCoordinator(
@@ -100,7 +102,21 @@ internal class ExperimentalMonitoringHost(
             publish(it.toPigeon())
         },
         onRelease = onRelease,
+        journalFactory = journalFactory,
     )
+
+    @Volatile
+    private var recoveryLogged = false
+
+    /** Abre el journal (y recupera interrumpidas) antes de leerlo desde Flutter. */
+    fun ensureJournal() {
+        val n = coordinator.ensureJournal()
+        if (!recoveryLogged) {
+            recoveryLogged = true
+            // Solo un contador: sin identificadores ni datos de la sesión.
+            Log.i("VigiaMonitoring", "journal abierto: sesiones recuperadas como interrumpidas=$n")
+        }
+    }
     private val ticker: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "VigiaMonitoring")
     }
@@ -131,7 +147,8 @@ internal class ExperimentalMonitoringHost(
         val key = "calibración=${s.calibrationPhase}/${s.calibrationProbe} rechazo=${s.calibrationRejection} " +
             "detalle=${s.calibrationDetail} sesión=${s.lifecycle} reanudando=${s.resumePending} " +
             "medición=${s.measurement} señal=${s.signal} causa=${s.measurementCause} " +
-            "activaciones=${s.closureActivations} tonos=${s.tonesPlayed}/${s.tonesFailed} cámara=${s.attachedToken}"
+            "activaciones=${s.closureActivations} tonos=${s.tonesPlayed}/${s.tonesFailed} cámara=${s.attachedToken} " +
+            "registro=${s.recordStatus.code}"
         if (key == lastLogged) return
         lastLogged = key
         Log.i("VigiaMonitoring", key)
@@ -229,4 +246,6 @@ internal fun MonitoringState.toPigeon() = MonitoringSnapshot(
     tonesPlayed = tonesPlayed.toLong(),
     tonesFailed = tonesFailed.toLong(),
     closedRunMs = closedRunMs,
+    recordStatus = recordStatus.code,
+    latestDurableOffsetMs = latestDurableOffsetMs,
 )

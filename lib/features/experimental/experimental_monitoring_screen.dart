@@ -12,6 +12,8 @@ import '../../core/design_system/widgets/vigia_flow_blocks.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../camera/front_camera_controller.dart';
 import '../camera/front_camera_screen.dart';
+import '../../data/experimental_history/experimental_history_providers.dart';
+import '../experimental_history/experimental_history_blocks.dart';
 import 'experimental_monitoring_controller.dart';
 
 /// Monitoreo experimental (fase 5C, variante normal).
@@ -20,8 +22,8 @@ import 'experimental_monitoring_controller.dart';
 /// calibración → prueba de sonido → iniciar → cierre ocular sostenido →
 /// aviso y tono → finalizar. Las señales las decide el motor nativo con el
 /// perfil de laboratorio `lab-eye-rules-0.1` (experimental); esta pantalla
-/// no decide nada y no reutiliza el guion DEMO. Sin persistencia: el resumen
-/// final solo vive en memoria.
+/// no decide nada y no reutiliza el guion DEMO. Fase 5D: el motor registra la
+/// sesión en su journal y el resumen final se lee del historial guardado.
 class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
   const ExperimentalMonitoringScreen({super.key});
 
@@ -95,7 +97,13 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
 
 class _ExperimentalMonitoringScreenState
     extends ConsumerState<ExperimentalMonitoringScreen>
-    with NoticeHost {
+    with NoticeHost, JournalSyncOnMount {
+  /// Fase 5D: tras finalizar se espera el cierre guardado de esta sesión.
+  @override
+  String? get awaitedSessionId => _showSummary
+      ? ref.read(experimentalMonitoringProvider).snapshot?.sessionId
+      : null;
+
   late final FrontCameraController _camera;
   late final ExperimentalMonitoringController _exp;
   late final AppLifecycleListener _lifecycle;
@@ -115,8 +123,11 @@ class _ExperimentalMonitoringScreenState
     _subscription = ref.listenManual(experimentalMonitoringProvider, (_, s) {
       if (!mounted || !s.available) return;
       if (s.sessionVigente) _observedSession = true;
-      if (_observedSession && s.lifecycle == EngineSessionLifecycle.finalized) {
+      if (_observedSession &&
+          s.lifecycle == EngineSessionLifecycle.finalized &&
+          !_showSummary) {
         setState(() => _showSummary = true);
+        requestJournalSync();
       }
       _syncCamera(s);
     });
@@ -196,6 +207,7 @@ class _ExperimentalMonitoringScreenState
       if (!mounted) return;
       _camera.leave();
       if (mounted) setState(() => _showSummary = true);
+      requestJournalSync();
     }
     _reportLast();
   }
@@ -634,49 +646,52 @@ class _ExperimentalMonitoringScreenState
 
   // ----------------------------------------------------------- resumen
 
-  List<Widget> _summary(MonitoringSnapshot snap) => [
-    const StatusCard(
-      key: Key('summary'),
-      tone: StatusTone.plain,
-      icon: VigiaIcon.check,
-      tag: 'Sesión experimental',
-      title: 'Sesión finalizada',
-      text:
-          'Cámara, análisis y avisos detenidos. Este resumen no se guarda: '
-          'desaparece al cerrar la app.',
-    ),
-    KeyValueRow(
-      label: 'Tiempo activo',
-      value: ExperimentalMonitoringScreen.duration(snap.activeMs),
-    ),
-    KeyValueRow(
-      label: 'Tiempo evaluable',
-      value: ExperimentalMonitoringScreen.duration(snap.evaluableMs),
-    ),
-    KeyValueRow(
-      label: 'Tiempo en pausa',
-      value: ExperimentalMonitoringScreen.duration(snap.pausedMs),
-    ),
-    KeyValueRow(
-      label: 'Cierres prolongados',
-      value: '${snap.closureActivations}',
-    ),
-    KeyValueRow(
-      label: 'Tonos de aviso',
-      value: '${snap.tonesPlayed} iniciados · ${snap.tonesFailed} fallidos',
-    ),
-    VigiaButton(
-      label: 'Volver a Inicio',
-      onPressed: () => context.go(VigiaRoutes.inicio),
-    ),
-    VigiaButton(
-      label: 'Preparar otra sesión',
-      kind: VigiaButtonKind.secondary,
-      onPressed: () {
-        setState(() => _showSummary = false);
-        _observedSession = false;
-        _camera.enter();
-      },
-    ),
-  ];
+  /// Fase 5D: el resumen se lee del historial guardado (la proyección del
+  /// journal nativo), igual que en Inicio, Historial y detalle; no del estado
+  /// en memoria del motor.
+  List<Widget> _summary(MonitoringSnapshot snap) {
+    final id = snap.sessionId;
+    final available =
+        ref.watch(experimentalHistoryRepositoryProvider) != null && id != null;
+    return [
+      StatusCard(
+        key: const Key('summary'),
+        tone: StatusTone.plain,
+        icon: VigiaIcon.check,
+        tag: 'Sesión experimental',
+        title: 'Sesión finalizada',
+        text: snap.recordStatus == 'incomplete'
+            ? 'Cámara, análisis y avisos detenidos. El motor no pudo guardar '
+                  'todos los registros de esta sesión.'
+            : 'Cámara, análisis y avisos detenidos. El resumen se lee del '
+                  'registro guardado en este teléfono.',
+      ),
+      ...experimentalSummaryBlocks(
+        available
+            ? ref.watch(experimentalSessionProvider(id))
+            : const AsyncData(null),
+        ref.watch(journalSyncProvider),
+        historyAvailable: available,
+      ),
+      if (available)
+        VigiaButton(
+          label: 'Ver detalle',
+          kind: VigiaButtonKind.secondary,
+          onPressed: () => context.go(VigiaRoutes.detalle(id)),
+        ),
+      VigiaButton(
+        label: 'Volver a Inicio',
+        onPressed: () => context.go(VigiaRoutes.inicio),
+      ),
+      VigiaButton(
+        label: 'Preparar otra sesión',
+        kind: VigiaButtonKind.secondary,
+        onPressed: () {
+          setState(() => _showSummary = false);
+          _observedSession = false;
+          _camera.enter();
+        },
+      ),
+    ];
+  }
 }

@@ -304,7 +304,8 @@ void main() {
       expect(engine.calls, contains('pause:S1'));
       expect(camera.calls.where((x) => x.startsWith('close:')), isNotEmpty);
       expect(find.text('Monitoreo pausado'), findsOneWidget);
-      // Finalizar (D02): resumen en memoria.
+      // Finalizar (D02). Fase 5D: el resumen ya no se arma con el estado en
+      // memoria; se lee del historial guardado, que esta prueba no abre.
       engine.next = fakeSnapshot(
         lifecycle: EngineSessionLifecycle.finalized,
         sessionId: 'S1',
@@ -319,7 +320,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(engine.calls, contains('stop:S1'));
       expect(find.byKey(const Key('summary')), findsOneWidget);
-      expect(find.text('00:01:05'), findsOneWidget);
+      expect(find.byKey(const Key('summary-unavailable')), findsOneWidget);
+      expect(find.text('00:01:05'), findsNothing);
       await close(tester);
     });
 

@@ -5,7 +5,9 @@
 // compactos; los puntos faciales no salen de Kotlin).
 // Fase 5C: recorrido experimental (calibración, sesión única, cierre ocular
 // prolongado y tono) con el perfil candidato `lab-eye-rules-0.1`. Es un
-// subconjunto del Área 04 §7: sin journal, registros ni borrado.
+// subconjunto del Área 04 §7: sin borrado.
+// Fase 5D: journal nativo experimental (lectura y ACK de hechos) y estado del
+// registro durable de la sesión.
 //
 // Regenerar (desde packages/monitoring_engine):
 //   dart run pigeon --input pigeons/monitoring_api.dart
@@ -416,6 +418,14 @@ class MonitoringSnapshot {
 
   /// Duración del tramo cerrado en curso, en ms.
   int? closedRunMs;
+
+  /// Fase 5D: estado del registro durable de la sesión en el journal nativo
+  /// (`none`, `durable` o `incomplete`). Nulo sin journal.
+  String? recordStatus;
+
+  /// Fase 5D: último límite de la sesión confirmado en el journal, en ms
+  /// desde su inicio. No es «todo hasta ahora».
+  int? latestDurableOffsetMs;
 }
 
 /// Resultado de una orden al coordinador experimental.
@@ -464,4 +474,58 @@ abstract class ExperimentalMonitoringHostApi {
 @FlutterApi()
 abstract class ExperimentalMonitoringFlutterApi {
   void onMonitoring(MonitoringSnapshot snapshot);
+}
+
+/// Hecho inmutable del journal experimental (fase 5D; Área 04 §11). El
+/// `payloadHash` es SHA-256 del sobre canónico (ver `JournalCodec.kt`):
+/// Flutter lo recalcula antes de importarlo.
+class JournalRecordMessage {
+  JournalRecordMessage({
+    required this.journalSequence,
+    required this.recordId,
+    required this.recordType,
+    required this.occurredEpochMs,
+    required this.occurredOffsetMinutes,
+    required this.payloadSchemaVersion,
+    required this.payloadJson,
+    required this.payloadHash,
+  });
+
+  int journalSequence;
+  String recordId;
+  String? sessionId;
+  String recordType;
+  int occurredEpochMs;
+  int occurredOffsetMinutes;
+  int? sessionOffsetMs;
+  int payloadSchemaVersion;
+  String payloadJson;
+  String payloadHash;
+}
+
+/// Lote de hechos sin ACK, en orden de secuencia.
+class JournalBatch {
+  JournalBatch({
+    required this.batchId,
+    required this.records,
+    required this.highWatermark,
+    required this.hasMore,
+  });
+
+  /// Identifica la lectura; no garantiza nada por sí mismo (Área 04 §12).
+  String batchId;
+  List<JournalRecordMessage> records;
+
+  /// Última secuencia asignada en el journal al leer el lote.
+  int highWatermark;
+  bool hasMore;
+}
+
+/// Lectura y ACK del journal experimental (Área 04 §7: readPendingRecords y
+/// acknowledgeRecords). El ACK es de revisiones exactas (ID y hash) y solo se
+/// envía después del commit en Drift.
+@HostApi()
+abstract class ExperimentalJournalHostApi {
+  JournalBatch readPendingRecords(int limit);
+  int acknowledgeRecords(List<String> recordIds, List<String> payloadHashes);
 }

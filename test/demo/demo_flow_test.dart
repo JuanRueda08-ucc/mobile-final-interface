@@ -8,6 +8,7 @@ import 'package:vigia/core/design_system/widgets/vigia_scaffold.dart';
 import 'package:vigia/demo/inicio_demo.dart';
 import 'package:vigia/features/calibration/calibration_controller.dart';
 import 'package:vigia/features/calibration/calibration_screen.dart';
+import 'package:vigia/features/experimental_history/experimental_history_screens.dart';
 import 'package:vigia/features/inicio/inicio_screen.dart';
 import 'package:vigia/features/inicio/inicio_state.dart';
 import 'package:vigia/features/monitoring/demo_session_controller.dart';
@@ -216,15 +217,24 @@ void main() {
       VigiaRoutes.preparacion,
       VigiaRoutes.calibracion,
       VigiaRoutes.monitoreo,
-      VigiaRoutes.resumen('S-DEMO-0001'),
-      VigiaRoutes.historial,
-      VigiaRoutes.detalle('S-DEMO-0001'),
       VigiaRoutes.ajustes,
       VigiaRoutes.sonido,
     ]) {
       demoRouter(tester).go(r);
       await settle(tester);
       expect(find.byType(InicioScreen), findsOneWidget, reason: r);
+    }
+    // Fase 5D: Historial, Resumen y detalle existen en la variante normal,
+    // pero son las pantallas experimentales reales: nunca datos DEMO.
+    for (final (r, screen) in [
+      (VigiaRoutes.historial, ExperimentalHistoryScreen),
+      (VigiaRoutes.resumen('S-DEMO-0001'), ExperimentalSummaryScreen),
+      (VigiaRoutes.detalle('S-DEMO-0001'), ExperimentalSessionDetailScreen),
+    ]) {
+      demoRouter(tester).go(r);
+      await settle(tester);
+      expect(find.byType(screen), findsOneWidget, reason: r);
+      expect(find.text(DemoLabel.text), findsNothing, reason: r);
     }
   });
 

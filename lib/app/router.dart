@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../features/calibration/calibration_screen.dart';
 import '../features/camera/front_camera_screen.dart';
 import '../features/experimental/experimental_monitoring_screen.dart';
+import '../features/experimental_history/experimental_history_screens.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/session_detail_screen.dart';
 import '../features/inicio/inicio_screen.dart';
@@ -61,6 +62,15 @@ String? vigiaRedirect({
   // ninguna cámara ni pide el permiso.
   if (location == VigiaRoutes.camara || location == VigiaRoutes.experimental) {
     return mode is RealMode ? null : VigiaRoutes.inicio;
+  }
+  // Fase 5D: historial de las sesiones experimentales reales. Sus pantallas
+  // son otras (ver los constructores de ruta); no hay Ajustes en la variante
+  // normal. La salida del monitoreo experimental con sesión vigente ya está
+  // bloqueada en su pantalla.
+  if (mode is RealMode &&
+      (location.startsWith(VigiaRoutes.historial) ||
+          location.startsWith('/resumen/'))) {
+    return null;
   }
   // Sin modo demostración no hay recorrido: solo Inicio (motor no comprobado
   // o variante de revisión).
@@ -146,7 +156,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'resumen/:id',
             pageBuilder: (context, state) => _page(
               state,
-              SummaryScreen(sessionId: state.pathParameters['id']!),
+              mode is RealMode
+                  ? ExperimentalSummaryScreen(
+                      sessionId: state.pathParameters['id']!,
+                    )
+                  : SummaryScreen(sessionId: state.pathParameters['id']!),
             ),
           ),
           GoRoute(
@@ -154,14 +168,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             // Destinos de la barra: sin animación de entrada, como B5.2.
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
-              child: const HistoryScreen(),
+              child: mode is RealMode
+                  ? const ExperimentalHistoryScreen()
+                  : const HistoryScreen(),
             ),
             routes: [
               GoRoute(
                 path: ':id',
                 pageBuilder: (context, state) => _page(
                   state,
-                  SessionDetailScreen(sessionId: state.pathParameters['id']!),
+                  mode is RealMode
+                      ? ExperimentalSessionDetailScreen(
+                          sessionId: state.pathParameters['id']!,
+                        )
+                      : SessionDetailScreen(
+                          sessionId: state.pathParameters['id']!,
+                        ),
                 ),
               ),
             ],

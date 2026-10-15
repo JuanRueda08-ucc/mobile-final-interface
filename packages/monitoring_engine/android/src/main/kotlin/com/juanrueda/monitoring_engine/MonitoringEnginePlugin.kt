@@ -5,6 +5,9 @@ import com.juanrueda.monitoring_engine.camera.FrontCameraHost
 import com.juanrueda.monitoring_engine.camera.FrontCameraPreview
 import com.juanrueda.monitoring_engine.face.FacePresence
 import com.juanrueda.monitoring_engine.face.FacePresenceStatus
+import com.juanrueda.monitoring_engine.journal.ExperimentalJournalHost
+import com.juanrueda.monitoring_engine.journal.SessionJournal
+import com.juanrueda.monitoring_engine.journal.SqliteJournalStore
 import com.juanrueda.monitoring_engine.monitoring.ExperimentalMonitoringHost
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -18,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import java.util.TimeZone
+import java.util.UUID
 
 /**
  * Plugin del motor de Vigía.
@@ -40,6 +45,7 @@ class MonitoringEnginePlugin :
     private var camera: FrontCameraHost? = null
     private var scope: CoroutineScope? = null
     private var monitoring: ExperimentalMonitoringHost? = null
+    private var journalStore: SqliteJournalStore? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "monitoring_engine")
@@ -51,6 +57,10 @@ class MonitoringEnginePlugin :
         val monitoringEvents = ExperimentalMonitoringFlutterApi(flutterPluginBinding.binaryMessenger)
         // La cámara la libera su propietario: se resuelve tras crearlo.
         var previewRef: FrontCameraPreview? = null
+        // Fase 5D: journal real experimental. SQLite abre el archivo la
+        // primera vez que se usa; la DEMO no llama a estas API y no lo crea.
+        val journalStore = SqliteJournalStore(flutterPluginBinding.applicationContext)
+        this.journalStore = journalStore
         val monitoring = ExperimentalMonitoringHost(
             flutterPluginBinding.applicationContext,
             publish = { snapshot ->
@@ -63,6 +73,14 @@ class MonitoringEnginePlugin :
                 }
             },
             onRelease = { token -> previewRef?.close(token) },
+            journalFactory = {
+                SessionJournal(
+                    store = journalStore,
+                    wallClockMs = System::currentTimeMillis,
+                    zoneOffsetMinutes = { epochMs -> TimeZone.getDefault().getOffset(epochMs) / 60_000 },
+                    newId = { UUID.randomUUID().toString() },
+                )
+            },
         )
         this.monitoring = monitoring
         val preview = FrontCameraPreview(
@@ -96,6 +114,10 @@ class MonitoringEnginePlugin :
         camera = host
         FrontCameraHostApi.setUp(flutterPluginBinding.binaryMessenger, host)
         ExperimentalMonitoringHostApi.setUp(flutterPluginBinding.binaryMessenger, monitoring)
+        ExperimentalJournalHostApi.setUp(
+            flutterPluginBinding.binaryMessenger,
+            ExperimentalJournalHost(journalStore, ensureRecovered = monitoring::ensureJournal),
+        )
     }
 
     override fun onMethodCall(
@@ -113,9 +135,12 @@ class MonitoringEnginePlugin :
         channel.setMethodCallHandler(null)
         FrontCameraHostApi.setUp(binding.binaryMessenger, null)
         ExperimentalMonitoringHostApi.setUp(binding.binaryMessenger, null)
+        ExperimentalJournalHostApi.setUp(binding.binaryMessenger, null)
         camera?.detachActivity()
         monitoring?.close()
         monitoring = null
+        journalStore?.close()
+        journalStore = null
         camera = null
         scope?.cancel()
         scope = null
