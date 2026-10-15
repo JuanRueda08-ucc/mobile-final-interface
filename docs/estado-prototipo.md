@@ -562,7 +562,7 @@ segunda capa temporal del emulador: rostro/ojos medibles, EAR 0,28/0,26 y salida
 con cero clientes de cámara y cero analizadores. El ajuste de resumen se valida
 con Flutter; no se presenta como sesión real Android probada.
 
-## Webcam autorizada y reparación de reanudación (2026-10-14, en curso)
+## Webcam autorizada y reparación de reanudación (2026-10-14)
 
 El usuario autorizó webcam física mediante emulador, procesamiento local, sin
 guardar imágenes, vídeo ni puntos faciales. `main` limpio al empezar en
@@ -586,15 +586,25 @@ Nuevo APK en `build/webcam-5bc/vigia-normal-webcam-fix-release.apk`,
 94 615 029 bytes, SHA-256
 `4e7bdd90b7fbc9ac4c575529c6118c8d4ba8c0282cc306a75f168e7f11729497`.
 Identidad normal, firma debug v2 válida, tres ABI y sin permisos de red.
-Compilado e instalado; repetición guiada y diagnóstico temporal en curso.
-Detalle y límites: `docs/evidence/fase5bc-webcam.md`. Cámara/análisis/audio
-sin actividad tras finalizar la primera sesión. Falta comprobar el cierre
-final del emulador y restaurar/verificar su configuración al terminar.
+Compilado, instalado y probado: el usuario confirmó tres pausas/reanudaciones
+correctas; motor ACTIVE en las aperturas 2/3/4 tras 3,107/1,677/2,223 s desde
+sus solicitudes registradas. Nueva calibración ACCEPTED observada en el motor.
+Usuario confirmó finalización, resumen y webcam apagada. Cámara sin clientes,
+cero analizadores vivos y cero tracks de audio activos. AVD y recolector
+cerrados; archivos ini/config/posición con los mismos hashes iniciales, sin
+necesidad de sobrescribirlos. No se guardaron imágenes, vídeo ni puntos faciales.
+
+Diagnóstico: en 463 observaciones iniciales todas válidas, 59/462 intervalos
+de entrada y 53/462 de aplicación exceden 150 ms; edad máxima 367,040 ms,
+sin resultados >750 ms en ese prefijo. Persisten rechazos de cobertura y
+alternancia de «No evaluable»; no se identificó un error del cálculo ni se
+demostró la causa de los huecos. No se modificaron umbrales. Detalle, logs,
+confirmaciones humanas por sesión y límites: `docs/evidence/fase5bc-webcam.md`.
 
 ## Siguiente acción
 
-Completar la repetición guiada con el usuario, medir intervalos/edades/rechazos
-y cerrar el acceso a la webcam. Después queda la revisión independiente del
-bloque reparado; esta validación propia y la webcam mediante emulador no son
-D1 ni validación para conducción. No se avanza a otro bloque sin autorización
-expresa. Sin push ni PR; la secuencia VIG del Área 08 sigue aplazada.
+Revisión independiente del bloque reparado. La prueba guiada y el acceso a
+webcam ya están cerrados; esta validación propia y la webcam mediante emulador
+no son D1 ni validación para conducción. Persisten los límites de cobertura y
+continuidad medidos. No se avanza a otro bloque sin autorización expresa.
+Sin push ni PR; la secuencia VIG del Área 08 sigue aplazada.

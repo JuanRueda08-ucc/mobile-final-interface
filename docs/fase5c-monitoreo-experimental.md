@@ -247,7 +247,7 @@ temporal se verificaron instalación, rostro/ojos medibles (0,28/0,26) y salida
 con cámara/análisis cerrados. No se repitió la calibración ni se obtuvo sesión
 real. Archivo, firma, permisos, comandos y límites completos en el informe.
 
-## Prueba guiada con webcam (2026-10-14, en curso)
+## Prueba guiada con webcam (2026-10-14)
 
 Con consentimiento expreso, webcam física mediante el AVD `vigia_pixel`,
 capa temporal sin alterar datos/configuración originales, sin guardar imágenes,
@@ -265,7 +265,19 @@ mostrar la vista al recuperar, manteniendo la espera de observaciones válidas
 antes de ACTIVE. Regresión de widget reproducida antes y pasada después;
 Flutter 29/29, análisis limpio, JVM dirigida 70/70. Se añade un diagnóstico
 optativo de tiempos/motivos Q, sin imágenes ni puntos, para medir los huecos
-antes de atribuir su causa. Validación Android de ese cambio aún en curso.
+antes de atribuir su causa. APK nuevo SHA-256
+`4e7bdd90b7fbc9ac4c575529c6118c8d4ba8c0282cc306a75f168e7f11729497`,
+en `build/webcam-5bc/vigia-normal-webcam-fix-release.apk`: el usuario y los
+registros confirman **tres pausas/reanudaciones correctas** y finalización con
+resumen. Cámara/análisis/audio sin actividad al terminar; emulador cerrado,
+configuración original intacta. Nueva calibración ACCEPTED observada en el motor.
+
+Medición de 463 observaciones iniciales todas válidas: 59/462 intervalos de
+entrada y 53/462 de aplicación superan Gmax=150 ms, sin edades >750 ms
+(máximo 367,040 ms). Se repiten rechazos por cobertura; no se identificó un
+error de cálculo. Los huecos medidos explican pérdidas de continuidad aun con
+Q válida; su origen y el rendimiento físico siguen sin demostrarse. No se
+considera resuelta la intermitencia por haber corregido la vista de reanudación.
 
 Resultados, confirmaciones humanas, artefactos y límites en
 `docs/evidence/fase5bc-webcam.md`. Webcam mediante emulador no es D1 ni valida

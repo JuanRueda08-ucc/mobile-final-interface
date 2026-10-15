@@ -1,6 +1,7 @@
 # Prueba guiada de 5B + 5C con webcam
 
-2026-10-14. **Prueba en curso; no es un dictamen final.**
+2026-10-14 (fecha local; registros Android del 2026-10-15 UTC).
+**Prueba guiada terminada; validación propia de la reparación.**
 
 ## Preparación y privacidad
 
@@ -33,7 +34,7 @@ El usuario **confirmó movimiento en directo**, no la imagen fija anterior.
 no la DEMO. Webcam física a través del emulador no equivale a D1 ni valida
 conducción real.
 
-## Observaciones hasta ahora
+## Primera calibración y confirmaciones humanas
 
 Se separan confirmaciones del usuario y estados observados:
 
@@ -118,7 +119,7 @@ ni como tiempo del sensor. Una prueba con entrada 1000/recepción 1100/
 aplicación 5000 ms comprueba los datos y que el resultado permanece caducado;
 callbacks de instancias anteriores o cerradas no añaden observaciones.
 
-## Pendiente para cerrar
+## APK actualizado y repetición Android
 
 Nuevo APK compilado offline e instalado con `adb install -r`:
 `build/webcam-5bc/vigia-normal-webcam-fix-release.apk`, **94 615 029 bytes**,
@@ -158,8 +159,80 @@ no causas demostradas. No se ha identificado un error de cálculo de cobertura.
 Las muestras posteriores incluyen `noFace` y rechazos geométricos: no se
 mezclan con este prefijo para atribuir todos los huecos al rendimiento.
 
-Falta la confirmación humana de la nueva calibración, repetir reanudación con
-vista visible y comprobar cierre/restauración final. No se presenta aún la
-reparación como validada en Android. La ventana queda visible mientras se
-espera la participación solicitada; el acceso final a webcam sigue pendiente
-de cerrar al concluir la prueba.
+### Tres reanudaciones correctas
+
+El usuario confirmó: «lo pausé y lo reanudé 3 veces y las 3 veces reanudó
+correctamente». El registro del APK actualizado lo corrobora:
+
+| Solicitud registrada | Apertura | ACTIVE / reanudando=false | Demora observada |
+|---|---|---|---|
+| 03:09:38.378 | 2 | 03:09:41.485 | 3,107 s |
+| 03:09:44.309 | 3 | 03:09:45.986 | 1,677 s |
+| 03:09:48.611 | 4 | 03:09:50.834 | 2,223 s |
+
+Son tiempos de esta ejecución del emulador, no garantía de rendimiento físico.
+Las aperturas 1/2/3/4 se cerraron con cero analizadores vivos; máximos de edad
+aceptada registrados 536/167/137/129 ms, sin descartes por Tstale. La última
+pausa se registró a 03:09:54.196. La observación de ausencia de cliente de
+cámara y tracks de audio activos se repitió durante esa pausa.
+
+La nueva calibración figura ACCEPTED a 03:08:46.630 en el motor, y hubo sesión
+con dos activaciones/dos tonos iniciados/cero fallidos. No se atribuye al
+usuario confirmación personal de esos dos tonos o cierres: sus confirmaciones
+de audición/cierre/reapertura pertenecen a la primera sesión descrita arriba.
+Se conserva la alternancia por `gap`/`resultsDelayed` y algunos rechazos Q;
+la corrección de vista no se presenta como estabilización de las mediciones.
+
+### Finalización y liberación
+
+El usuario confirmó «Aparece el resumen y la webcam se apagó». Se observó
+FINALIZED a 03:11:50.692 y el resumen por accesibilidad: activo 0:50, evaluable
+0:39, pausa 2:07, dos activaciones, dos tonos iniciados/cero fallidos.
+`session-new-summary.txt`, `camera-new-final.txt` y `audio-new-final.txt`
+conservan las comprobaciones de texto: cámara `Active Camera Clients: []`,
+analizadores vivos cero desde la última pausa y cero tracks de audio activos
+(el único track listado pertenece al sistema). El historial de audio no se
+confunde con un generador activo de Vigía.
+
+Se detuvo el recolector de logcat propio y se cerró únicamente el AVD de la
+prueba (`adb -s emulator-5554 emu kill`). Comprobación posterior: sin dispositivos
+en adb ni proceso qemu del AVD, ni procesos del emulador/recolector propios.
+Las propiedades de diagnóstico no persistentes y el auxiliar de accesibilidad
+se limitaron al sistema invitado/capa temporal descartada. No se reabrió la
+webcam al terminar ni se guardó un snapshot.
+
+Los hashes finales coinciden con los iniciales, incluida la posición de ventana:
+
+| Archivo original | SHA-256 final, igual al inicial |
+|---|---|
+| `D:/dev/avd/vigia_pixel.ini` | `5151dd628050f8a74589a950c3ec6791f3a703ad567ddc409a25b2c85cb5ffe4` |
+| `D:/dev/avd/vigia_pixel.avd/config.ini` | `596540b705010cf7fa87877d9e2101854325d1936c7e3d80d86cc54a3ea191e0` |
+| `D:/dev/avd/vigia_pixel.avd/emulator-user.ini` | `6950b98e59a50e8f72ebe4e7d6ff8ceb9c00d783e1618e7de2054cd90f929822` |
+
+No fue necesario sobrescribirlos. Se preservaron los datos originales mediante
+`-read-only`, sin wipe-data ni cambios de configuración persistente. No se
+guardaron imágenes, vídeo ni puntos faciales; evidencia nueva exclusivamente
+de texto. No hay FATAL en el registro filtrado conservado de la nueva ejecución.
+
+## Resultado y límites
+
+Reparación de la vista durante reanudación reproducida antes, regresión pasada
+después y **tres reanudaciones Android correctas**, confirmadas por el usuario y
+el motor. Recorrido real completado con participación humana: calibración,
+sonido confirmado personalmente, sesión, cierres con avisos, reapertura, pausa,
+reanudación y finalización. Las confirmaciones de sonido/cierres pertenecen a
+la primera sesión; la repetición del nuevo APK acredita las transiciones y los
+contadores descritos, sin atribuir confirmaciones humanas adicionales.
+
+Continúan rechazos por cobertura y alternancia «No evaluable». Se midieron
+huecos por encima de Gmax aun con Q válida, sin identificar error de cálculo;
+su origen no quedó demostrado. No se ampliaron umbrales ni se conservaron
+señales antiguas para disimularlo. No se acredita estabilidad general ni
+rendimiento D1, captura física con reloj convertido, conducción real o política
+validada. No se repitieron suites completas, matrices, contraste, goldens ni
+ensayos del modelo. Solo un build normal justificado por los cambios.
+
+Git: `main`, base `b6582a85c4076fd17f4ef7573e1242b33ece9098` ancestro del código
+`a7198626ac01751fa5c534605f71020e41f2d6f5`, seguido por documentación local.
+Sin cambios ajenos al comenzar, sin amend, push ni PR; sin avance de bloque.
+El hash documental de cierre y Git final se informan con la entrega.
