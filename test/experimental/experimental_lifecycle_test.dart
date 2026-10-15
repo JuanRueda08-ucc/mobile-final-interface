@@ -6,6 +6,7 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/vigia_app.dart';
 import 'package:vigia/features/camera/front_camera_controller.dart';
+import 'package:vigia/features/camera/front_camera_screen.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_controller.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_screen.dart';
 
@@ -45,6 +46,36 @@ void main() {
     await tester.tap(find.byKey(const Key('open-experimental')));
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'reanudación pendiente muestra la vista para poder centrar el rostro',
+    (tester) async {
+      final camera = FakeFrontCameraBridge(
+        permission: CameraPermissionStatus.granted,
+      );
+      final engine = FakeExperimentalBridge(
+        fakeSnapshot(
+          sequence: 2,
+          lifecycle: EngineSessionLifecycle.paused,
+          sessionId: 's1',
+        ),
+      );
+      await open(tester, camera, engine);
+      expect(find.byType(FrontCameraStage), findsNothing);
+      expect(camera.calls.where((x) => x.startsWith('open:')), isEmpty);
+      engine.next = fakeSnapshot(
+        lifecycle: EngineSessionLifecycle.paused,
+        resumePending: true,
+        sessionId: 's1',
+      );
+      await tester.tap(find.text('Reanudar'));
+      await tester.pumpAndSettle();
+      expect(camera.calls.where((x) => x.startsWith('open:')), hasLength(1));
+      expect(find.byType(FrontCameraStage), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 4));
+    },
+  );
 
   testWidgets(
     'inicio sin respuesta: sesión confirmada y finalizada permite salir del resumen',

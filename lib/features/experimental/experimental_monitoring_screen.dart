@@ -253,7 +253,8 @@ class _ExperimentalMonitoringScreenState
           if (finalized && snap != null)
             ..._summary(snap)
           else ...[
-            if (s.lifecycle != EngineSessionLifecycle.paused)
+            if (s.lifecycle != EngineSessionLifecycle.paused ||
+                (snap?.resumePending ?? false))
               FrontCameraStage(state: cam),
             if (s.sessionVigente && snap != null)
               ..._session(s, snap)

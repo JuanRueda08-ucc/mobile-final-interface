@@ -78,7 +78,20 @@ internal class FaceAnalysisSession(
             lastPresence = presence
             main.post { onPresence(presence) }
         },
-        observe = onObservation,
+        observe = { o ->
+            if (Log.isLoggable(TIMING_TAG, Log.DEBUG)) {
+                Log.d(TIMING_TAG, "tipo=observacion token=$token entrada_ns=${o.tNs} " +
+                    "aplicado_ns=${o.receivedNs} valida=${o.valid} " +
+                    "motivos=${o.reasons.joinToString(",") { it.code }}")
+            }
+            onObservation(o)
+        },
+        onResultTiming = { entry, callback, applied ->
+            if (Log.isLoggable(TIMING_TAG, Log.DEBUG)) {
+                Log.d(TIMING_TAG, "tipo=resultado token=$token entrada_ns=$entry " +
+                    "callback_ns=$callback aplicado_ns=$applied")
+            }
+        },
     )
 
     val useCase: ImageAnalysis = ImageAnalysis.Builder()
@@ -198,6 +211,9 @@ internal class FaceAnalysisSession(
 
     companion object {
         private const val TAG = "VigiaFaceAnalysis"
+        // Solo se habilita explícitamente para el diagnóstico local de tiempos.
+        // No registra EAR, imágenes, puntos faciales ni sus coordenadas.
+        private const val TIMING_TAG = "VigiaTiming"
 
         /** Tamaño pedido antes de girar (Área 05 §7 compara 640×480 y 1280×720). */
         private val ANALYSIS_SIZE = Size(640, 480)

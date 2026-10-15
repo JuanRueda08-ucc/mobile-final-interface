@@ -149,6 +149,8 @@ internal class FaceAnalysisCore<F>(
      * imposible) se entrega como observación ocular compacta al coordinador.
      */
     private val observe: (EyeObservation) -> Unit = {},
+    /** Diagnóstico opcional: tiempos del mismo reloj, nunca imágenes ni puntos. */
+    private val onResultTiming: (entryNs: Long, callbackNs: Long, appliedNs: Long) -> Unit = { _, _, _ -> },
 ) {
     private var current = FacePresenceStatus.LOADING_MODEL
 
@@ -368,6 +370,7 @@ internal class FaceAnalysisCore<F>(
         lastResultTs = ts
         // Reloj actual: el aviso pudo esperar en la cola del hilo de análisis.
         val now = clockNs()
+        onResultTiming(entryNs, receivedNs, now)
         if (entryNs > receivedNs || receivedNs > now) {
             resultsDiscarded++
             discardedInvalidTime++
