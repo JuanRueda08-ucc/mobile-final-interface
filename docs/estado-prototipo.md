@@ -594,6 +594,16 @@ cero analizadores vivos y cero tracks de audio activos. AVD y recolector
 cerrados; archivos ini/config/posición con los mismos hashes iniciales, sin
 necesidad de sobrescribirlos. No se guardaron imágenes, vídeo ni puntos faciales.
 
+**Alcance de las confirmaciones:** en la primera sesión, con el APK anterior
+`bce4203d…`, el usuario confirmó «Referencia aceptada», audición de «Probar tono»,
+su pulsación personal de «Lo escuché», avisos coincidentes con cierres voluntarios
+y su cese al reabrir los ojos. Las 115 observaciones abiertas son un dato observado
+del motor/interfaz. En el APK actualizado `4e7bdd90…`, ACCEPTED, dos activaciones
+y dos tonos iniciados/cero fallidos son observaciones del motor; el usuario
+confirmó expresamente las tres reanudaciones y el resumen con webcam apagada.
+No se atribuye a esa segunda sesión una nueva confirmación personal de audición
+o de cada cierre/aviso. No se presenta el tono iniciado como prueba de audibilidad.
+
 Diagnóstico: en 463 observaciones iniciales todas válidas, 59/462 intervalos
 de entrada y 53/462 de aplicación exceden 150 ms; edad máxima 367,040 ms,
 sin resultados >750 ms en ese prefijo. Persisten rechazos de cobertura y
@@ -601,10 +611,42 @@ alternancia de «No evaluable»; no se identificó un error del cálculo ni se
 demostró la causa de los huecos. No se modificaron umbrales. Detalle, logs,
 confirmaciones humanas por sesión y límites: `docs/evidence/fase5bc-webcam.md`.
 
+**Dos reglas distintas:** Gmax=150 ms limita los huecos admisibles entre
+observaciones y la continuidad de recepción del recorrido ocular. Un hueco
+mayor corta continuidad/cobertura y exige recuperación: puede aparecer «No
+evaluable» aunque cada resultado tenga menos de 750 ms. Tstale=750 ms limita
+la edad del resultado y el silencio máximo de recepción; no permite unir huecos
+de 150–750 ms ni extender una señal ocular. Los 3000 ms de vigilancia de conexión
+en Flutter tampoco amplían esos límites.
+
+Los resultados propios ya ejecutados (29 pruebas Flutter experimentales,
+70 JVM seleccionadas, análisis limpio y 500 comprobaciones del registro) se
+conservan como **validación de nuestras reparaciones**, sin revisión independiente.
+D1, rendimiento en dispositivo físico y validación física de producción siguen
+pendientes; webcam física a través de emulador no los acredita ni valida conducción.
+
+## Consolidación del hito experimental 5B/5C con webcam
+
+El usuario autorizó consolidar y publicar este hito desde `main` limpio en
+`2734d3bee3e8f775bbedcb877fd113d2185a668a`. Remoto comprobado mediante fetch:
+`origin/main` en `33a5edef093ad42fe53f9edc0318f294fd176eb0`, sin commits remotos
+adicionales y ancestro de los 14 commits locales; no hizo falta integrar cambios.
+
+APK probado copiado **sin recompilar** a
+`D:/dev/vigia-entrega/vigia-normal-fase5bc-webcam-release.apk`,
+94 615 029 bytes, SHA-256
+`4e7bdd90b7fbc9ac4c575529c6118c8d4ba8c0282cc306a75f168e7f11729497`.
+Entrada añadida a `D:/dev/vigia-entrega/SHA256SUMS.txt`, conservando las anteriores.
+Código del APK: `a7198626ac01751fa5c534605f71020e41f2d6f5`; los commits posteriores
+solo documentan resultados. Esta consolidación no repite pruebas ni añade funciones.
+Publicación autorizada de `main` por avance normal, sin force ni PR; no equivale
+a aprobación independiente ni elimina los límites de intermitencia y validación.
+
 ## Siguiente acción
 
 Revisión independiente del bloque reparado. La prueba guiada y el acceso a
 webcam ya están cerrados; esta validación propia y la webcam mediante emulador
 no son D1 ni validación para conducción. Persisten los límites de cobertura y
 continuidad medidos. No se avanza a otro bloque sin autorización expresa.
-Sin push ni PR; la secuencia VIG del Área 08 sigue aplazada.
+Publicación de este hito autorizada por el usuario, sin force ni PR; la secuencia
+VIG del Área 08 sigue aplazada.

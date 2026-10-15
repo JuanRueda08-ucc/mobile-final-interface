@@ -236,3 +236,24 @@ Git: `main`, base `b6582a85c4076fd17f4ef7573e1242b33ece9098` ancestro del códig
 `a7198626ac01751fa5c534605f71020e41f2d6f5`, seguido por documentación local.
 Sin cambios ajenos al comenzar, sin amend, push ni PR; sin avance de bloque.
 El hash documental de cierre y Git final se informan con la entrega.
+
+## Consolidación y publicación autorizadas
+
+Tras cerrar la prueba en `2734d3bee3e8f775bbedcb877fd113d2185a668a`, el usuario
+autorizó publicar el hito experimental. Se conserva la distinción de sesiones,
+confirmaciones humanas, observaciones del motor y límites anteriores. Gmax=150 ms
+corta continuidad/cobertura ocular ante huecos; Tstale=750 ms retira datos por
+edad/silencio, sin permitir puentear esos huecos. La intermitencia continúa sin
+causa demostrada. D1 y validación física siguen pendientes; no hay revisión
+independiente de nuestras reparaciones.
+
+Se copia el mismo APK, sin recompilar, a
+`D:/dev/vigia-entrega/vigia-normal-fase5bc-webcam-release.apk` y se actualiza
+`SHA256SUMS.txt`, conservando entradas anteriores. SHA-256 de origen y copia:
+`4e7bdd90b7fbc9ac4c575529c6118c8d4ba8c0282cc306a75f168e7f11729497`.
+No se repiten pruebas ni se modifica código.
+
+Fetch de `origin`: `main` remoto en
+`33a5edef093ad42fe53f9edc0318f294fd176eb0`, ancestro de los 14 commits locales,
+sin cambios inesperados que integrar. Se autoriza publicar `main` sin force ni
+PR. El resultado y hashes finales de publicación se informan en la entrega.
