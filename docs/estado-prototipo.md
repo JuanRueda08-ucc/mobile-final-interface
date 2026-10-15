@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) y `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-15 (fase 5D: persistencia e Historial de las sesiones experimentales reales; pendiente de revisión de Codex).
+**Actualizado:** 2026-10-15 (Codex revisa y repara 5D por autorización del usuario; Claude detenido; falta cerrar la prueba guiada y la entrega).
 
 ## Fases
 
@@ -671,11 +671,21 @@ limpio al empezar, sin cambios ajenos). Detalle: `docs/fase5d-historial-experime
 
 ## Siguiente acción
 
-Revisión de Codex de la fase 5D (puede reparar el bloque integrado). Claude se
-detiene hasta nueva autorización. Antes, de la etapa anterior: revisión
-independiente del bloque reparado. La prueba guiada y el acceso a
-webcam ya están cerrados; esta validación propia y la webcam mediante emulador
-no son D1 ni validación para conducción. Persisten los límites de cobertura y
-continuidad medidos. No se avanza a otro bloque sin autorización expresa.
-Publicación de este hito autorizada por el usuario, sin force ni PR; la secuencia
-VIG del Área 08 sigue aplazada.
+Cerrar la revisión y reparación de 5D que el usuario encargó a Codex. Claude
+permanece detenido. Evidencia y estado: `docs/evidence/fase5d-revision-codex.md`.
+Reparados con regresiones: apertura fallida que permitía inicio sin journal,
+recuperación tras cierre fallido en la misma instancia, espera de Resumen,
+totales con pérdida/conflicto e importación con más de 5000 hechos o ACK sin
+avance. La E/S del recorrido pasa a un escritor FIFO acotado tras medir su
+interferencia; no se modifican umbrales. JVM 102/102, historial Dart 30/30 y
+plugin Dart 3/3; SQLite real y reinicios entre PID comprobados. Ocho renders
+nuevos de 5D. La suite completa conserva los cuatro fallos visuales conocidos
+y reproduce otros dos también en una copia exacta de la base publicada;
+ningún golden 5C actualizado. APK anterior conservado; nuevo APK y sesión
+guiada por webcam en preparación. La sesión de webcam de 5B/5C anterior ya
+estaba cerrada; no acredita todavía la persistencia de una sesión de 5D.
+
+Entrega autorizada: commits locales y APK, **sin amend, push ni PR**.
+La comprobación de estas reparaciones es validación propia. Siguen pendientes
+D1, «No evaluable» y revisión independiente de las reparaciones; no se avanza
+a otro bloque ni se ejecuta la secuencia VIG aplazada.

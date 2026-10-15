@@ -1,5 +1,10 @@
 package com.juanrueda.monitoring_engine.journal
 
+import java.util.concurrent.Callable
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.atomic.AtomicInteger
+
 /** Totales de la sesión conocidos por el coordinador en un instante (ms). */
 internal data class SessionTotals(
     val offsetMs: Long,
@@ -47,19 +52,25 @@ internal enum class RecordStatus(val code: String) {
     /** Todos los hechos de la sesión se confirmaron en el journal. */
     DURABLE("durable"),
 
+    /** Hechos en la cola local, todavía no confirmados por SQLite. */
+    PENDING("pending"),
+
     /** Algún hecho no se pudo escribir: el registro está incompleto. */
     INCOMPLETE("incomplete"),
 }
 
 /**
  * Escritor del journal de la sesión experimental (fase 5D). Lo usa el
- * coordinador dentro de su cerrojo; cada método es una transacción.
+ * coordinador. En Android, las escrituras del recorrido van a un escritor
+ * FIFO separado del cerrojo del motor. Inicio/cierre esperan su commit;
+ * los demás hechos tienen una cola acotada de 256 operaciones compactas.
  *
  * - El inicio solo se confirma si `sessionStarted` es durable: sin journal no
  *   hay sesión ([started] devuelve `false`).
  * - Los demás hechos no bloquean el aviso: se escriben **después** del tono.
  *   Si una escritura falla, la sesión sigue, se cuenta la pérdida y el
- *   registro queda incompleto; no hay cola de reintento (pendiente declarado).
+ *   registro queda incompleto. La cola no reintenta ni es durable; perder
+ *   el proceso sin cierre siempre se recupera como incompleto.
  * - Cierre único: `sessionFinalized` exige la sesión abierta en la misma
  *   transacción.
  * - [recover] marca como interrumpidas, una sola vez, las sesiones abiertas
@@ -73,13 +84,29 @@ internal class SessionJournal(
     private val wallClockMs: () -> Long,
     private val zoneOffsetMinutes: (Long) -> Int,
     private val newId: () -> String,
+    private val executor: ExecutorService? = null,
 ) {
-    private var sessionId: String? = null
-    private var lost = 0
-    private var latestDurableOffsetMs = 0L
+    @Volatile private var sessionId: String? = null
+    private val lost = AtomicInteger()
+    private val queued = AtomicInteger()
+    @Volatile private var latestDurableOffsetMs = 0L
 
-    var status = RecordStatus.NONE
-        private set
+    @Volatile private var savedStatus = RecordStatus.NONE
+    val status: RecordStatus
+        get() = if (savedStatus == RecordStatus.DURABLE && queued.get() > 0) RecordStatus.PENDING else savedStatus
+
+    /** Barrera FIFO: inicio/cierre solo responden después del commit real. */
+    private fun <T> serialized(work: () -> T): T {
+        val writer = executor ?: return work()
+        return try {
+            writer.submit(Callable { work() }).get()
+        } catch (e: ExecutionException) {
+            throw (e.cause as? RuntimeException ?: IllegalStateException(e.cause))
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IllegalStateException("Journal interrumpido", e)
+        }
+    }
 
     /** Último límite confirmado de la sesión actual o recién cerrada. */
     val latestDurableOffset: Long? get() = if (status == RecordStatus.NONE) null else latestDurableOffsetMs
@@ -89,7 +116,9 @@ internal class SessionJournal(
      * o -1 si no se pudo leer el journal (la siguiente instancia lo reintenta;
      * mientras tanto el inicio de otra sesión choca con la sesión abierta).
      */
-    fun recover(engineInstanceId: String): Int {
+    fun recover(engineInstanceId: String): Int = serialized { recoverNow(engineInstanceId) }
+
+    private fun recoverNow(engineInstanceId: String): Int {
         var n = 0
         val open = try {
             store.openSessions()
@@ -97,7 +126,10 @@ internal class SessionJournal(
             return -1
         }
         for (s in open) {
-            if (s.engineInstanceId == engineInstanceId) continue
+            // Solo la sesión todavía poseída por este escritor sigue viva.
+            // Un cierre fallido abandona su ID y puede recuperarse sin matar
+            // el proceso ni bloquear todos los inicios posteriores.
+            if (s.engineInstanceId == engineInstanceId && s.sessionId == sessionId) continue
             val now = wallClockMs()
             try {
                 store.commit(
@@ -137,7 +169,9 @@ internal class SessionJournal(
     }
 
     /** Inicio confirmado y durable. `false` si no se pudo escribir. */
-    fun started(start: SessionStart): Boolean {
+    fun started(start: SessionStart): Boolean = serialized { startedNow(start) }
+
+    private fun startedNow(start: SessionStart): Boolean {
         val now = wallClockMs()
         val zone = zoneOffsetMinutes(now)
         return try {
@@ -180,9 +214,9 @@ internal class SessionJournal(
                 ),
             )
             sessionId = start.sessionId
-            lost = 0
+            lost.set(0)
             latestDurableOffsetMs = 0
-            status = RecordStatus.DURABLE
+            savedStatus = RecordStatus.DURABLE
             true
         } catch (e: RuntimeException) {
             false
@@ -191,7 +225,7 @@ internal class SessionJournal(
 
     fun checkpoint(totals: SessionTotals, lifecycle: JournalLifecycle) =
         write(RecordType.PROGRESS_CHECKPOINT, totals.offsetMs, lifecycle) {
-            totals.toPayload() + mapOf("knownThroughOffsetMs" to totals.offsetMs, "recordsLost" to lost)
+            totals.toPayload() + mapOf("knownThroughOffsetMs" to totals.offsetMs, "recordsLost" to lost.get())
         }
 
     fun pauseStarted(ordinal: Int, totals: SessionTotals) =
@@ -223,7 +257,9 @@ internal class SessionJournal(
         }
 
     /** Cierre único y durable. `false` si no se escribió. */
-    fun finalized(totals: SessionTotals): Boolean {
+    fun finalized(totals: SessionTotals): Boolean = serialized { finalizedNow(totals) }
+
+    private fun finalizedNow(totals: SessionTotals): Boolean {
         val id = sessionId ?: return false
         val now = wallClockMs()
         return try {
@@ -240,7 +276,7 @@ internal class SessionJournal(
                             "endOffsetMs" to totals.offsetMs,
                             "endedEpochMs" to now,
                             "endOffsetMinutes" to zoneOffsetMinutes(now),
-                            "recordsLost" to lost,
+                            "recordsLost" to lost.get(),
                         ),
                     ),
                 ),
@@ -256,26 +292,54 @@ internal class SessionJournal(
             sessionId = null
             true
         } catch (e: RuntimeException) {
-            lost++
-            status = RecordStatus.INCOMPLETE
+            lost.incrementAndGet()
+            savedStatus = RecordStatus.INCOMPLETE
             sessionId = null
             false
         }
     }
 
     /** El motor se desconecta sin cierre: la sesión queda abierta para [recover]. */
-    fun abandon() {
-        sessionId = null
-    }
+    fun abandon() = serialized { sessionId = null }
 
-    private inline fun write(
+    private fun write(
         type: String,
         offsetMs: Long,
         lifecycle: JournalLifecycle,
         payload: () -> Map<String, Any?>,
     ) {
+        val occurred = wallClockMs()
+        val writer = executor
+        if (writer == null) return writeNow(type, offsetMs, lifecycle, payload, occurred)
+        if (sessionId == null) return
+        // Solo hechos compactos de límites/contadores (<1 KiB cada uno).
+        // Nunca se bloquea análisis/audio por una cola llena. No es durable.
+        if (queued.incrementAndGet() > 256) {
+            queued.decrementAndGet()
+            lost.incrementAndGet()
+            savedStatus = RecordStatus.INCOMPLETE
+            return
+        }
+        try {
+            writer.execute {
+                try { writeNow(type, offsetMs, lifecycle, payload, occurred) }
+                finally { queued.decrementAndGet() }
+            }
+        } catch (_: RuntimeException) {
+            queued.decrementAndGet()
+            lost.incrementAndGet()
+            savedStatus = RecordStatus.INCOMPLETE
+        }
+    }
+
+    private fun writeNow(
+        type: String,
+        offsetMs: Long,
+        lifecycle: JournalLifecycle,
+        payload: () -> Map<String, Any?>,
+        now: Long,
+    ) {
         val id = sessionId ?: return
-        val now = wallClockMs()
         try {
             store.commit(
                 listOf(
@@ -290,8 +354,8 @@ internal class SessionJournal(
             )
             if (offsetMs > latestDurableOffsetMs) latestDurableOffsetMs = offsetMs
         } catch (e: RuntimeException) {
-            lost++
-            status = RecordStatus.INCOMPLETE
+            lost.incrementAndGet()
+            savedStatus = RecordStatus.INCOMPLETE
         }
     }
 

@@ -151,6 +151,26 @@ void main() {
 
   group('duplicados e idempotencia', () {
     test(
+      'conflicto tardío retira la calificación de completo de su sesión',
+      () async {
+        journal.completeSession('s1');
+        await sync();
+        final original = journal.records.first;
+        journal.add(
+          'sessionStarted',
+          's1',
+          0,
+          {'alterado': true},
+          recordId: original.recordId,
+          sequence: original.journalSequence,
+        );
+        journal.acked.clear();
+        expect((await sync()).stop, ImportStop.integrity);
+        expect((await repo.session('s1'))!.complete, isFalse);
+        expect((await repo.session('s1'))!.totals, isNull);
+      },
+    );
+    test(
       'caída tras el commit y antes del ACK: reimportar es un no-op',
       () async {
         journal.completeSession('s1');
@@ -180,7 +200,7 @@ void main() {
         await sync();
         final original = journal.records.single;
         // Se fuerza otra revisión con el mismo recordId y secuencia.
-        journal.acked.remove(original.recordId);
+        journal.acked.remove((original.recordId, original.payloadHash));
         journal.records.clear();
         journal.add(
           'sessionStarted',
@@ -207,7 +227,10 @@ void main() {
         expect(s.stop, ImportStop.relation);
         final r = (await repo.session('s1'))!;
         expect(r.endOffset, const Duration(seconds: 70));
-        expect(r.totals!.active, const Duration(seconds: 60));
+        expect(r.totals, isNull, reason: 'el cierre conflictivo impide declarar totales completos');
+        final stored = await (db.select(db.experimentalSessions)
+              ..where((t) => t.sessionId.equals('s1'))).getSingle();
+        expect(stored.activeMs, 60000, reason: 'el valor del primer cierre se conserva');
         expect(journal.pending, hasLength(1));
       },
     );
@@ -358,6 +381,11 @@ void main() {
         expect(r.isFinalized, isTrue);
         expect(r.complete, isFalse);
         expect(r.recordsLost, 2);
+        expect(
+          r.totals,
+          isNull,
+          reason: 'pérdida conocida: no son totales completos',
+        );
       },
     );
   });
@@ -404,6 +432,52 @@ void main() {
   });
 
   group('sincronización', () {
+    test(
+      'más de 5000 hechos no se anuncian al día con datos pendientes',
+      () async {
+        journal.started('larga');
+        for (var n = 1; n <= 5000; n++) {
+          journal.checkpoint(
+            'larga',
+            n * 1000,
+            FakeJournal.totals(active: n * 1000),
+          );
+        }
+        await sync();
+        expect(journal.pending, isEmpty);
+        expect(await repo.importedCount(), 5001);
+      },
+    );
+
+    test('ACK sin avance comunica fallo y no repite para siempre', () async {
+      journal.started('s1');
+      journal.ignoreAck = true;
+      expect((await sync()).status, JournalSyncStatus.failed);
+      expect(journal.pending, hasLength(1));
+      expect(await repo.importedCount(), 1);
+      journal.ignoreAck = false;
+      expect((await sync()).status, JournalSyncStatus.upToDate);
+      expect(await repo.importedCount(), 1);
+    });
+    test(
+      'un fallo de transacción no permite ACK ni deja un prefijo parcial',
+      () async {
+        journal.completeSession('s1');
+        await db.customStatement(
+          'CREATE TRIGGER reject_receipt BEFORE INSERT ON imported_records '
+          "WHEN NEW.journal_sequence=3 BEGIN SELECT RAISE(ABORT,'diskFailure'); END",
+        );
+        expect((await sync()).status, JournalSyncStatus.failed);
+        expect(journal.ackCalls, 0);
+        expect(await repo.importedCount(), 0);
+        expect(await repo.sessions(), isEmpty);
+        await db.customStatement('DROP TRIGGER reject_receipt');
+        expect((await sync()).status, JournalSyncStatus.upToDate);
+        expect(journal.pending, isEmpty);
+        expect(await repo.importedCount(), journal.records.length);
+      },
+    );
+
     test('una petición durante otra repite la pasada al terminar', () async {
       journal.started('s1');
       final notifier = container.read(journalSyncProvider.notifier);

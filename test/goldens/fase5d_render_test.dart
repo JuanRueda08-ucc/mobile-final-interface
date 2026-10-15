@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/vigia_app.dart';
 import 'package:vigia/data/experimental_history/experimental_history_database.dart';
@@ -27,6 +28,16 @@ void main() {
   const interrupted = 'f0e1d2c3-b4a5-4697-8869-7a6b5c4d3e2f';
 
   void finalizedOnly(FakeJournal j) => j.completeSession(finished);
+
+  void incomplete(FakeJournal j) {
+    j.started(finished);
+    j.finalized(
+      finished,
+      5000,
+      FakeJournal.totals(active: 5000, evaluable: 4000, closures: 1),
+      lost: 2,
+    );
+  }
 
   void withInterrupted(FakeJournal j) {
     j.completeSession(finished);
@@ -62,6 +73,28 @@ void main() {
         String,
         (void Function(FakeJournal), Future<void> Function(WidgetTester))
       >{
+        'revision_inicio_incompleta': (incomplete, (t) async {}),
+        'revision_resumen_incompleto': (
+          incomplete,
+          (t) => tapText(t, 'Ver último resumen'),
+        ),
+        'revision_detalle_incompleto': (
+          incomplete,
+          (t) async {
+            await tapText(t, 'Ver último resumen');
+            await t.pumpAndSettle();
+            await tapText(t, 'Ver detalle');
+          },
+        ),
+        'revision_cierre_ausente': (
+          (j) => j.started(finished),
+          (t) async {
+            final context = t.element(
+              find.byKey(const Key('open-experimental')),
+            );
+            GoRouter.of(context).go('/resumen/$finished');
+          },
+        ),
         'inicio_ultimo_resumen': (finalizedOnly, (t) async {}),
         'inicio_interrumpida': (withInterrupted, (t) async {}),
         'resumen_guardado': (

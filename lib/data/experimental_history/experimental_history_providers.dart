@@ -94,12 +94,21 @@ class JournalSync extends Notifier<JournalSyncState> {
     final bridge = ref.read(experimentalJournalBridgeProvider);
     _set(JournalSyncStatus.running, null, false);
     var changed = false;
+    String? previousBatch;
     try {
       for (var i = 0; i < maxBatches; i++) {
         final batch = await bridge.readPendingRecords(batchLimit);
-        if (batch.records.isEmpty) break;
+        if (batch.records.isEmpty) {
+          _set(JournalSyncStatus.upToDate, null, changed);
+          return;
+        }
+        final fingerprint = batch.records
+            .map((r) => '${r.recordId}:${r.payloadHash}')
+            .join('|');
+        if (fingerprint == previousBatch) throw StateError('ACK sin avance');
+        previousBatch = fingerprint;
         final outcome = await repo.importRecords(batch.records);
-        changed = changed || outcome.applied > 0;
+        changed = changed || outcome.applied > 0 || outcome.stop != null;
         if (outcome.acks.isNotEmpty) {
           await bridge.acknowledgeRecords(
             [for (final a in outcome.acks) a.$1],
@@ -110,9 +119,19 @@ class JournalSync extends Notifier<JournalSyncState> {
           _set(JournalSyncStatus.stopped, outcome.stop, changed);
           return;
         }
-        if (!batch.hasMore) break;
+        if (!batch.hasMore) {
+          // Un ACK perdido o que no confirma nada no debe anunciar al día.
+          final remaining = await bridge.readPendingRecords(1);
+          if (remaining.records.isEmpty) {
+            _set(JournalSyncStatus.upToDate, null, changed);
+            return;
+          }
+        }
       }
-      _set(JournalSyncStatus.upToDate, null, changed);
+      // Ceder el turno y continuar: 5000 hechos no es el fin del journal.
+      _set(JournalSyncStatus.running, null, changed);
+      _again = true;
+      await Future<void>.delayed(Duration.zero);
     } catch (_) {
       _set(JournalSyncStatus.failed, null, changed);
     }

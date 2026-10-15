@@ -23,6 +23,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.TimeZone
 import java.util.UUID
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * Plugin del motor de Vigía.
@@ -46,6 +48,7 @@ class MonitoringEnginePlugin :
     private var scope: CoroutineScope? = null
     private var monitoring: ExperimentalMonitoringHost? = null
     private var journalStore: SqliteJournalStore? = null
+    private var journalWriter: ExecutorService? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "monitoring_engine")
@@ -61,6 +64,8 @@ class MonitoringEnginePlugin :
         // primera vez que se usa; la DEMO no llama a estas API y no lo crea.
         val journalStore = SqliteJournalStore(flutterPluginBinding.applicationContext)
         this.journalStore = journalStore
+        val journalWriter = Executors.newSingleThreadExecutor { work -> Thread(work, "vigia-journal") }
+        this.journalWriter = journalWriter
         val monitoring = ExperimentalMonitoringHost(
             flutterPluginBinding.applicationContext,
             publish = { snapshot ->
@@ -79,6 +84,7 @@ class MonitoringEnginePlugin :
                     wallClockMs = System::currentTimeMillis,
                     zoneOffsetMinutes = { epochMs -> TimeZone.getDefault().getOffset(epochMs) / 60_000 },
                     newId = { UUID.randomUUID().toString() },
+                    executor = journalWriter,
                 )
             },
         )
@@ -139,6 +145,8 @@ class MonitoringEnginePlugin :
         camera?.detachActivity()
         monitoring?.close()
         monitoring = null
+        journalWriter?.shutdown()
+        journalWriter = null
         journalStore?.close()
         journalStore = null
         camera = null

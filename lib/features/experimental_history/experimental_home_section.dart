@@ -68,7 +68,7 @@ class _ExperimentalHomeSectionState
               'Cobertura',
             ),
             PaperMetric(
-              '${value.totals!.closureActivations}',
+              value.totals?.closureActivations.toString() ?? 'No disponible',
               'Cierres prolongados',
             ),
           ],

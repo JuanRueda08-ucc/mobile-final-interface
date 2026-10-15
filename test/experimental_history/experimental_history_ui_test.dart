@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/bootstrap.dart';
@@ -252,6 +253,47 @@ void main() {
     expect(find.text('Aún no hay sesiones experimentales'), findsOneWidget);
     expect(find.byKey(const Key('experimental-data-banner')), findsOneWidget);
   });
+
+  testWidgets('un cierre ausente comunica incompleto y permite salir', (
+    tester,
+  ) async {
+    journal.started('sin-cierre');
+    await pumpReal(tester);
+    // La ruta de resumen también debe explicar un cierre que nunca se escribió.
+    final context = tester.element(find.byKey(const Key('open-experimental')));
+    GoRouter.of(context).go('/resumen/sin-cierre');
+    await settle(tester);
+    await tester.pump(const Duration(seconds: 10));
+    await settle(tester);
+    expect(find.text('Cierre no confirmado'), findsOneWidget);
+    expect(
+      find.textContaining('Los totales no están disponibles'),
+      findsOneWidget,
+    );
+    await tapText(tester, 'Volver al inicio');
+  });
+
+  testWidgets(
+    'pérdida conocida: Inicio, Resumen y detalle no dan totales completos',
+    (tester) async {
+      journal.started('perdida');
+      journal.finalized(
+        'perdida',
+        5000,
+        FakeJournal.totals(active: 5000, evaluable: 4000, closures: 1),
+        lost: 2,
+      );
+      await pumpReal(tester);
+      expect(find.text('80,0 %'), findsNothing);
+      await tapText(tester, 'Ver último resumen');
+      expect(find.text('Registro incompleto'), findsOneWidget);
+      expect(find.text('80,0 %'), findsNothing);
+      expect(find.text('5,0 s'), findsNothing);
+      await tapText(tester, 'Ver detalle');
+      expect(find.text('80,0 %'), findsNothing);
+      expect(find.text('No disponible'), findsWidgets);
+    },
+  );
 
   testWidgets('la app DEMO no abre ni muestra el historial experimental', (
     tester,

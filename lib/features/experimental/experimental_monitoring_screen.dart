@@ -659,7 +659,7 @@ class _ExperimentalMonitoringScreenState
         tone: StatusTone.plain,
         icon: VigiaIcon.check,
         tag: 'Sesión experimental',
-        title: 'Sesión finalizada',
+        title: 'Monitoreo detenido',
         text: snap.recordStatus == 'incomplete'
             ? 'Cámara, análisis y avisos detenidos. El motor no pudo guardar '
                   'todos los registros de esta sesión.'

@@ -2,7 +2,8 @@
 
 **Autorización:** del usuario, 2026-10-15, sobre la base publicada `7e31975`
 (registrada en `AGENTS.md`). Variante normal (`com.juanrueda.vigia`). Pendiente
-de la revisión de Codex, que podrá reparar el bloque.
+de cerrar la revisión y reparación de Codex autorizada por el usuario.
+Resultados y reproducciones: `docs/evidence/fase5d-revision-codex.md`.
 
 ## Alcance
 
@@ -20,7 +21,7 @@ observación. El DEMO no cambia.
 
 ```
 MonitoringCoordinator (Kotlin, actor serial)
-  └─ SessionJournal ──► vigia_journal_real_v1.sqlite  (fuente durable, Kotlin)
+  └─ SessionJournal → escritor FIFO acotado → vigia_journal_real_v1.sqlite
                             │ readPendingRecords / acknowledgeRecords (Pigeon)
 Flutter: JournalSync ──► vigia_history_real_v1.sqlite (proyección Drift)
   └─ Inicio · Resumen · Historial · detalle (mismas consultas)
@@ -48,10 +49,13 @@ técnico, no audición), `sessionFinalized` y `interruptionRecovered`.
 
 - **Inicio durable:** sin `sessionStarted` confirmado en SQLite, el motor rechaza
   el inicio (`journalWriteFailed`).
-- **El tono no espera al journal:** se reproduce antes de escribir. Si una
+- **El tono no espera al journal:** se reproduce antes de encolar. Las
+  escrituras del recorrido se ejecutan fuera del cerrojo del motor. Si una
   escritura falla, la sesión sigue, se cuentan los hechos perdidos
   (`recordsLost`) y el registro queda **incompleto**; no se fabrican los hechos
-  perdidos. No hay cola de reintento (pendiente declarado).
+  perdidos. La cola local admite 256 hechos compactos; no es durable ni
+  reintenta fallos. Su desborde declara pérdida. Inicio y cierre esperan el
+  commit; Finalizar libera cámara/audio antes de la barrera del cierre.
 - **Cierre único:** `sessionFinalized` exige la sesión abierta en la misma
   transacción; un segundo cierre se rechaza en Kotlin y en la importación.
 - **Recuperación:** el journal se abre la primera vez que hace falta (lectura
@@ -59,7 +63,9 @@ técnico, no audición), `sessionFinalized` y `interruptionRecovered`.
   instancia del motor reciben **una** `interruptionRecovered` y pasan a
   `interrupted`, con su último límite durable y **sin final**. El instante de
   recuperación no es tiempo de sesión. La DEMO, que comparte el plugin, nunca
-  abre este journal.
+  abre este journal. La recuperación se vuelve a intentar en lecturas e
+  inicios sin sesión viva: un cierre fallido también puede recuperarse como
+  interrumpido dentro de la misma instancia, sin bloquear futuros inicios.
 - **Desconexión del motor** (plugin desacoplado con la sesión abierta): se
   escribe un último punto de control y la sesión queda abierta para la
   recuperación; no es un cierre confirmado.
@@ -73,7 +79,8 @@ detienen el lote; un hecho sin su sesión no crea una de relleno. Ante el primer
 error se guarda el prefijo válido y el resto queda pendiente en el journal.
 Solo tras el commit se envía el ACK. Si el ACK falla, la siguiente lectura es un
 no-op. La importación se pide al montar Inicio, Historial, detalle y Resumen, y
-al finalizar; el Resumen reintenta cada 1 s hasta ver el cierre guardado, así
+al finalizar; el Resumen reintenta cada 1 s, hasta cinco lecturas por solicitud,
+e informa «Cierre no confirmado» si falta el cierre durable. Así
 que **no depende de que Flutter reciba el último aviso del motor**.
 
 ### Formato canónico (desviación declarada)
@@ -86,10 +93,14 @@ compartido Kotlin/Dart con hash calculado aparte en Python (`4c3ee8ae…b6aa`).
 
 ### Totales y presentación
 
-- **Finalizada:** totales del motor al cerrar — activo (= evaluable + no
+- **Finalizada completa:** totales del motor al cerrar — activo (= evaluable + no
   evaluable), pausado, activaciones, tonos iniciados/fallidos y pausas.
   Cobertura = evaluable / activo; sin denominador, «No disponible». Total
   representado = activo + pausado.
+- **Finalizada incompleta:** conserva el cierre confirmado y los valores
+  recibidos en SQLite, pero no presenta totales completos ni cobertura. Se
+  conservan los hechos confirmados. Un conflicto de importación retira la
+  calificación de completo de la sesión afectada dentro de la transacción.
 - **Interrumpida:** inicio, último registro confirmado, «Final: Desconocido»,
   «Duración / Cobertura: No disponible», evaluable confirmado hasta el último
   punto de control (prefijo, rotulado como tal) y hechos confirmados.
@@ -161,10 +172,12 @@ adb shell am instrument -w -e class com.juanrueda.monitoring_engine.JournalSqlit
 - Muerte del proceso **de la app** con una sesión real abierta: cubierta por la
   recuperación en Android con el journal sintético y el reinicio real del
   proceso de prueba, no con una sesión de cámara.
-- Sin cola de reintento tras un fallo de escritura; sin `commandId` ni tablas de
+- Sin reintento tras un fallo de escritura (la cola FIFO local no es un
+  reintento ni es durable); sin `commandId` ni tablas de
   lotes/borrado/barreras; formato canónico propio en lugar de JCS.
-- Escrituras SQLite síncronas dentro del cerrojo del coordinador (también en el
-  hilo principal para las órdenes); su coste no se ha medido en un teléfono.
+- Coste medido en el emulador y escrituras del recorrido retiradas del cerrojo
+  del coordinador durante la reparación. Inicio/cierre conservan sus barreras
+  durables; recursos liberados antes del cierre. No medido en un teléfono.
 - Siguen pendientes la **intermitencia de «No evaluable»** y **D1**; no se
   cambiaron umbrales.
 

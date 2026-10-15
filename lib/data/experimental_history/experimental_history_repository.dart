@@ -110,7 +110,8 @@ final class ExperimentalSessionRecord {
   final bool complete;
   final int recordsLost;
 
-  /// Solo con cierre confirmado.
+  /// Solo con cierre confirmado y registro completo. Los valores recibidos
+  /// de un cierre incompleto se conservan en SQLite, sin presentarlos como totales.
   final ExperimentalTotals? totals;
   final ExperimentalKnownPrefix? known;
 
@@ -201,9 +202,23 @@ class ExperimentalHistoryRepository {
     _Stop? stop;
     while (true) {
       try {
-        final (acks, applied) = await _db.transaction(
-          () => _apply(records.sublist(0, limit)),
-        );
+        final (acks, applied) = await _db.transaction(() async {
+          final result = await _apply(records.sublist(0, limit));
+          final invalid = stop;
+          if (invalid != null) {
+            final affected = records[invalid.index].sessionId;
+            if (affected != null) {
+              await (_db.update(
+                _db.experimentalSessions,
+              )..where((s) => s.sessionId.equals(affected))).write(
+                const ExperimentalSessionsCompanion(
+                  integrityStatus: Value('incomplete'),
+                ),
+              );
+            }
+          }
+          return result;
+        });
         return ImportOutcome(
           acks: acks,
           applied: applied,
@@ -550,7 +565,9 @@ class ExperimentalHistoryRepository {
           : CivilTime(r.recoveredEpochMs!, r.startOffsetMinutes),
       complete: r.integrityStatus == 'complete',
       recordsLost: r.recordsLost,
-      totals: lifecycle == ExperimentalLifecycle.finalized
+      totals:
+          lifecycle == ExperimentalLifecycle.finalized &&
+              r.integrityStatus == 'complete'
           ? ExperimentalTotals(
               active: ms(r.activeMs!),
               evaluable: ms(r.evaluableMs!),

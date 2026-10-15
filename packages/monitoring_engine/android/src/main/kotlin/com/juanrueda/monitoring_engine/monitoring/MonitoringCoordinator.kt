@@ -136,15 +136,18 @@ internal class MonitoringCoordinator(
     private val journal: SessionJournal?
         get() {
             if (!journalOpened) {
+                val opened = journalFactory?.invoke()
+                journalRef = opened
                 journalOpened = true
-                journalRef = journalFactory?.invoke()?.also { recoveredSessions = it.recover(engineInstanceId) }
             }
             return journalRef
         }
 
     /** Abre el journal y recupera las sesiones abiertas si aún no se hizo. */
     fun ensureJournal(): Int = synchronized(lock) {
-        journal
+        // Una sesión viva no requiere recuperación ni espera al escritor.
+        if (sessionVigente()) return@synchronized 0
+        recoveredSessions = journal?.recover(engineInstanceId) ?: 0
         recoveredSessions
     }
 
@@ -321,8 +324,16 @@ internal class MonitoringCoordinator(
             else -> {
                 val id = newId()
                 // Fase 5D: sin hecho de inicio durable no hay sesión.
-                val j = journal
-                if (j != null && !j.started(sessionStart(id, ref))) {
+                val durable = try {
+                    val j = journal
+                    if (j != null) {
+                        recoveredSessions = j.recover(engineInstanceId)
+                        j.started(sessionStart(id, ref))
+                    } else journalFactory == null
+                } catch (_: RuntimeException) {
+                    false
+                }
+                if (!durable) {
                     return@synchronized reject("journalWriteFailed")
                 }
                 lifecycle = SessionLifecycle.ACTIVE
@@ -401,6 +412,7 @@ internal class MonitoringCoordinator(
      */
     fun shutdown() = synchronized(lock) {
         calibration = null
+        alerts.stop()
         if (sessionVigente()) {
             val now = clockNs()
             settleEvaluable(now)
@@ -413,7 +425,6 @@ internal class MonitoringCoordinator(
             resumePending = false
             endNs = now
         }
-        alerts.stop()
     }
 
     // ----------------------------------------------------------- internos

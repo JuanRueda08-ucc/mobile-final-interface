@@ -75,6 +75,7 @@ class ExperimentalDataBanner extends StatelessWidget {
 mixin JournalSyncOnMount<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   static const retry = Duration(seconds: 1);
   Timer? _syncTimer;
+  int _attempts = 0;
 
   /// Sesión que se espera ver cerrada, o nula si basta con una importación.
   String? get awaitedSessionId => null;
@@ -88,11 +89,13 @@ mixin JournalSyncOnMount<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   /// Vuelve a importar ahora (p. ej. al confirmarse un cierre).
   void requestJournalSync() {
     _syncTimer?.cancel();
+    _attempts = 0;
     _tick();
   }
 
   void _tick() {
     if (!mounted) return;
+    _attempts++;
     final notifier = ref.read(journalSyncProvider.notifier);
     if (ref.read(experimentalHistoryRepositoryProvider) == null) return;
     notifier.sync().whenComplete(() {
@@ -100,7 +103,7 @@ mixin JournalSyncOnMount<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final id = awaitedSessionId;
       if (id == null) return;
       final s = ref.read(experimentalSessionProvider(id)).value;
-      if (s == null || s.isOpen) {
+      if ((s == null || s.isOpen) && _attempts < 5) {
         _syncTimer?.cancel();
         _syncTimer = Timer(retry, _tick);
       }
@@ -150,28 +153,43 @@ List<Widget> experimentalSummaryBlocks(
         sync.status == JournalSyncStatus.failed ||
         sync.status == JournalSyncStatus.stopped;
     return [
-      failed
-          ? StatusCard(
-              key: const Key('summary-pending'),
-              tone: StatusTone.alert,
-              icon: VigiaIcon.warn,
-              tag: 'Registro pendiente',
-              title: 'Resumen pendiente de completar',
-              text:
-                  '${ExperimentalHistoryText.stop(sync.stop)} El registro se '
-                  'conserva en el motor y se volverá a leer.',
-            )
-          : const StatusCard(
-              key: Key('summary-pending'),
-              tone: StatusTone.pending,
-              icon: VigiaIcon.clock,
-              tag: 'Guardando',
-              title: 'Resumen pendiente de completar',
-              text: 'Leyendo el cierre confirmado desde el registro del motor.',
-            ),
+      if (sync.status == JournalSyncStatus.upToDate)
+        const StatusCard(
+          key: Key('summary-pending'),
+          tone: StatusTone.alert,
+          icon: VigiaIcon.warn,
+          tag: 'Registro incompleto',
+          title: 'Cierre no confirmado',
+          text:
+              'No hay un cierre guardado en el registro del motor. '
+              'Los totales no están disponibles. Puedes volver al inicio; '
+              'al reabrir la app se recuperará el registro sin inventar un final.',
+        )
+      else
+        failed
+            ? StatusCard(
+                key: const Key('summary-pending'),
+                tone: StatusTone.alert,
+                icon: VigiaIcon.warn,
+                tag: 'Registro pendiente',
+                title: 'Resumen pendiente de completar',
+                text:
+                    '${ExperimentalHistoryText.stop(sync.stop)} El registro se '
+                    'conserva en el motor y se volverá a leer.',
+              )
+            : const StatusCard(
+                key: Key('summary-pending'),
+                tone: StatusTone.pending,
+                icon: VigiaIcon.clock,
+                tag: 'Guardando',
+                title: 'Resumen pendiente de completar',
+                text:
+                    'Leyendo el cierre confirmado desde el registro del motor.',
+              ),
     ];
   }
   if (s.isInterrupted) return experimentalInterruptedBlocks(s);
+  if (!s.complete) return experimentalIncompleteBlocks(s);
   final t = s.totals!;
   final full = t.coverage != null;
   return [
@@ -254,6 +272,31 @@ List<Widget> experimentalSummaryBlocks(
   ];
 }
 
+/// Un cierre durable no convierte un registro con pérdida en totales completos.
+List<Widget> experimentalIncompleteBlocks(ExperimentalSessionRecord s) => [
+  StatusCard(
+    key: const Key('summary-incomplete'),
+    tone: StatusTone.alert,
+    icon: VigiaIcon.warn,
+    tag: 'Registro incompleto',
+    title: s.recordsLost > 0
+        ? 'Faltan hechos de la sesión'
+        : 'Registro sin verificar',
+    text: s.recordsLost > 0
+        ? 'El motor declaró ${s.recordsLost} registros no guardados. '
+              'El cierre está confirmado, pero no se presentan totales completos. '
+              'Los hechos guardados se conservan en el detalle.'
+        : 'Un hecho no superó la importación. Se conserva pendiente en el motor. '
+              'El cierre guardado se conserva, pero los totales no están disponibles.',
+  ),
+  KeyValueRow(
+    label: 'Cierre confirmado',
+    value: formatDateTime(s.endedAt!.fields),
+  ),
+  const KeyValueRow(label: 'Duración', value: 'No disponible'),
+  const KeyValueRow(label: 'Cobertura', value: 'No disponible'),
+];
+
 /// Sesión interrumpida: solo lo confirmado, sin final, duración ni cobertura.
 List<Widget> experimentalInterruptedBlocks(ExperimentalSessionRecord s) {
   final k = s.known;
@@ -265,7 +308,7 @@ List<Widget> experimentalInterruptedBlocks(ExperimentalSessionRecord s) {
       tag: 'Interrumpida',
       title: 'Sesión interrumpida',
       text:
-          'La app se cerró sin un cierre confirmado. No se reanudó ni se '
+          'La sesión quedó sin un cierre confirmado. No se reanudó ni se '
           'reinició la cámara. Solo se conservan los registros confirmados.',
     ),
     KeyValueRow(label: 'Sesión', value: s.sessionId),

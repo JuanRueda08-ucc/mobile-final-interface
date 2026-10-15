@@ -41,21 +41,27 @@ internal class ExperimentalJournalTest {
     }
 
     /** Un coordinador (una «instancia del motor») sobre un journal compartido. */
-    private inner class Rig(val store: MemoryJournalStore = MemoryJournalStore(), startMs: Long = 0) {
+    private inner class Rig(val store: MemoryJournalStore = MemoryJournalStore(), startMs: Long = 0,
+                          writer: java.util.concurrent.ExecutorService? = null) {
         var nowMs = startMs
         var wallMs = 1_760_000_000_000L + startMs
         val tone = Tone()
         val published = mutableListOf<MonitoringState>()
         var factoryCalls = 0
+        var factoryFails = false
+        var releases = 0
+        var onReleased: (() -> Unit)? = null
         private var n = 0
         val c = MonitoringCoordinator(
             clockNs = { nowMs * 1_000_000 },
             newId = { "id-${System.identityHashCode(this)}-${++n}" },
             alerts = tone,
             publish = { published += it },
+            onRelease = { releases++; onReleased?.invoke() },
             journalFactory = {
                 factoryCalls++
-                SessionJournal(store, { wallMs }, { -300 }, { "rec-${System.identityHashCode(this)}-${++n}" })
+                check(!factoryFails) { "fallo de apertura" }
+                SessionJournal(store, { wallMs }, { -300 }, { java.util.UUID.randomUUID().toString() }, writer)
             },
         )
         val last get() = published.last()
@@ -248,6 +254,108 @@ internal class ExperimentalJournalTest {
     }
 
     // -------------------------------------------------------- recuperación
+
+    @Test
+    fun blockedWriter_doesNotBlockObservationToneOrResourceRelease() {
+        val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val commands = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val gate = java.util.concurrent.CountDownLatch(1)
+        val entered = java.util.concurrent.CountDownLatch(1)
+        try {
+            val rig = Rig(writer = writer)
+            val id = rig.started()
+            rig.store.beforeCommit = { entered.countDown(); check(gate.await(10, java.util.concurrent.TimeUnit.SECONDS)) }
+            rig.at(rig.nowMs + 1000)
+            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            commands.submit {
+                val t0 = rig.nowMs
+                rig.feed(t0 + 100, t0 + 1100, open)
+                rig.feed(t0 + 1200, t0 + 2700, closed)
+                rig.c.ensureJournal() // tampoco espera E/S con una sesión viva
+            }.get(2, java.util.concurrent.TimeUnit.SECONDS)
+            assertEquals(1, rig.last.tonesPlayed)
+            assertEquals(RecordStatus.PENDING, rig.last.recordStatus)
+            val released = java.util.concurrent.CountDownLatch(1)
+            rig.onReleased = { released.countDown() }
+            val stop = commands.submit { rig.c.stopSession(id) }
+            assertTrue(released.await(2, java.util.concurrent.TimeUnit.SECONDS), "cámara liberada antes de esperar al cierre")
+            assertFalse(stop.isDone)
+            gate.countDown()
+            stop.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            assertEquals(1, rig.store.ofType(RecordType.SESSION_FINALIZED).size)
+            assertEquals(RecordStatus.DURABLE, rig.last.recordStatus)
+        } finally { gate.countDown(); commands.shutdownNow(); writer.shutdownNow() }
+    }
+
+    @Test
+    fun boundedQueue_declaresLossAndFinalizationDrainsInOrder() {
+        val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val gate = java.util.concurrent.CountDownLatch(1)
+        val entered = java.util.concurrent.CountDownLatch(1)
+        try {
+            val store = MemoryJournalStore()
+            val j = SessionJournal(store, { 1_760_000_000_000L }, { -300 }, { java.util.UUID.randomUUID().toString() }, writer)
+            val start = com.juanrueda.monitoring_engine.journal.SessionStart("s", "e", "lab-eye-rules-0.1", "experimental", "eye", "model", "0".repeat(64), "cal", .3, .3, 120, .95)
+            assertTrue(j.started(start))
+            store.beforeCommit = { entered.countDown(); check(gate.await(10, java.util.concurrent.TimeUnit.SECONDS)) }
+            j.closureDetected(1, 1000)
+            assertTrue(entered.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            for (n in 2..300) j.closureDetected(n, n * 1000L)
+            assertEquals(RecordStatus.INCOMPLETE, j.status)
+            gate.countDown()
+            assertTrue(j.finalized(com.juanrueda.monitoring_engine.journal.SessionTotals(300_000, 300_000, 0, 0, 300, 0, 0, 0)))
+            assertEquals(256, store.ofType(RecordType.CLOSURE_DETECTED).size)
+            assertEquals(44, store.ofType(RecordType.SESSION_FINALIZED).single().long("recordsLost"))
+            assertEquals((1L..258L).toList(), store.records.map { it.journalSequence })
+        } finally { gate.countDown(); writer.shutdownNow() }
+    }
+
+    @Test
+    fun failedJournalOpen_doesNotDisableDurabilityOnRetry() {
+        val rig = Rig()
+        rig.factoryFails = true
+        runCatching { rig.c.ensureJournal() }
+        rig.factoryFails = false
+        rig.started()
+        assertEquals(1, rig.store.ofType(RecordType.SESSION_STARTED).size)
+        assertEquals(RecordStatus.DURABLE, rig.last.recordStatus)
+    }
+
+    @Test
+    fun failedJournalFactory_rejectsStartWithTypedFailureAndCanRetry() {
+        val rig = Rig()
+        rig.calibrated()
+        val sound = rig.c.testSound().state.soundTestId!!
+        rig.c.confirmSoundHeard(sound)
+        rig.feed(rig.nowMs + 50, rig.nowMs + 50, open)
+        rig.factoryFails = true
+        val result = rig.c.startSession(rig.last.calibrationId!!, sound)
+        assertFalse(result.accepted)
+        assertEquals("journalWriteFailed", result.errorCode)
+        assertEquals(SessionLifecycle.NONE, result.state.lifecycle)
+        rig.factoryFails = false
+        val retry = rig.c.startSession(rig.last.calibrationId!!, sound)
+        assertTrue(retry.accepted)
+        assertEquals(1, rig.store.ofType(RecordType.SESSION_STARTED).size)
+    }
+
+    @Test
+    fun failedFinalization_releasesResources_andCanRecoverInSameEngine() {
+        val rig = Rig()
+        val first = rig.started()
+        rig.feed(rig.nowMs + 100, rig.nowMs + 1500, open)
+        rig.store.failWrites = true
+        rig.c.stopSession(first)
+        assertEquals(1, rig.releases)
+        assertEquals(SessionLifecycle.FINALIZED, rig.last.lifecycle)
+        assertEquals(RecordStatus.INCOMPLETE, rig.last.recordStatus)
+        rig.store.failWrites = false
+        rig.c.ensureJournal()
+        assertEquals(JournalLifecycle.INTERRUPTED, rig.store.session(first)!!.lifecycle)
+        assertNull(rig.store.session(first)!!.endOffsetMs)
+        assertNotEquals(first, rig.started())
+        assertEquals(1, rig.store.ofType(RecordType.INTERRUPTION_RECOVERED).size)
+    }
 
     @Test
     fun recovery_marksOpenSessionInterruptedOnce_withoutResumingOrInventingEnd() {

@@ -285,7 +285,12 @@ class _ExperimentalSessionDetailScreenState
         label: 'Inicio confirmado',
         value: formatDateTime(s.startedAt.fields),
       ),
-      if (s.isFinalized) ..._finalized(s, s.totals!, m),
+      if (s.isFinalized && s.complete) ..._finalized(s, s.totals!, m),
+      if (s.isFinalized && !s.complete) ...[
+        ...experimentalIncompleteBlocks(s),
+        const VigiaSectionTitle('Hechos confirmados'),
+        ..._markRows(s, m),
+      ],
       if (s.isInterrupted) ..._interrupted(s, m),
       if (s.isOpen)
         const StatusCard(

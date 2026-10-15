@@ -20,8 +20,10 @@ internal class MemoryJournalStore : JournalStore {
     val sessions = linkedMapOf<String, JournalSession>()
     var failWrites = false
     var commits = 0
+    var beforeCommit: (() -> Unit)? = null
 
     override fun commit(records: List<PendingRecord>, change: SessionChange?): List<JournalRecord> {
+        beforeCommit?.invoke()
         if (failWrites) throw IllegalStateException("escritura simulada fallida")
         val newSessions = LinkedHashMap(sessions)
         if (change != null) {

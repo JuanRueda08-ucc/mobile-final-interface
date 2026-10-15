@@ -71,6 +71,16 @@ class JournalSqliteInstrumentedTest {
             assertEquals(listOf(1L, 2L, 3L), batch.records.map { it.journalSequence })
             assertEquals(JournalLifecycle.FINALIZED, store.session("s1")!!.lifecycle)
             assertEquals(2000L, store.session("s1")!!.endOffsetMs)
+            // Vector escrito y releído por SQLite Android para la prueba Dart.
+            for (r in batch.records) {
+                android.util.Log.i("VigiaJournalVector", com.juanrueda.monitoring_engine.journal.JournalCodec.encode(mapOf(
+                    "journalSequence" to r.journalSequence, "recordId" to r.recordId,
+                    "sessionId" to r.sessionId, "recordType" to r.recordType,
+                    "occurredEpochMs" to r.occurredEpochMs, "occurredOffsetMinutes" to r.occurredOffsetMinutes,
+                    "sessionOffsetMs" to r.sessionOffsetMs, "payloadSchemaVersion" to r.payloadSchemaVersion,
+                    "payloadJson" to r.payloadJson, "payloadHash" to r.payloadHash,
+                )))
+            }
             // ACK con hash ajeno: nada; exacto: los dos primeros.
             assertEquals(0L, host.acknowledgeRecords(listOf(batch.records[0].recordId), listOf("f".repeat(64))))
             assertEquals(
@@ -126,6 +136,108 @@ class JournalSqliteInstrumentedTest {
     }
 
     @Test
+    fun sqlite_failuresRollbackStartAndClose_andRecoveryDoesNotInventLostFacts() {
+        val name = "journal_failure_${UUID.randomUUID()}.sqlite"
+        try {
+            var store = SqliteJournalStore(context, name)
+            store.highWatermark() // crea el esquema
+            val db = context.openOrCreateDatabase(name, 0, null)
+            fun block() = db.execSQL("CREATE TRIGGER disk_failure BEFORE INSERT ON n_outbox BEGIN SELECT RAISE(ABORT,'injectedDiskFailure'); END")
+            fun unblock() = db.execSQL("DROP TRIGGER disk_failure")
+            val j = journal(store)
+            block()
+            assertFalse(j.started(start("s1", "e1")))
+            assertNull(store.session("s1"))
+            assertEquals(0L, store.highWatermark())
+            unblock()
+            assertTrue(j.started(start("s1", "e1")))
+            j.checkpoint(totals(1000), JournalLifecycle.ACTIVE)
+            block()
+            j.closureDetected(1, 1500)
+            j.playback(1, 1, 1500, null)
+            j.checkpoint(totals(2000), JournalLifecycle.ACTIVE)
+            assertFalse(j.finalized(totals(3000)))
+            assertEquals(com.juanrueda.monitoring_engine.journal.RecordStatus.INCOMPLETE, j.status)
+            assertEquals(JournalLifecycle.ACTIVE, store.session("s1")!!.lifecycle)
+            assertNull(store.session("s1")!!.endOffsetMs)
+            // Tampoco pudo guardarse la pérdida: desaparece la memoria del escritor.
+            store.close()
+            unblock()
+            db.close()
+            store = SqliteJournalStore(context, name)
+            assertEquals(1, journal(store).recover("e2"))
+            assertEquals(0, journal(store).recover("e2"))
+            assertEquals(1000L, store.session("s1")!!.latestDurableOffsetMs)
+            assertNull(store.session("s1")!!.endOffsetMs)
+            assertEquals(JournalLifecycle.INTERRUPTED, store.session("s1")!!.lifecycle)
+            assertEquals(listOf("sessionStarted", "progressCheckpoint", "interruptionRecovered"), store.readPending(100).map { it.recordType })
+            assertEquals(listOf(1L, 2L, 3L), store.readPending(100).map { it.journalSequence })
+            store.close()
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun sqlite_monitoringLossSurvivesSuccessfulClose() {
+        val name = "journal_loss_${UUID.randomUUID()}.sqlite"
+        try {
+            val store = SqliteJournalStore(context, name)
+            val j = journal(store)
+            assertTrue(j.started(start("s1", "e1")))
+            val db = context.openOrCreateDatabase(name, 0, null)
+            db.execSQL("CREATE TRIGGER disk_failure BEFORE INSERT ON n_outbox BEGIN SELECT RAISE(ABORT,'injectedDiskFailure'); END")
+            j.closureDetected(1, 1000)
+            j.playback(1, 1, 1000, null)
+            db.execSQL("DROP TRIGGER disk_failure")
+            db.close()
+            assertTrue(j.finalized(totals(2000)))
+            assertTrue(store.readPending(100).last().payloadJson.contains("\"recordsLost\":2"))
+            assertEquals(listOf("sessionStarted", "sessionFinalized"), store.readPending(100).map { it.recordType })
+            store.close()
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun sqlite_checkpointCost_noCamera_noD1() {
+        val name = "journal_cost_${UUID.randomUUID()}.sqlite"
+        try {
+            val store = SqliteJournalStore(context, name)
+            val j = journal(store)
+            assertTrue(j.started(start("cost", "e1")))
+            val durations = (1L..200L).map { n ->
+                val before = System.nanoTime()
+                j.checkpoint(totals(n * 1000), JournalLifecycle.ACTIVE)
+                (System.nanoTime() - before) / 1_000_000.0
+            }.sorted()
+            android.util.Log.i("VigiaJournalCost", "SQLite FULL synthetic n=200 p50=${durations[99]} p95=${durations[189]} max=${durations.last()} ms; emulator, not D1")
+            assertEquals(201L, store.highWatermark())
+            store.close()
+        } finally { context.deleteDatabase(name) }
+    }
+
+    @Test
+    fun sqlite_asyncCheckpointCost_andDurableBarrier_noCamera_noD1() {
+        val name = "journal_async_cost_${UUID.randomUUID()}.sqlite"
+        val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val store = SqliteJournalStore(context, name)
+            val j = SessionJournal(store, System::currentTimeMillis, { -300 }, { UUID.randomUUID().toString() }, writer)
+            assertTrue(j.started(start("cost", "e1")))
+            val durations = (1L..200L).map { n ->
+                val before = System.nanoTime()
+                j.checkpoint(totals(n * 1000), JournalLifecycle.ACTIVE)
+                (System.nanoTime() - before) / 1_000_000.0
+            }.sorted()
+            val beforeClose = System.nanoTime()
+            assertTrue(j.finalized(totals(201_000)))
+            val drainMs = (System.nanoTime() - beforeClose) / 1_000_000.0
+            android.util.Log.i("VigiaJournalCost", "ASYNC synthetic n=200 enqueue p50=${durations[99]} p95=${durations[189]} max=${durations.last()} ms; drainAndClose=$drainMs ms; emulator, not D1")
+            assertEquals(202L, store.highWatermark())
+            assertEquals(JournalLifecycle.FINALIZED, store.session("cost")!!.lifecycle)
+            store.close()
+        } finally { writer.shutdownNow(); context.deleteDatabase(name) }
+    }
+
+    @Test
     fun processRestart_step2_recoverInNewProcess() {
         val store = SqliteJournalStore(context, RESTART_DB)
         val open = store.openSessions()
@@ -145,6 +257,42 @@ class JournalSqliteInstrumentedTest {
         assertFalse(RecordType.SESSION_FINALIZED in types)
         store.close()
         context.deleteDatabase(RESTART_DB)
+    }
+
+    @Test
+    fun processRestart_lossStep1_unpersistedFailure() {
+        context.deleteDatabase(LOSS_RESTART_DB)
+        val store = SqliteJournalStore(context, LOSS_RESTART_DB)
+        val j = journal(store)
+        assertTrue(j.started(start("loss-pid-${Process.myPid()}", "engine-pid-${Process.myPid()}")))
+        j.checkpoint(totals(1000), JournalLifecycle.ACTIVE)
+        val db = context.openOrCreateDatabase(LOSS_RESTART_DB, 0, null)
+        db.execSQL("CREATE TRIGGER disk_failure BEFORE INSERT ON n_outbox BEGIN SELECT RAISE(ABORT,'injectedDiskFailure'); END")
+        j.closureDetected(1, 2000)
+        j.checkpoint(totals(3000), JournalLifecycle.ACTIVE)
+        assertEquals(com.juanrueda.monitoring_engine.journal.RecordStatus.INCOMPLETE, j.status)
+        assertEquals(2L, store.highWatermark())
+        // No se guarda marca de pérdida ni se cierra: el proceso acaba aquí.
+    }
+
+    @Test
+    fun processRestart_lossStep2_recoverWithoutMemory() {
+        val store = SqliteJournalStore(context, LOSS_RESTART_DB)
+        val s = store.openSessions().single()
+        assertFalse("otro PID", s.sessionId == "loss-pid-${Process.myPid()}")
+        val db = context.openOrCreateDatabase(LOSS_RESTART_DB, 0, null)
+        db.execSQL("DROP TRIGGER disk_failure")
+        db.close()
+        val j = journal(store)
+        assertEquals(1, j.recover("new-pid-${Process.myPid()}"))
+        assertEquals(0, j.recover("new-pid-${Process.myPid()}"))
+        val recovered = store.session(s.sessionId)!!
+        assertEquals(JournalLifecycle.INTERRUPTED, recovered.lifecycle)
+        assertEquals(1000L, recovered.latestDurableOffsetMs)
+        assertNull(recovered.endOffsetMs)
+        assertEquals(listOf("sessionStarted", "progressCheckpoint", "interruptionRecovered"), store.readPending(100).map { it.recordType })
+        store.close()
+        context.deleteDatabase(LOSS_RESTART_DB)
     }
 
     /**
@@ -178,6 +326,7 @@ class JournalSqliteInstrumentedTest {
 
     companion object {
         const val RESTART_DB = "journal_restart_test.sqlite"
+        const val LOSS_RESTART_DB = "journal_loss_restart_test.sqlite"
         const val SEED_DB = "journal_e2e_seed.sqlite"
     }
 }

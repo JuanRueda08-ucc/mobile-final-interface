@@ -9,7 +9,7 @@ import 'package:vigia/data/experimental_history/journal_codec.dart';
 /// se prueba en Kotlin (JVM y SQLite en Android).
 class FakeJournal implements ExperimentalJournalBridge {
   final records = <JournalRecordMessage>[];
-  final acked = <String>{};
+  final acked = <(String, String)>{};
   int reads = 0;
   int ackCalls = 0;
 
@@ -18,6 +18,7 @@ class FakeJournal implements ExperimentalJournalBridge {
 
   /// Falla la siguiente lectura.
   bool failNextRead = false;
+  bool ignoreAck = false;
 
   int _n = 0;
   int startEpochMs = 1760000000000;
@@ -178,7 +179,7 @@ class FakeJournal implements ExperimentalJournalBridge {
   }
 
   List<JournalRecordMessage> get pending =>
-      records.where((r) => !acked.contains(r.recordId)).toList();
+      records.where((r) => !acked.contains((r.recordId, r.payloadHash))).toList();
 
   @override
   Future<JournalBatch> readPendingRecords(int limit) async {
@@ -203,6 +204,7 @@ class FakeJournal implements ExperimentalJournalBridge {
     List<String> payloadHashes,
   ) async {
     ackCalls++;
+    if (ignoreAck) return 0;
     if (failNextAck) {
       failNextAck = false;
       throw StateError('ACK simulado fallido');
@@ -212,7 +214,7 @@ class FakeJournal implements ExperimentalJournalBridge {
       final match = records.any(
         (r) => r.recordId == recordIds[i] && r.payloadHash == payloadHashes[i],
       );
-      if (match && acked.add(recordIds[i])) n++;
+      if (match && acked.add((recordIds[i], payloadHashes[i]))) n++;
     }
     return n;
   }

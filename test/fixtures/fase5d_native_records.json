@@ -1,0 +1,41 @@
+{
+  "provenance": "Synthetic SessionJournal records written and reopened by Android SQLite on review emulator; no camera or images",
+  "records": [
+    {
+      "journalSequence": 1,
+      "occurredEpochMs": 1792076341798,
+      "occurredOffsetMinutes": -300,
+      "payloadHash": "a9de186fdc4031f863ce7dd7018ee07cea99b6199e31e869ecbdd3c4acd1a91f",
+      "payloadJson": "{\"calibration\":{\"calibrationId\":\"cal-s1\",\"openCoverageE6\":950000,\"openEarLeftE6\":290000,\"openEarRightE6\":300000,\"openSamples\":120},\"engineInstanceId\":\"e1\",\"landmarkSchema\":\"mp-eye6-v1\",\"modelId\":\"model\",\"modelSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"profileId\":\"lab-eye-rules-0.1\",\"qualificationStatus\":\"experimental\",\"sessionId\":\"s1\",\"startOffsetMinutes\":-300,\"startedEpochMs\":1792076341798}",
+      "payloadSchemaVersion": 1,
+      "recordId": "a73fc71b-a89b-45b4-9fc6-e01816ad03ff",
+      "recordType": "sessionStarted",
+      "sessionId": "s1",
+      "sessionOffsetMs": 0
+    },
+    {
+      "journalSequence": 2,
+      "occurredEpochMs": 1792076342169,
+      "occurredOffsetMinutes": -300,
+      "payloadHash": "25d7304ddfcb873ba542ef2a6aa61fe9a6d6dd624619727d9404f5737de57493",
+      "payloadJson": "{\"activeMs\":1000,\"closureActivations\":0,\"evaluableMs\":500,\"knownThroughOffsetMs\":1000,\"nonEvaluableMs\":500,\"pauseCount\":0,\"pausedMs\":0,\"recordsLost\":0,\"tonesFailed\":0,\"tonesPlayed\":0}",
+      "payloadSchemaVersion": 1,
+      "recordId": "907c5363-dfed-461c-9c71-29a0e9441a6b",
+      "recordType": "progressCheckpoint",
+      "sessionId": "s1",
+      "sessionOffsetMs": 1000
+    },
+    {
+      "journalSequence": 3,
+      "occurredEpochMs": 1792076342199,
+      "occurredOffsetMinutes": -300,
+      "payloadHash": "f9c3e7fc9e189c159721fba15422697040abfcb928cf2ad8cb38ef751e421219",
+      "payloadJson": "{\"activeMs\":2000,\"closureActivations\":0,\"endOffsetMinutes\":-300,\"endOffsetMs\":2000,\"endedEpochMs\":1792076342199,\"evaluableMs\":1000,\"nonEvaluableMs\":1000,\"pauseCount\":0,\"pausedMs\":0,\"recordsLost\":0,\"tonesFailed\":0,\"tonesPlayed\":0}",
+      "payloadSchemaVersion": 1,
+      "recordId": "264cddfe-8c9f-4625-8a8a-9c42e66283a8",
+      "recordType": "sessionFinalized",
+      "sessionId": "s1",
+      "sessionOffsetMs": 2000
+    }
+  ]
+}
