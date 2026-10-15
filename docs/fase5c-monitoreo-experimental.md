@@ -13,6 +13,8 @@ Recorrido visible, en Inicio → **«Monitoreo experimental»**:
 5. Prueba de sonido técnica + «Lo escuché».
 6. Iniciar → cierre ocular sostenido (Tclose) → aviso visual y tono local → Pausar/Reanudar → Finalizar.
 
+> **Fase 5D (2026-10-15):** la sesión ya se registra en el journal nativo y el resumen final se lee del historial guardado; ver `docs/fase5d-historial-experimental.md`. Lo que sigue describe la entrega original de 5C.
+
 **No incluye:** advertencia por acumulación (W), episodios/Eend, persistencia, historial, exportación, backend, servicio en primer plano ni funciones ajenas al recorrido. No se reutiliza el guion DEMO. No es detección de fatiga ni una ayuda para conducir, y así se rotula en la pantalla.
 
 ## Arquitectura

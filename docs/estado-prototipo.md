@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) y `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-13 (bloque integrado: quinta corrección de 5B y fase 5C «Monitoreo experimental»; pendiente de una única revisión de Codex).
+**Actualizado:** 2026-10-15 (fase 5D: persistencia e Historial de las sesiones experimentales reales; pendiente de revisión de Codex).
 
 ## Fases
 
@@ -15,6 +15,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 5A. Cámara frontal real y permisos (variante normal) | **Aprobada por Codex dentro de su alcance (permiso CAMERA y CameraX Preview) y publicada en `origin/main`.** Sin MediaPipe ni detección de fatiga. Pendientes físicos en «Cierre de la fase 5A» | `a3839e3`, `4a9b5a9`, `80969c8` y el commit documental de cierre |
 | 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729`, `8f715dd` y `b08cfec` (consultas). **Corregidos; entra en la revisión integrada.** Commits locales en `main`, sin publicar | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd`, `b08cfec`, `9a95cce` |
 | 5C. Monitoreo experimental (variante normal) | **Implementado; pendiente de la revisión integrada de Codex.** Commit local en `main`, sin publicar. Valores de laboratorio `lab-eye-rules-0.1` (experimental) | commit de la fase 5C |
+| 5D. Persistencia e Historial experimental (variante normal) | **Implementada (2026-10-15); pendiente de la revisión de Codex.** Commits locales sin publicar. Guía: `docs/fase5d-historial-experimental.md` | commits de la fase 5D |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -642,9 +643,37 @@ solo documentan resultados. Esta consolidación no repite pruebas ni añade func
 Publicación autorizada de `main` por avance normal, sin force ni PR; no equivale
 a aprobación independiente ni elimina los límites de intermitencia y validación.
 
+## Fase 5D · Persistencia e Historial experimental (2026-10-15; pendiente de revisión)
+
+Autorización del usuario sobre `7e31975` (registrada en `AGENTS.md`; `main`
+limpio al empezar, sin cambios ajenos). Detalle: `docs/fase5d-historial-experimental.md`.
+
+- **Implementado:** journal nativo Kotlin `vigia_journal_real_v1.sqlite` (hechos
+  inmutables, sesión abierta única, inicio durable, cierre único, recuperación
+  única como interrumpida sin final), lectura/ACK por Pigeon y proyección Drift
+  `vigia_history_real_v1.sqlite` con importación idempotente. Inicio, Resumen
+  (también el de la pantalla experimental), Historial y detalle leen la misma
+  proyección y rotulan siempre «Experimental · datos reales». Sin imágenes,
+  puntos faciales ni red. La DEMO no abre el journal ni la base real.
+- **Resultados:** JVM 97/97 (12 nuevas); Dart nuevas 18 + 5, renderizados 5D 12;
+  suites afectadas en verde; análisis app/plugin limpio; registro de
+  especificaciones OK; dos mutaciones detectadas. Los 4 renderizados 5C que
+  fallan ya fallaban en `7e31975`.
+- **Android (emulador, sin cámara ni red):** SQLite real, reinicio real del
+  proceso con control negativo, y extremo a extremo con un journal **sintético**
+  sembrado: recuperación=1, Inicio/Historial/detalle correctos, sin duplicados
+  tras `force-stop` (10 hechos, 10 ACK, 10 recibos). DEMO separada.
+- **APK:** `D:\dev\vigia-entrega\vigia-normal-fase5d-release.apk`, SHA-256
+  `7af8088e8fd1fb9e91d5003fc831b312059566d5d5fd215fd1eab4d3b0c36afe`.
+- **No comprobado:** una sesión real con cámara guardada y la muerte del proceso
+  de la app con esa sesión abierta; sin cola de reintento ni `commandId`.
+  Siguen pendientes la intermitencia de «No evaluable» y D1; umbrales sin cambios.
+
 ## Siguiente acción
 
-Revisión independiente del bloque reparado. La prueba guiada y el acceso a
+Revisión de Codex de la fase 5D (puede reparar el bloque integrado). Claude se
+detiene hasta nueva autorización. Antes, de la etapa anterior: revisión
+independiente del bloque reparado. La prueba guiada y el acceso a
 webcam ya están cerrados; esta validación propia y la webcam mediante emulador
 no son D1 ni validación para conducción. Persisten los límites de cobertura y
 continuidad medidos. No se avanza a otro bloque sin autorización expresa.
