@@ -562,10 +562,39 @@ segunda capa temporal del emulador: rostro/ojos medibles, EAR 0,28/0,26 y salida
 con cero clientes de cámara y cero analizadores. El ajuste de resumen se valida
 con Flutter; no se presenta como sesión real Android probada.
 
+## Webcam autorizada y reparación de reanudación (2026-10-14, en curso)
+
+El usuario autorizó webcam física mediante emulador, procesamiento local, sin
+guardar imágenes, vídeo ni puntos faciales. `main` limpio al empezar en
+`b6582a85c4076fd17f4ef7573e1242b33ece9098`; no había cambios ajenos.
+Un único `vigia_pixel`, webcam0 «HD User Facing», capa read-only, sin wipe ni
+snapshots y Wi-Fi/datos desactivados en la capa temporal. Usuario confirmó
+movimiento en directo, calibración aceptada (115 observaciones abiertas),
+sonido oído y confirmado por él, sesión y avisos coincidentes con cierres
+voluntarios, reapertura con cese de avisos, pausa, primera reanudación activa
+y finalización con resumen. Intermitencia de «No evaluable» aún observada.
+
+Segunda reanudación: cámara encendida con vista oculta y «Reanudando».
+Reproducido antes de corregir: la UI ocultaba la vista durante todo PAUSED,
+también en recuperación. Commit local
+`a7198626ac01751fa5c534605f71020e41f2d6f5`: mantiene visible la cámara durante
+`resumePending`; no fuerza ACTIVE ni cambia umbrales. Añade diagnóstico temporal
+optativo sin imágenes/puntos. Análisis limpio, Flutter experimental 29/29,
+JVM seleccionada 70/70, registro de especificaciones 500 OK.
+
+Nuevo APK en `build/webcam-5bc/vigia-normal-webcam-fix-release.apk`,
+94 615 029 bytes, SHA-256
+`4e7bdd90b7fbc9ac4c575529c6118c8d4ba8c0282cc306a75f168e7f11729497`.
+Identidad normal, firma debug v2 válida, tres ABI y sin permisos de red.
+Compilado e instalado; repetición guiada y diagnóstico temporal en curso.
+Detalle y límites: `docs/evidence/fase5bc-webcam.md`. Cámara/análisis/audio
+sin actividad tras finalizar la primera sesión. Falta comprobar el cierre
+final del emulador y restaurar/verificar su configuración al terminar.
+
 ## Siguiente acción
 
-Revisión independiente del bloque reparado y decisión del usuario sobre las
-pruebas físicas pendientes. Para demostrar cierre ocular en Android hace falta
-una cámara física con una persona (D1 o webcam con consentimiento), según la
-guía de 5C. No se avanza a otro bloque sin autorización expresa. Sin push ni PR;
-la secuencia VIG del Área 08 sigue aplazada.
+Completar la repetición guiada con el usuario, medir intervalos/edades/rechazos
+y cerrar el acceso a la webcam. Después queda la revisión independiente del
+bloque reparado; esta validación propia y la webcam mediante emulador no son
+D1 ni validación para conducción. No se avanza a otro bloque sin autorización
+expresa. Sin push ni PR; la secuencia VIG del Área 08 sigue aplazada.

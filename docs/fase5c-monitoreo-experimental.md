@@ -246,3 +246,28 @@ normal, sin INTERNET/ACCESS_NETWORK_STATE. En un nuevo arranque del AVD con capa
 temporal se verificaron instalación, rostro/ojos medibles (0,28/0,26) y salida
 con cámara/análisis cerrados. No se repitió la calibración ni se obtuvo sesión
 real. Archivo, firma, permisos, comandos y límites completos en el informe.
+
+## Prueba guiada con webcam (2026-10-14, en curso)
+
+Con consentimiento expreso, webcam física mediante el AVD `vigia_pixel`,
+capa temporal sin alterar datos/configuración originales, sin guardar imágenes,
+vídeo ni puntos faciales. El usuario confirmó movimiento en directo y, con el
+APK reparado anterior (`bce4203d…`), referencia aceptada (115 observaciones
+abiertas), tono oído y confirmado personalmente, sesión, cierre voluntario con
+avisos, reapertura con cese de tonos, pausa y primera reanudación activa,
+finalización y resumen. Continúa la intermitencia de «No evaluable»; no se
+amplían umbrales para estabilizarla. Los rechazos por cobertura también se
+repitieron con webcam: cambiar la fuente no garantiza la calibración.
+
+La segunda reanudación dejó la cámara encendida mientras la app ocultaba su
+vista durante `PAUSED/resumePending`. Reparación local `a7198626ac01751fa5c534605f71020e41f2d6f5`:
+mostrar la vista al recuperar, manteniendo la espera de observaciones válidas
+antes de ACTIVE. Regresión de widget reproducida antes y pasada después;
+Flutter 29/29, análisis limpio, JVM dirigida 70/70. Se añade un diagnóstico
+optativo de tiempos/motivos Q, sin imágenes ni puntos, para medir los huecos
+antes de atribuir su causa. Validación Android de ese cambio aún en curso.
+
+Resultados, confirmaciones humanas, artefactos y límites en
+`docs/evidence/fase5bc-webcam.md`. Webcam mediante emulador no es D1 ni valida
+conducción real. La comprobación de nuestras reparaciones no equivale a una
+revisión independiente; las aceptaciones anteriores no afectadas se conservan.
