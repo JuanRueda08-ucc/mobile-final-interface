@@ -2,7 +2,7 @@
 
 Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real), `docs/fase5d-historial-experimental.md` (historial experimental) y `docs/fase5e-ajustes-reales.md` (Ajustes de la variante real). Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-15 (fase 5E implementada por Claude, pendiente de la revisión y reparación de Codex; 5D registrada como implementada con validación automatizada y sintética y recorrido real completo pendiente hasta disponer de Android físico).
+**Actualizado:** 2026-10-16 (5E revisada y reparada por Codex, validación propia de las reparaciones; Claude detenido. 5D conservada, recorrido real de 5D/5E pendiente hasta disponer de Android físico).
 
 ## Fases
 
@@ -16,7 +16,7 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 5B. MediaPipe Face Landmarker: presencia facial (variante normal) | Revisiones de Codex desfavorables sobre `3be9bf1`, `c5c0503` (vigencia), `a935729`, `8f715dd` y `b08cfec` (consultas). **Corregidos; entra en la revisión integrada.** Commits locales en `main`, sin publicar | `3be9bf1`, `c5c0503`, `a935729`, `8f715dd`, `b08cfec`, `9a95cce` |
 | 5C. Monitoreo experimental (variante normal) | **Implementado; pendiente de la revisión integrada de Codex.** Commit local en `main`, sin publicar. Valores de laboratorio `lab-eye-rules-0.1` (experimental) | commit de la fase 5C |
 | 5D. Persistencia e Historial experimental (variante normal) | **Implementada, con validación automatizada y sintética** (revisada y reparada por Codex; validación propia de sus reparaciones). **Recorrido real completo con cámara pendiente** (calibración, sesión, persistencia y reinicio con una sesión real), aplazado por el usuario hasta disponer de Android físico. La iluminación **no** está demostrada como causa de los rechazos de calibración; umbrales sin cambios. Commits locales sin publicar. Guía: `docs/fase5d-historial-experimental.md` | `eae1c78`, `2000f76`, `be7ab5b`, `74a2083` y documentación |
-| 5E. Ajustes de la variante real | **Implementada; pendiente de la revisión y reparación de Codex.** Validación propia. Commits locales sin publicar. Guía: `docs/fase5e-ajustes-reales.md` | `4a84774` (código) y el commit documental |
+| 5E. Ajustes de la variante real | **Revisada y reparada por Codex**: tres defectos reproducidos; validación propia de las reparaciones, sin revisión independiente de estas. Commits locales sin publicar. D1 y cámara pendientes. Guía y evidencia: `docs/fase5e-ajustes-reales.md`, `docs/evidence/fase5e-revision-codex.md` | `4a84774`, `60c89af` (Claude), `6e89972` (reparaciones) y documentación |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -670,7 +670,7 @@ limpio al empezar, sin cambios ajenos). Detalle: `docs/fase5d-historial-experime
   de la app con esa sesión abierta; sin cola de reintento ni `commandId`.
   Siguen pendientes la intermitencia de «No evaluable» y D1; umbrales sin cambios.
 
-## Fase 5E · Ajustes de la variante real (2026-10-15; pendiente de revisión)
+## Fase 5E · Ajustes de la variante real (Claude, 2026-10-15; revisión reparada el 16)
 
 Autorización del usuario sobre `56e2f8f` (`main` limpio, sin cambios ajenos;
 se conservan las reparaciones y mediciones de 5D). Detalle: `docs/fase5e-ajustes-reales.md`.
@@ -695,9 +695,41 @@ se conservan las reparaciones y mediciones de 5D). Detalle: `docs/fase5e-ajustes
   (aplazado hasta Android físico); audibilidad de los patrones en el flujo de
   alarma; TalkBack. Siguen pendientes D1 y la intermitencia de «No evaluable».
 
-## Siguiente acción (actualizada 2026-10-15, tras 5E)
+### Revisión y reparación de Codex (2026-10-16)
 
-**Claude se detiene:** Codex revisa y repara el bloque 5E. Después, cuando haya
+Git inicial limpio en `main`, HEAD `60c89afdcbbd8c992bfa4a3d42cffe85636e3327`;
+cadena directa desde `56e2f8f5aec57cb33befb21137380d03b0bed3cf` pasando por
+`4a84774b6431c87953daee7e66a827f3badb719f`. Sin cambios ajenos. Reparaciones
+5D conservadas. Revisión del trabajo de Claude desfavorable por tres defectos
+reproducidos: guardado/éxito antes de aceptación del motor, inicio con la
+confirmación antigua durante el guardado y bloqueo de movimiento/sonido
+dependiente solo de widgets y del estado Flutter. Corregidos en
+`6e89972626b3a24b714cf39871062d73317aa326` mediante reserva nativa antes de
+SQLite, restauración si falla y consulta del motor al entrar en P12/P13.
+
+Validación propia: análisis app/plugin limpio; 98/98 dirigidas afectadas;
+26/26 preferencias finales y migración poblada 1/1 con tres sesiones, cinco
+marcas y doce hashes íntegros (resultados solapados, sin nuevo total global);
+9/9 Kotlin sonido/reserva; 6/6 semánticas y 12 PNG nuevos inspeccionados en
+claro/oscuro y al 200 %. Registro: 500 OK. No se tocaron los seis goldens
+preexistentes ni los 28 de Claude para 5E. La prueba adaptada de la normal
+que antes exigía ausencia de Ajustes **pasa** en las dirigidas; el `823/7`
+anterior es histórico, no un resultado global posterior a la reparación.
+
+APK nuevo: `D:/dev/vigia-entrega/vigia-normal-fase5e-codex-release.apk`,
+95 335 925 bytes, SHA-256
+`e96f1900c4933198e9b5d63c05b9d45ec9e50003b4f1b2abfa154c54e3a1ee93`.
+Original solicitado conservado con su hash `ab582248…133c0`. Variante normal
+`com.juanrueda.vigia`, firma v2 debug válida y mismos permisos CAMERA/interno;
+sin red. No se abrió webcam/AVD ni se instaló el APK reparado en esta revisión.
+No se cambian umbrales ni se atribuyen los rechazos a iluminación. Evidencia
+completa: `docs/evidence/fase5e-revision-codex.md`.
+
+## Siguiente acción (actualizada 2026-10-16, tras reparar 5E)
+
+**Claude permanece detenido.** La revisión del trabajo de Claude y validación
+propia de las reparaciones 5E están entregadas, sin revisión independiente de
+estas. No se avanza a otro bloque sin autorización. Cuando haya
 un Android físico, completar el recorrido real pendiente de 5D/5E: calibración
 aceptada, sesión con aviso (patrón guardado), pausa/reanudación, finalización,
 coincidencia Resumen/Inicio/Historial/detalle y conservación tras reinicio.

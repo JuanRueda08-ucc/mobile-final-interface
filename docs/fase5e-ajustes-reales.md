@@ -2,8 +2,10 @@
 
 **Autorización:** del usuario, 2026-10-15, sobre `56e2f8f` (`main` limpio al
 empezar; registrada en `AGENTS.md`). Variante normal (`com.juanrueda.vigia`).
-Pendiente de la revisión y reparación de Codex. La validación descrita aquí es
-**propia**, no una revisión independiente.
+Implementada por Claude (`4a84774` y `60c89af`), revisada y reparada por
+Codex el 2026-10-16 (`6e89972`). Los tres defectos reproducidos y su evidencia
+están en [la revisión](evidence/fase5e-revision-codex.md). La validación de
+las reparaciones de Codex es **propia**, sin revisión independiente.
 
 ## Alcance
 
@@ -58,6 +60,8 @@ regenerado con `tools/generate_pigeon.py`):
 |---|---|
 | `testSound(patternId)` | Fija el patrón (si cambia, invalida la prueba anterior) y reproduce su tono de prueba. Devuelve un `soundTestId` nuevo |
 | `setSoundPattern(patternId)` | Si cambia, invalida `soundTestId`, reproducción y confirmación. Con sesión vigente: `sessionActive` (la sesión conserva su patrón) |
+| `beginSettingsChange(changeId, patternId)` | Reserva nativa antes de SQLite, rechazada con sesión activa o pausada. Acepta el candidato y bloquea inicio/prueba/confirmación hasta resolver la escritura |
+| `finishSettingsChange(changeId, patternId)` | Finalización idempotente: confirma el patrón durable o restaura el anterior si SQLite falla; después libera la reserva |
 | `previewSound(patternId)` | Tono de prueba para P13; no cambia el patrón ni la prueba de la sesión. Rechazado con sesión o calibración en curso |
 | `MonitoringSnapshot.soundPatternId` | Patrón de la prueba y de los avisos de la sesión |
 
@@ -67,14 +71,22 @@ por otro. `SoundPattern.kt` reproduce los mismos tonos de `ToneGenerator` que
 anteriores del motor. El pitido de guía de la calibración sigue con
 `patron_1`: la calibración no cambia.
 
-En Flutter (`ExperimentalMonitoringController`):
+En Flutter, `PreferencesController` conserva su cola común. Para sonido y
+movimiento reales utiliza `RealSettingsWriter`: aceptación y reserva nativa
+→ escritura SQLite → confirmación o restauración nativa → publicación del
+resultado. El rechazo no escribe preferencias ni anuncia otro patrón como
+guardado. Una respuesta perdida se reconcilia antes de publicar; el inicio
+sigue bloqueado mientras haya un cambio pendiente. Tema sigue permitido sin
+reserva durante una sesión. Detalle de errores y reinicio: evidencia enlazada.
+
+En `ExperimentalMonitoringController`:
 
 - al confirmarse un guardado de patrón, y siempre que el estado del motor
   informe otro patrón fuera de sesión, se envía `setSoundPattern`. Va por su
   propio canal de orden: no espera a otra orden en curso ni la bloquea;
 - la prueba lleva el patrón guardado;
-- «Lo escuché» e «Iniciar» solo se aceptan si el motor informa el patrón
-  guardado (`soundTestPlayedFor` / `soundConfirmedFor`). Así, una prueba de
+- «Lo escuché» e «Iniciar» solo se aceptan sin cambio pendiente y si el motor
+  informa el patrón guardado (`soundTestPlayedFor` / `soundConfirmedFor`). Así, una prueba de
   otro patrón —respuesta tardía o estado anterior al reenvío— no se confirma
   ni inicia una sesión. Kotlin lo vuelve a comprobar por `soundTestId`;
 - un motor nuevo (proceso reabierto) arranca con `patron_1` y recibe el
@@ -82,12 +94,16 @@ En Flutter (`ExperimentalMonitoringController`):
 
 ## Bloqueos (UX §4.2)
 
-`settingsLockedProvider`: en la normal, la sesión experimental vigente (activa
-o en pausa) que conoce Flutter. Con ella, Ajustes solo deja cambiar el tema y
+`settingsReadyProvider` consulta al motor al entrar en P12/P13, también por
+ruta directa. Hasta responder o si falla solo se permite tema. El bloqueo
+usa después la sesión experimental vigente (activa o en pausa) y no solo la
+copia anterior de Flutter. Con ella, Ajustes solo deja cambiar el tema y
 Sonido muestra el bloqueo con «Volver al monitoreo» hacia el monitoreo
-experimental. La salida del monitoreo con sesión vigente ya estaba bloqueada;
-el motor rechaza además cambiar el patrón durante la sesión, que es la
-garantía si el estado de Flutter no estuviera al día.
+experimental. Movimiento reducido también está bloqueado, tanto en pantalla
+como en la escritura mediante reserva nativa. La salida del monitoreo con
+sesión vigente ya estaba bloqueada; Kotlin decide bajo el mismo cerrojo que
+iniciar, aunque Flutter todavía desconozca esa sesión. La reducción pedida
+por Android sigue aplicándose siempre.
 
 ## Navegación
 
@@ -95,7 +111,7 @@ Inicio e Historial de la variante normal abren Ajustes desde la barra (antes,
 un aviso de «no disponible»). Ajustes no lleva el rótulo DEMO; indica que la
 app DEMO guarda sus preferencias por separado.
 
-## Validación propia
+## Validación propia de Claude (histórica, anterior a las reparaciones)
 
 | Comprobación | Resultado |
 |---|---|
@@ -125,7 +141,22 @@ Pruebas nuevas (SQLite real en disco salvo las de pantalla):
   prueba de P13 por el motor y su fallo; guardado y fallo del patrón; bloqueo
   con sesión.
 
-## APK
+## Revisión y validación propia de las reparaciones de Codex
+
+Dictamen desfavorable sobre Claude por tres defectos reproducidos, corregidos
+en `6e89972626b3a24b714cf39871062d73317aa326`. Análisis app/plugin limpio,
+98/98 dirigidas afectadas, 26/26 preferencias finales (resultados solapados),
+migración poblada con tres sesiones/cinco marcas/doce hashes verificada,
+9/9 Kotlin de sonido/reserva y 6/6 pruebas con 12 muestras nuevas de P12/P13,
+inspeccionadas en ambos temas y al 200 %, con acciones semánticas.
+Los seis goldens preexistentes y los 28 de 5E no se actualizaron.
+
+La prueba adaptada de `demo_flow_test` que antes exigía normal sin Ajustes
+**pasa** dentro de las dirigidas. `823/7` describe la ejecución histórica de
+Claude antes de adaptarla; no se repitió la suite completa para producir un
+conteo global nuevo. Detalle, registros y límites: [evidencia](evidence/fase5e-revision-codex.md).
+
+## APK original de Claude (conservado)
 
 `D:\dev\vigia-entrega\vigia-normal-fase5e-release.apk`, 95 319 541 bytes,
 SHA-256 `ab582248785dbac59fe174ef11f9d1b1e2fdf93ab7326d94a9a98ccbadc133c0`
@@ -134,6 +165,15 @@ firma de depuración verificada con `apksigner`. Compilado del árbol de trabajo
 idéntico al commit de código de 5E (`4a84774`). No se recompiló la DEMO: su código solo
 cambió por la reorganización del modelo de preferencias, cubierta por sus
 pruebas.
+
+## APK reparado de Codex
+
+Entregado conservando el anterior:
+`D:/dev/vigia-entrega/vigia-normal-fase5e-codex-release.apk`, 95 335 925 bytes,
+SHA-256 `e96f1900c4933198e9b5d63c05b9d45ec9e50003b4f1b2abfa154c54e3a1ee93`.
+Código: `6e89972626b3a24b714cf39871062d73317aa326`. Identidad normal,
+firma v2 debug y permisos CAMERA/interno comprobados; sin instalación ni
+recorrido físico nuevo. Detalle completo en la evidencia de revisión.
 
 ## No comprobado
 
@@ -144,6 +184,6 @@ pruebas.
 - Audibilidad de los tres patrones en el flujo de alarma del motor (las
   pruebas comprueban el tono pedido, no lo que se oye) y en D1.
 - TalkBack real.
-- El bloqueo de Ajustes usa el último estado del motor conocido por Flutter;
-  sin consulta propia desde Ajustes. El motor sigue rechazando el cambio de
-  patrón con sesión vigente.
+- Revisión independiente de las reparaciones de Codex. La limitación anterior
+  de Ajustes sin consulta propia se reparó con consulta al entrar y reserva
+  nativa antes de persistir; no se conserva como un comportamiento aceptado.
