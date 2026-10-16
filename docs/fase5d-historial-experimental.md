@@ -205,3 +205,18 @@ intacta. El recorrido completo queda pendiente para buena iluminación.
 Detalle y distinción entre pruebas sintéticas, validación propia y webcam:
 `docs/evidence/fase5d-revision-codex.md`. No hay aprobación independiente de
 las reparaciones ni publicación de estos commits.
+
+**Continuación guiada (noche del 2026-10-15):** mismo APK V2, sin recompilar.
+Usuario confirmó vista previa en directo, audición del tono y pulsación de
+«Lo escuché». Diez referencias rechazadas por `insufficientObservations`
+(22–43 muestras, cobertura 0,000–0,219). Se midieron huecos de entrada por
+encima de Gmax=150 ms; la causa raíz no está establecida ni se atribuye a
+iluminación. Tabla temporal y caducidad en la evidencia enlazada. Inicio
+continuó bloqueado por calibración; no hubo sesión real ni se completaron
+los pasos posteriores de persistencia. Proceso detenido y reabierto con
+PID distinto: Inicio/Historial y ambas bases siguieron vacíos y sanos. Esto
+comprueba ausencia de datos ficticios, no conservación de una sesión real.
+Sin cambios de código, umbrales, APK o goldens; no se repitieron suites.
+Webcam liberada, AVD cerrado y ajustes temporales restaurados; datos y APK
+anteriores conservados. Siguiente paso: lograr calibración con continuidad
+suficiente antes de retomar el recorrido real pendiente de 5D.

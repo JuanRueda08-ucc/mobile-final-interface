@@ -671,7 +671,9 @@ limpio al empezar, sin cambios ajenos). Detalle: `docs/fase5d-historial-experime
 
 ## Siguiente acción
 
-Retomar la prueba guiada de 5D cuando haya buena iluminación. Claude permanece
+Retomar la prueba guiada de 5D cuando pueda completarse la referencia ocular
+con suficiente continuidad. La iluminación no está demostrada como causa de
+los rechazos. Claude permanece
 detenido. Código reparado y comprobaciones: `docs/evidence/fase5d-revision-codex.md`.
 JVM 103/103, dirigida Flutter 79/79, plugin Dart 3/3; análisis limpio y registro
 500 OK. SQLite real y reinicios entre PID comprobados con hechos sintéticos.
@@ -679,27 +681,42 @@ Ocho renders nuevos de 5D. Suite completa: 797 pasan / 6 fallan; los cuatro
 goldens conocidos y otros dos fallan también en una copia exacta de la base
 publicada. Ningún patrón 5C actualizado. Sin cambios de umbrales.
 
-APK V2 instalado y comprobado por extracción:
+Última continuación guiada (noche del 2026-10-15): Git inicial limpio en
+`main`, HEAD `14734d8938bdcea1407526aab6433eae42e3fa7e`. APK V2 existente
+instalado y comprobado por extracción, sin recompilar:
 SHA-256 `9b16e67001012f7604cb1a143039199cf7af39c72750ff02c0b480685daa2f48`,
 código `74a20836b88a7a42ffae0aa71473f9c54d9b1e6c`. Los APK anteriores se
-conservan en `build/review-5d/`. Usuario confirmó movimiento en el primer APK
-reparado y un rostro detectado tras preparar V2. Luego indicó iluminación
-insuficiente para probar Calibrar. Motor V2: un intento rechazado,
-`insufficientObservations`, 59 muestras y cobertura 0,561; no se demuestra
-que toda la pérdida de recepción sea causada por la luz. **Sin calibración
-aceptada, audibilidad confirmada ni sesión real iniciada de 5D.** No dar por
-completados los pasos restantes. Pruebas SQLite y vectores: sintéticos.
+conservan en `build/review-5d/`. En esta continuación el usuario confirmó
+movimiento en directo, rechazo de calibración con su cara en pantalla,
+**audición del tono y pulsación personal de «Lo escuché»**. UI: tono confirmado,
+inicio bloqueado solo por calibración. Diez intentos OPEN_REFERENCE rechazados
+por `insufficientObservations`: 22–43 muestras, cobertura 0,000–0,219; mínimos
+60 y 0,80. Ventanas diagnósticas: abundantes huecos >150 ms, máximos
+295–780 ms; ningún resultado de edad >750 ms dentro de esas ventanas. En la
+apertura completa hubo ocho descartes por antigüedad. Límites de ventana y
+tabla completa: `docs/evidence/fase5d-revision-codex.md`. No se demuestra
+causa raíz; no se cambiaron umbrales. La reducción temporal de resolución
+del emulador tampoco permitió aceptar la referencia. **Sin calibración
+aceptada ni sesión real iniciada de 5D**: señal ocular en sesión,
+pausa/reanudación, finalización, coincidencia Resumen/Inicio/Historial/detalle
+y conservación de una sesión real tras reinicio siguen pendientes.
+Pruebas SQLite y vectores anteriores: sintéticos.
 
-Se salió de la vista, se detuvo la app y se conservaron ambas bases normales
-(vacías, `integrity_check=ok`) en `build/review-5d/preserved-normal/`; también
-se conserva el disco del AVD aislado. Cámara sin clientes antes del cierre;
+Se salió de la vista y se detuvo realmente la app (PID 2368 ausente tras
+force-stop; reapertura con PID 4060). Inicio/Historial vacíos y cero sesiones,
+hechos y recibos antes/después: no se crearon sesiones ficticias. Copias de
+ambas bases normales sanas en `build/webcam-5d-resume/db-before-reopen/` y
+`db-after-reopen/`, sin sustituir las copias anteriores en
+`build/review-5d/preserved-normal/`; se conserva el disco del AVD aislado.
+Cámara sin clientes y cero analizadores antes del cierre;
 AVD y recolectores cerrados, sin dispositivos adb ni procesos del emulador.
 INI/config/posición del AVD original con los mismos hashes iniciales.
-Recolector de texto: `webcam-v2-session.log`; lector sin imágenes:
-`build/review-5d/probe.py`. Para retomar con buena iluminación: abrir el AVD
-aislado con Qt desktop/GPU host y APK V2, comprobar vista previa y continuar
-desde Calibrar, una acción humana cada vez. Persistencia, historial y reinicio
-tras una sesión **real** siguen pendientes de esa prueba guiada.
+Resolución/densidad y propiedad de diagnóstico restauradas. Últimos registros:
+`build/webcam-5d-resume/session.log`, `calibration-windows.json`,
+`database-counts.json`; lector sin imágenes: `build/review-5d/probe.py`.
+Para retomar: abrir el AVD aislado con Qt desktop/GPU host y APK V2,
+comprobar vista previa y continuar desde Calibrar, una acción humana cada vez.
+La prueba sonora tendrá que confirmarse de nuevo al abrir un proceso nuevo.
 
 Entrega realizada con commits locales y APK, **sin amend, push ni PR**.
 La comprobación de estas reparaciones es validación propia. Siguen pendientes
