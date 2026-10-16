@@ -5,6 +5,14 @@
 de cerrar la revisión y reparación de Codex autorizada por el usuario.
 Resultados y reproducciones: `docs/evidence/fase5d-revision-codex.md`.
 
+**Estado (usuario, 2026-10-15):** implementada con validación automatizada y
+sintética. El recorrido real completo con cámara —calibración aceptada,
+sesión, persistencia y conservación tras reinicio de una sesión real— queda
+pendiente hasta disponer de un Android físico. La iluminación no está
+demostrada como causa de los rechazos de calibración; no se cambiaron
+umbrales. Fase 5E (Ajustes reales) amplía esta base a esquema v2 con una tabla
+`preferences` (`docs/fase5e-ajustes-reales.md`).
+
 ## Alcance
 
 Al finalizar una sesión de «Monitoreo experimental», su resumen se conserva y se
