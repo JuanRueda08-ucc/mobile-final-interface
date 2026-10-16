@@ -675,6 +675,37 @@ internal class ExperimentalMonitoringTest {
     }
 
     @Test
+    fun settings_reservationBlocksStartAndOldConfirmationUntilSqliteResolves() {
+        val rig = Rig().calibrated()
+        val cal = rig.last.calibrationId!!
+        val old = rig.soundConfirmed()
+        assertTrue(rig.c.beginSettingsChange("write-1", "patron_2").accepted)
+        assertEquals("settingsChangePending", rig.c.startSession(cal, old).errorCode)
+        assertEquals("settingsChangePending", rig.c.confirmSoundHeard(old).errorCode)
+        assertEquals("settingsChangePending", rig.c.testSound("patron_1").errorCode)
+        assertEquals("settingsChangePending", rig.c.beginSettingsChange("write-2", "patron_3").errorCode)
+        assertEquals("unknownSettingsChange", rig.c.finishSettingsChange("write-2", "patron_3").errorCode)
+        // SQLite falla: restaura el patrón durable, nunca la confirmación vieja.
+        assertTrue(rig.c.finishSettingsChange("write-1", "patron_1").accepted)
+        assertEquals("patron_1", rig.c.snapshot().soundPatternId)
+        assertNull(rig.c.snapshot().soundTestId)
+        assertEquals("soundNotConfirmed", rig.c.startSession(cal, old).errorCode)
+        assertTrue(rig.c.finishSettingsChange("write-1", "patron_1").accepted, "repetir una respuesta perdida es idempotente")
+    }
+
+    @Test
+    fun settings_reservationRejectsActiveAndPausedEvenForSamePattern() {
+        val rig = Rig()
+        val session = rig.started()
+        for (paused in listOf(false, true)) {
+            if (paused) rig.c.pauseSession(session)
+            assertEquals("sessionActive", rig.c.beginSettingsChange("motion", "patron_1").errorCode)
+            assertEquals("sessionActive", rig.c.beginSettingsChange("sound", "patron_3").errorCode)
+            assertEquals("patron_1", rig.c.snapshot().soundPatternId)
+        }
+    }
+
+    @Test
     fun sound_changingPatternInvalidatesTestAndConfirmation() {
         val rig = Rig().calibrated()
         val cal = rig.last.calibrationId!!

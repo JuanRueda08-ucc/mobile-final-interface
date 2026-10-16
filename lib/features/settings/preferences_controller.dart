@@ -6,6 +6,7 @@ import '../../core/audio/alert_sound.dart';
 import '../../data/demo_history/history_providers.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../../data/preferences/preferences_store.dart';
+import 'real_settings_writer.dart';
 
 export '../../data/preferences/preferences_store.dart';
 
@@ -178,7 +179,15 @@ class PreferencesController extends Notifier<PreferencesState> {
     final next = change.apply(_saved);
     var ok = true;
     try {
-      await ref.read(preferencesStoreProvider).savePreferences(next);
+      final store = ref.read(preferencesStoreProvider);
+      if (ref.read(appModeProvider) is RealMode &&
+          change.field != PreferenceField.theme) {
+        ok = await ref
+            .read(realSettingsWriterProvider)
+            .save(_saved, next, () => store.savePreferences(next));
+      } else {
+        await store.savePreferences(next);
+      }
     } catch (_) {
       ok = false;
     }

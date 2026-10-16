@@ -1493,6 +1493,10 @@ interface ExperimentalMonitoringHostApi {
    * sonido y su confirmación. Rechazado con sesión vigente.
    */
   fun setSoundPattern(patternId: String): MonitoringCommandResult
+  /** Reserva Ajustes frente al inicio nativo hasta resolver SQLite. */
+  fun beginSettingsChange(changeId: String, patternId: String): MonitoringCommandResult
+  /** Idempotente: confirma el patrón durable o restaura el anterior. */
+  fun finishSettingsChange(changeId: String, patternId: String): MonitoringCommandResult
   /**
    * Fase 5E: tono de prueba de un patrón para Ajustes → Sonido (P13). Solo
    * resultado técnico; no cambia el patrón ni la prueba de la sesión.
@@ -1587,6 +1591,42 @@ interface ExperimentalMonitoringHostApi {
             val patternIdArg = args[0] as String
             val wrapped: List<Any?> = try {
               listOf(api.setSoundPattern(patternIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.beginSettingsChange$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val changeIdArg = args[0] as String
+            val patternIdArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.beginSettingsChange(changeIdArg, patternIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.finishSettingsChange$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val changeIdArg = args[0] as String
+            val patternIdArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.finishSettingsChange(changeIdArg, patternIdArg))
             } catch (exception: Throwable) {
               MonitoringApiPigeonUtils.wrapError(exception)
             }

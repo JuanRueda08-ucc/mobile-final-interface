@@ -1615,6 +1615,56 @@ class ExperimentalMonitoringHostApi {
     return pigeonVar_replyValue! as MonitoringCommandResult;
   }
 
+  /// Reserva Ajustes frente al inicio nativo hasta resolver SQLite.
+  Future<MonitoringCommandResult> beginSettingsChange(
+    String changeId,
+    String patternId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.beginSettingsChange$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[changeId, patternId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Idempotente: confirma el patrón durable o restaura el anterior.
+  Future<MonitoringCommandResult> finishSettingsChange(
+    String changeId,
+    String patternId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.finishSettingsChange$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[changeId, patternId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
   /// Fase 5E: tono de prueba de un patrón para Ajustes → Sonido (P13). Solo
   /// resultado técnico; no cambia el patrón ni la prueba de la sesión.
   Future<MonitoringCommandResult> previewSound(String patternId) async {

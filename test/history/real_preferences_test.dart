@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart' show driftRuntimeOptions, MigrationStrategy;
 import 'package:drift/native.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
@@ -46,6 +46,22 @@ class _GatedStore implements PreferencesStore {
     await gate.future;
     await inner.savePreferences(p);
   }
+}
+
+/// Esquema 5D: las tres tablas originales, sin abrir ni crear preferencias.
+class _Database5D extends ExperimentalHistoryDatabase {
+  _Database5D(super.executor);
+  @override
+  int get schemaVersion => 1;
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      for (final t in allTables) {
+        if (t.actualTableName != 'preferences') await m.createTable(t);
+      }
+    },
+    beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
+  );
 }
 
 /// Fase 5E · Ajustes de la variante normal: preferencias en
@@ -156,6 +172,96 @@ void main() {
       expect((await reread()).theme, ThemePreference.dark);
     });
 
+    test('migración poblada 5D: conserva cada columna, evento, hash, identidad y estado', () async {
+      final old = _Database5D(NativeDatabase(file));
+      final journal = FakeJournal()
+        ..completeSession('finalizada')
+        ..started('interrumpida')
+        ..checkpoint('interrumpida', 1000, FakeJournal.totals(active: 1000))
+        ..interrupted('interrumpida', 1000)
+        ..started('pausada')
+        ..pause(
+          'pausada',
+          1000,
+          1,
+          FakeJournal.totals(active: 1000, pauses: 1),
+        );
+      await ExperimentalHistoryRepository(old).importRecords(journal.records);
+      const tables = [
+        'experimental_sessions',
+        'experimental_session_marks',
+        'imported_records',
+      ];
+      Future<Map<String, Object>> dump(
+        ExperimentalHistoryDatabase db,
+      ) async => {
+        for (final t in tables)
+          t: [
+            for (final r
+                in await db.customSelect('SELECT * FROM $t ORDER BY 1').get())
+              r.data,
+          ],
+      };
+      final before = await dump(old);
+      final sessions = await old.select(old.experimentalSessions).get();
+      expect(sessions.map((s) => s.lifecycle).toSet(), {
+        'finalized',
+        'interrupted',
+        'paused',
+      });
+      expect(
+        await old.select(old.experimentalSessionMarks).get(),
+        hasLength(5),
+      );
+      expect(await old.select(old.importedRecords).get(), hasLength(12));
+      expect(
+        (await old.select(old.importedRecords).get())
+            .map((r) => r.payloadHash)
+            .toSet(),
+        journal.records.map((r) => r.payloadHash).toSet(),
+      );
+      expect(
+        (await old.customSelect('PRAGMA user_version').getSingle()).read<int>(
+          'user_version',
+        ),
+        1,
+      );
+      expect(
+        await old
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE name='preferences'",
+            )
+            .get(),
+        isEmpty,
+      );
+      await old.close();
+      final upgraded = openDb();
+      final repo = ExperimentalHistoryRepository(upgraded);
+      await repo.savePreferences(
+        const StoredPreferences(soundPatternId: 'patron_3'),
+      );
+      expect(await dump(upgraded), before);
+      await repo.importRecords(journal.records);
+      expect(
+        await dump(upgraded),
+        before,
+        reason: 'reimportación idempotente tras migrar',
+      );
+      expect(
+        (await upgraded.customSelect('PRAGMA integrity_check').getSingle())
+            .data
+            .values
+            .single,
+        'ok',
+      );
+      expect(
+        await upgraded.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+      await upgraded.close();
+      expect((await reread()).soundPatternId, 'patron_3');
+    });
+
     test('separación: la base real y la DEMO guardan cada una lo '
         'suyo', () async {
       final demoFile = File('${dir.path}/vigia_history_demo_v1.sqlite');
@@ -235,6 +341,171 @@ void main() {
       });
     });
 
+    test('rechazo del motor no guarda ni anuncia otro patrón activo', () {
+      fakeAsync((a) {
+        final c = container(gated: false);
+        engine.rejectPattern = 'sessionActive';
+        c.read(experimentalMonitoringProvider.notifier).refresh();
+        a.elapse(const Duration(milliseconds: 200));
+        c.read(preferencesProvider.notifier).setSoundPattern('patron_2');
+        a.elapse(const Duration(milliseconds: 200));
+        expect(c.read(preferencesProvider).save, PreferenceSave.failed);
+        expect(c.read(preferencesProvider).value.soundPatternId, 'patron_1');
+        expect(engine.current.soundPatternId, 'patron_1');
+        expect(closeAndReread(c, a).soundPatternId, 'patron_1');
+      });
+    });
+
+    test('error del motor antes de reservar conserva SQLite y preferencias aceptadas', () {
+      fakeAsync((a) {
+        final c = container(gated: false);
+        final ctl = c.read(preferencesProvider.notifier);
+        ctl.setTheme(ThemePreference.dark);
+        a.flushMicrotasks();
+        engine.failBeginSettings = true;
+        ctl.setSoundPattern('patron_2');
+        a.flushMicrotasks();
+        expect(c.read(preferencesProvider).save, PreferenceSave.failed);
+        expect(c.read(preferencesProvider).value.theme, ThemePreference.dark);
+        expect(engine.current.soundPatternId, 'patron_1');
+        expect(
+          closeAndReread(c, a),
+          const StoredPreferences(theme: ThemePreference.dark),
+        );
+      });
+    });
+
+    test(
+      'respuesta perdida tras commit no anuncia guardado antes de reconciliar',
+      () {
+        fakeAsync((a) {
+          final c = container();
+          engine.loseFinishReply = true;
+          final exp = c.read(experimentalMonitoringProvider.notifier);
+          exp.refresh();
+          a.elapse(const Duration(milliseconds: 100));
+          c.read(preferencesProvider.notifier).setSoundPattern('patron_2');
+          release(a, 0);
+          expect(c.read(preferencesProvider).save, PreferenceSave.saving);
+          expect(c.read(preferencesProvider).value.soundPatternId, 'patron_1');
+          expect(engine.current.soundPatternId, 'patron_2');
+          a.elapse(const Duration(milliseconds: 150));
+          expect(c.read(preferencesProvider).save, PreferenceSave.saved);
+          expect(c.read(preferencesProvider).value.soundPatternId, 'patron_2');
+          expect(closeAndReread(c, a).soundPatternId, 'patron_2');
+        });
+      },
+    );
+
+    for (final fail in [false, true]) {
+      test(
+        'motor reiniciado al resolver SQLite (fallo=$fail): reconcilia antes de publicar',
+        () {
+          fakeAsync((a) {
+            const previous = StoredPreferences(soundPatternId: 'patron_2');
+            final c = container(
+              initial: previous,
+              engineState: fakeSnapshot(soundPatternId: 'patron_2'),
+            );
+            repo.savePreferences(previous);
+            a.flushMicrotasks();
+            engine.restartOnFinish = true;
+            c.read(preferencesProvider.notifier).setSoundPattern('patron_3');
+            release(a, 0, fail: fail);
+            a.elapse(const Duration(milliseconds: 250));
+            final expected = fail ? 'patron_2' : 'patron_3';
+            expect(engine.current.engineInstanceId, 'motor-reabierto');
+            expect(engine.current.soundPatternId, expected);
+            expect(c.read(preferencesProvider).value.soundPatternId, expected);
+            expect(
+              c.read(preferencesProvider).save,
+              fail ? PreferenceSave.failed : PreferenceSave.saved,
+            );
+            expect(closeAndReread(c, a).soundPatternId, expected);
+          });
+        },
+      );
+    }
+
+    test(
+      'cambios rápidos 1→2→1 no reutilizan la confirmación del primer patrón',
+      () {
+        fakeAsync((a) {
+          final c = container(
+            engineState: fakeSnapshot(
+              soundTestId: 'antigua',
+              soundTestPlayed: true,
+              soundHeard: true,
+            ),
+          );
+          final exp = c.read(experimentalMonitoringProvider.notifier);
+          exp.refresh();
+          a.elapse(const Duration(milliseconds: 100));
+          final ctl = c.read(preferencesProvider.notifier);
+          ctl.setSoundPattern('patron_2');
+          ctl.setSoundPattern('patron_1');
+          release(a, 0);
+          release(a, 1);
+          a.elapse(const Duration(milliseconds: 100));
+          expect(engine.current.soundPatternId, 'patron_1');
+          expect(engine.current.soundTestId, isNull);
+          expect(
+            exp.soundConfirmedFor(
+              c.read(experimentalMonitoringProvider).snapshot,
+            ),
+            isFalse,
+          );
+          expect(closeAndReread(c, a).soundPatternId, 'patron_1');
+        });
+      },
+    );
+
+    test('estado Flutter antiguo: sesión nativa impide guardar sonido y movimiento', () {
+      fakeAsync((a) {
+        final c = container(gated: false);
+        c.read(experimentalMonitoringProvider);
+        engine.current = fakeSnapshot(
+          lifecycle: EngineSessionLifecycle.paused,
+          sessionId: 'S1',
+        );
+        final ctl = c.read(preferencesProvider.notifier);
+        ctl.setSoundPattern('patron_3');
+        ctl.setReducedMotion(true);
+        a.flushMicrotasks();
+        expect(c.read(preferencesProvider).value.soundPatternId, 'patron_1');
+        expect(c.read(preferencesProvider).value.reducedMotion, isFalse);
+        expect(c.read(preferencesProvider).save, PreferenceSave.failed);
+        expect(closeAndReread(c, a), const StoredPreferences());
+      });
+    });
+
+    test('inicio bloqueado mientras un cambio de patrón espera a SQLite', () {
+      fakeAsync((a) {
+        final c = container(
+          engineState: fakeSnapshot(
+            eyesValid: true,
+            step: CalibrationStep.accepted,
+            calibrationId: 'cal-1',
+            soundTestId: 'snd-1',
+            soundTestPlayed: true,
+            soundHeard: true,
+          ),
+        );
+        final exp = c.read(experimentalMonitoringProvider.notifier);
+        exp.refresh();
+        a.elapse(const Duration(milliseconds: 100));
+        c.read(preferencesProvider.notifier).setSoundPattern('patron_2');
+        a.flushMicrotasks();
+        exp.start();
+        a.flushMicrotasks();
+        expect(engine.calls.where((x) => x.startsWith('start:')), isEmpty);
+        release(a, 0);
+        c.dispose();
+        db.close();
+        a.flushMicrotasks();
+      });
+    });
+
     test('guardados simultáneos de tema, movimiento y patrón, liberados en '
         'otro orden: memoria, SQLite y motor coinciden', () {
       fakeAsync((a) {
@@ -253,8 +524,8 @@ void main() {
         expect(view.soundPatternId, 'patron_1');
         expect(
           engine.calls.where((x) => x.startsWith('soundPattern:')),
-          isEmpty,
-          reason: 'el motor no recibe un patrón sin guardar',
+          contains('soundPattern:patron_2'),
+          reason: 'el motor reserva el patrón sin guardar',
         );
         for (var i = 0; i < 4; i++) {
           release(a, i);
@@ -311,7 +582,12 @@ void main() {
         );
         expect(s.value.theme, ThemePreference.dark);
         expect(engine.current.soundPatternId, 'patron_2');
-        expect(engine.calls, isNot(contains('soundPattern:patron_3')));
+        expect(engine.calls, contains('soundPattern:patron_3'));
+        expect(
+          engine.settingsChange,
+          isNull,
+          reason: 'SQLite fallo: reserva liberada tras restaurar',
+        );
         expect(
           closeAndReread(c, a),
           const StoredPreferences(
@@ -430,11 +706,13 @@ void main() {
         a.elapse(const Duration(milliseconds: 200));
         expect(c.read(settingsLockedProvider), isTrue);
         c.read(preferencesProvider.notifier).setSoundPattern('patron_3');
-        release(a, 0);
+        a.flushMicrotasks();
+        expect(store.gates, isEmpty, reason: 'motor rechaza antes de SQLite');
+        expect(c.read(preferencesProvider).save, PreferenceSave.failed);
         a.elapse(const Duration(seconds: 2));
         expect(
           engine.calls.where((x) => x.startsWith('soundPattern:')),
-          hasLength(1),
+          isEmpty,
         );
         expect(engine.current.soundPatternId, 'patron_1');
 
@@ -447,7 +725,11 @@ void main() {
         );
         a.elapse(const Duration(milliseconds: 300));
         expect(c.read(settingsLockedProvider), isFalse);
-        expect(engine.current.soundPatternId, 'patron_3');
+        expect(
+          engine.current.soundPatternId,
+          'patron_1',
+          reason: 'un rechazo no se aplica al terminar la sesion',
+        );
         c.dispose();
         db.close();
         a.flushMicrotasks();
@@ -532,6 +814,9 @@ void main() {
         overrides: [
           appModeProvider.overrideWithValue(const RealMode()),
           ...overrides,
+          experimentalBridgeProvider.overrideWithValue(
+            FakeExperimentalBridge(),
+          ),
         ],
       );
     }
@@ -714,8 +999,6 @@ void main() {
       );
       await pumpReal(tester);
       final c = containerOf(tester);
-      c.read(experimentalMonitoringProvider.notifier).refresh();
-      await settle(tester);
       c.read(routerProvider).go(VigiaRoutes.ajustes);
       await settle(tester);
       expect(find.text('Sesión en curso'), findsOneWidget);

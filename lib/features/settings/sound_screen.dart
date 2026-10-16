@@ -89,7 +89,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final vigente = ref.watch(settingsLockedProvider);
+    final vigente = ref.watch(settingsControlsLockedProvider);
     final mode = ref.watch(appModeProvider);
     final prefs = ref.watch(preferencesProvider);
     // Patrón confirmado: el patrón solo cambia en el estado al guardarse.
@@ -111,7 +111,19 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
         title: 'Sonido',
         isDemo: mode is DemoMode,
         onBack: () => _back(dirty),
-        children: vigente
+        children: ref.watch(settingsReadyProvider).hasError
+            ? const [
+                StatusCard(
+                  tone: StatusTone.alert,
+                  icon: VigiaIcon.info,
+                  tag: 'Motor no disponible',
+                  title: 'Sonido no disponible',
+                  text: 'No se pudo comprobar si hay una sesión vigente. Vuelve a abrir Sonido para reintentar.',
+                ),
+              ]
+            : ref.watch(settingsReadyProvider).isLoading
+            ? const [VigiaParagraph('Consultando el motor…')]
+            : vigente
             ? sessionBlockedBlocks(
                 context,
                 'Sonido',
@@ -170,6 +182,10 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                     text:
                         'Guardar un patrón no aprueba la prueba audible de una '
                         'sesión. Cada sesión necesita su propia prueba.',
+                  ),
+                if (patternPending)
+                  const VigiaParagraph(
+                    'Guardando patrón. Esperando confirmación del almacenamiento y del motor.',
                   ),
                 if (failure != null)
                   StatusCard(

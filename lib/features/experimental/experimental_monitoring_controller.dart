@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
 import '../settings/preferences_controller.dart';
+import '../settings/real_settings_writer.dart';
+import 'experimental_bridge_provider.dart';
+export 'experimental_bridge_provider.dart';
 import 'monitoring_query_channel.dart';
 
 /// Estado del recorrido experimental tal como lo presenta Flutter (fase 5C).
@@ -115,11 +118,6 @@ class ExperimentalState {
       : EngineSignal.notEvaluable;
 }
 
-/// Puente con el coordinador experimental. Las pruebas lo sustituyen.
-final experimentalBridgeProvider = Provider<ExperimentalMonitoringBridge>(
-  (ref) => PigeonExperimentalMonitoringBridge(),
-);
-
 final experimentalMonitoringProvider =
     NotifierProvider<ExperimentalMonitoringController, ExperimentalState>(
       ExperimentalMonitoringController.new,
@@ -171,20 +169,72 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   /// reenvía en cada estado (un patrón fuera del catálogo nunca se acepta).
   (String, String)? _patternRefused;
 
-  /// Patrón guardado (confirmado por SQLite), que debe usar el motor.
+  /// Las respuestas de Ajustes actualizan configuración/ciclo, nunca renuevan
+  /// la vigencia de mediciones. El canal normal vuelve a medir su transporte.
+  void _settingsSnapshot(MonitoringSnapshot s) {
+    if (!ref.mounted || _retiredEngines.contains(s.engineInstanceId)) return;
+    final previous = _latest;
+    if (previous != null &&
+        previous.engineInstanceId == s.engineInstanceId &&
+        s.sequence < previous.sequence) {
+      return;
+    }
+    if (previous != null && previous.engineInstanceId != s.engineInstanceId) {
+      _retiredEngines.add(previous.engineInstanceId);
+    }
+    _latest = s;
+    state = state.copyWith(
+      snapshot: s,
+      connected: false,
+      eyesFresh: false,
+      signalFresh: false,
+    );
+    _syncPattern();
+  }
+
+  /// Patrón confirmado por SQLite.
   String get savedSoundPattern =>
       ref.read(preferencesProvider).value.soundPatternId;
+
+  /// Consulta al entrar en Ajustes sin abrir cámara ni arrancar el monitoreo.
+  Future<void> querySettings() async {
+    final ticket =
+        MonitoringQueryChannel.pendingOn(_bridge) ??
+        MonitoringQueryChannel.start(_bridge, _epoch, clock.stopwatch());
+    if (ticket == null) throw StateError('Consulta no disponible');
+    final done = Completer<void>();
+    final listener = ticket.listen((r) {
+      if (r.error != null ||
+          r.answer == null ||
+          r.watch.elapsed >= queryTimeout) {
+        done.completeError(StateError('Motor no disponible'));
+      } else {
+        _settingsSnapshot(r.answer!);
+        done.complete();
+      }
+    });
+    try {
+      await done.future.timeout(queryTimeout);
+    } finally {
+      listener.cancel();
+    }
+  }
 
   @override
   ExperimentalState build() {
     _bridge = ref.read(experimentalBridgeProvider);
     final sub = _bridge.updates.listen(_notice);
+    final settingsSub = ref
+        .read(realSettingsWriterProvider)
+        .snapshots
+        .listen(_settingsSnapshot);
     ref.listen(
       preferencesProvider.select((p) => p.value.soundPatternId),
       (_, _) => _syncPattern(force: true),
     );
     ref.onDispose(() {
       sub.cancel();
+      settingsSub.cancel();
       _cancelTimers();
       _active = false;
       _epoch++;
@@ -406,6 +456,10 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   /// estado: el motor decide y, con sesión vigente, lo rechaza.
   void _syncPattern({bool force = false}) {
     if (!ref.mounted) return;
+    if (ref.read(realSettingsWriterProvider).pending ||
+        ref.read(preferencesProvider).pending.isNotEmpty) {
+      return;
+    }
     final want = savedSoundPattern;
     final s = _latest;
     if (!force) {
@@ -450,7 +504,14 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   /// La prueba de sonido del motor vale para el patrón guardado: el motor
   /// informa ese patrón y la prueba se reprodujo (o además se confirmó).
   bool soundTestPlayedFor(MonitoringSnapshot? s) =>
-      s != null && s.soundPatternId == savedSoundPattern && s.soundTestPlayed;
+      !ref.read(realSettingsWriterProvider).pending &&
+      !ref
+          .read(preferencesProvider)
+          .pending
+          .contains(PreferenceField.soundPattern) &&
+      s != null &&
+      s.soundPatternId == savedSoundPattern &&
+      s.soundTestPlayed;
 
   bool soundConfirmedFor(MonitoringSnapshot? s) =>
       soundTestPlayedFor(s) && s!.soundHeard;
@@ -547,6 +608,13 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
 
   /// Prueba el tono con el patrón guardado (fase 5E).
   Future<bool> testSound() {
+    if (ref.read(realSettingsWriterProvider).pending ||
+        ref
+            .read(preferencesProvider)
+            .pending
+            .contains(PreferenceField.soundPattern)) {
+      return Future.value(false);
+    }
     final pattern = savedSoundPattern;
     return _command('testSound', () => _bridge.testSound(pattern));
   }

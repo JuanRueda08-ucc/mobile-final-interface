@@ -35,7 +35,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(preferencesProvider);
     final ctl = ref.read(preferencesProvider.notifier);
-    final lock = ref.watch(settingsLockedProvider);
+    final lock = ref.watch(settingsControlsLockedProvider);
     final demo = ref.watch(appModeProvider) is DemoMode;
     final systemReduce = WidgetsBinding
         .instance
@@ -61,7 +61,15 @@ class SettingsScreen extends ConsumerWidget {
           // Ajustes: ya estamos aquí; no se crea otra copia (UX §2.1).
         },
         children: [
-          if (lock)
+          if (ref.watch(settingsReadyProvider).hasError)
+            const StatusCard(
+              tone: StatusTone.alert,
+              icon: VigiaIcon.info,
+              tag: 'Motor no disponible',
+              title: 'Solo puedes cambiar el tema',
+              text: 'No se pudo comprobar si hay una sesión vigente. Vuelve a abrir Ajustes para reintentar.',
+            )
+          else if (ref.watch(settingsLockedProvider))
             const StatusCard(
               tone: StatusTone.strong,
               icon: VigiaIcon.activity,
@@ -115,6 +123,14 @@ class SettingsScreen extends ConsumerWidget {
               icon: VigiaIcon.check,
               tag: 'Guardado',
               title: 'Preferencia guardada',
+            ),
+          if (prefs.save == PreferenceSave.saving)
+            const StatusCard(
+              tone: StatusTone.plain,
+              icon: VigiaIcon.info,
+              tag: 'En curso',
+              title: 'Guardando preferencia',
+              text: 'Esperando confirmación del almacenamiento y del motor.',
             ),
           // Un aviso por preferencia que no se guardó, con su valor vigente.
           for (final f in prefs.failures.values)

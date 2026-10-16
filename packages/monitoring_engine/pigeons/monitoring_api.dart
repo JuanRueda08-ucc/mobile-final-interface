@@ -462,6 +462,18 @@ abstract class ExperimentalMonitoringHostApi {
   /// sonido y su confirmación. Rechazado con sesión vigente.
   MonitoringCommandResult setSoundPattern(String patternId);
 
+  /// Reserva Ajustes frente al inicio nativo hasta resolver SQLite.
+  MonitoringCommandResult beginSettingsChange(
+    String changeId,
+    String patternId,
+  );
+
+  /// Idempotente: confirma el patrón durable o restaura el anterior.
+  MonitoringCommandResult finishSettingsChange(
+    String changeId,
+    String patternId,
+  );
+
   /// Fase 5E: tono de prueba de un patrón para Ajustes → Sonido (P13). Solo
   /// resultado técnico; no cambia el patrón ni la prueba de la sesión.
   MonitoringCommandResult previewSound(String patternId);

@@ -17,6 +17,14 @@ abstract interface class ExperimentalMonitoringBridge {
 
   /// Fase 5E: patrón guardado en Ajustes; si cambia, invalida la prueba.
   Future<MonitoringCommandResult> setSoundPattern(String patternId);
+  Future<MonitoringCommandResult> beginSettingsChange(
+    String changeId,
+    String patternId,
+  );
+  Future<MonitoringCommandResult> finishSettingsChange(
+    String changeId,
+    String patternId,
+  );
 
   /// Fase 5E: tono de prueba de P13, sin tocar la prueba de la sesión.
   Future<MonitoringCommandResult> previewSound(String patternId);
@@ -78,6 +86,18 @@ class PigeonExperimentalMonitoringBridge
   @override
   Future<MonitoringCommandResult> setSoundPattern(String patternId) =>
       _host.setSoundPattern(patternId);
+
+  @override
+  Future<MonitoringCommandResult> beginSettingsChange(
+    String changeId,
+    String patternId,
+  ) => _host.beginSettingsChange(changeId, patternId);
+
+  @override
+  Future<MonitoringCommandResult> finishSettingsChange(
+    String changeId,
+    String patternId,
+  ) => _host.finishSettingsChange(changeId, patternId);
 
   @override
   Future<MonitoringCommandResult> previewSound(String patternId) =>

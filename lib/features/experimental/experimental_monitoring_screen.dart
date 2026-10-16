@@ -61,6 +61,7 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
 
   static String rejectionText(String code) => switch (code) {
     'sessionActive' => 'Ya hay una sesión en curso.',
+    'settingsChangePending' => 'Espera a que termine el guardado de Ajustes.',
     'cameraNotReady' => 'La cámara no está lista.',
     'calibrationInProgress' => 'Hay una calibración en curso.',
     'calibrationNotApplicable' => 'Falta una calibración aceptada.',

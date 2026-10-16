@@ -25,6 +25,19 @@ final settingsLockedProvider = Provider<bool>((ref) {
   return ref.watch(demoSessionProvider.select((s) => s.isVigente));
 });
 
+/// Cada entrada en P12/P13 consulta el motor. Hasta conocerlo se permiten
+/// únicamente cambios de tema; una ruta directa no confía en una copia vieja.
+final settingsReadyProvider = FutureProvider.autoDispose<void>((ref) async {
+  if (ref.read(appModeProvider) is RealMode) {
+    await ref.read(experimentalMonitoringProvider.notifier).querySettings();
+  }
+});
+
+final settingsControlsLockedProvider = Provider.autoDispose<bool>((ref) {
+  final ready = ref.watch(settingsReadyProvider);
+  return !ready.hasValue || ready.hasError || ref.watch(settingsLockedProvider);
+});
+
 /// Reproductor de «Probar sonido» en P13: en la DEMO, el tono local de
 /// `MainActivity`; en la normal, el del motor experimental.
 final settingsSoundPlayerProvider = Provider<AlertSoundPlayer>((ref) {

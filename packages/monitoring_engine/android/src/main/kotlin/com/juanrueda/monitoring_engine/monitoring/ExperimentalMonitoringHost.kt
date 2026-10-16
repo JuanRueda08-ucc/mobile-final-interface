@@ -165,6 +165,8 @@ internal class ExperimentalMonitoringHost(
     override fun cancelCalibration() = coordinator.cancelCalibration().toPigeon()
     override fun testSound(patternId: String) = coordinator.testSound(patternId).toPigeon()
     override fun setSoundPattern(patternId: String) = coordinator.setSoundPattern(patternId).toPigeon()
+    override fun beginSettingsChange(changeId: String, patternId: String) = coordinator.beginSettingsChange(changeId, patternId).toPigeon()
+    override fun finishSettingsChange(changeId: String, patternId: String) = coordinator.finishSettingsChange(changeId, patternId).toPigeon()
     override fun previewSound(patternId: String) = coordinator.previewSound(patternId).toPigeon()
     override fun confirmSoundHeard(soundTestId: String) = coordinator.confirmSoundHeard(soundTestId).toPigeon()
     override fun startSession(calibrationId: String, soundTestId: String) =

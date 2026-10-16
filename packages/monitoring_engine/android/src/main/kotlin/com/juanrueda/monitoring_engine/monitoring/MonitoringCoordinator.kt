@@ -183,6 +183,8 @@ internal class MonitoringCoordinator(
     private var soundHeard = false
     private var soundFailure: String? = null
     private var soundPattern = SoundPattern.DEFAULT
+    private var settingsChange: String? = null
+    private var finishedSettingsChange: Pair<String, String>? = null
 
     private var lifecycle = SessionLifecycle.NONE
     private var sessionId: String? = null
@@ -309,6 +311,7 @@ internal class MonitoringCoordinator(
     /** Prueba el tono con [patternId], que pasa a ser el patrón de la próxima sesión. */
     fun testSound(patternId: String): CommandOutcome = synchronized(lock) {
         if (sessionVigente()) return@synchronized reject("sessionActive")
+        if (settingsChange != null) return@synchronized reject("settingsChangePending")
         val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
         if (pattern != soundPattern) invalidateSoundTest(pattern)
         val failure = alerts.play(ToneKind.TEST, pattern)
@@ -326,10 +329,35 @@ internal class MonitoringCoordinator(
      */
     fun setSoundPattern(patternId: String): CommandOutcome = synchronized(lock) {
         val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
+        if (settingsChange != null) return@synchronized reject("settingsChangePending")
         if (pattern == soundPattern) return@synchronized accept()
         if (sessionVigente()) return@synchronized reject("sessionActive")
         invalidateSoundTest(pattern)
         alerts.stop()
+        accept()
+    }
+
+    /** Reserva serial: ninguna sesión puede empezar entre aceptación y SQLite. */
+    fun beginSettingsChange(changeId: String, patternId: String): CommandOutcome = synchronized(lock) {
+        if (sessionVigente()) return@synchronized reject("sessionActive")
+        if (settingsChange == changeId) return@synchronized accept()
+        if (settingsChange != null) return@synchronized reject("settingsChangePending")
+        val result = setSoundPattern(patternId)
+        if (!result.accepted) return@synchronized result
+        settingsChange = changeId
+        accept()
+    }
+
+    fun finishSettingsChange(changeId: String, patternId: String): CommandOutcome = synchronized(lock) {
+        if (settingsChange == null && finishedSettingsChange == (changeId to patternId)) return@synchronized accept()
+        if (settingsChange != changeId) return@synchronized reject("unknownSettingsChange")
+        val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
+        if (pattern != soundPattern) {
+            invalidateSoundTest(pattern)
+            alerts.stop()
+        }
+        settingsChange = null
+        finishedSettingsChange = changeId to patternId
         accept()
     }
 
@@ -355,6 +383,7 @@ internal class MonitoringCoordinator(
     }
 
     fun confirmSoundHeard(id: String): CommandOutcome = synchronized(lock) {
+        if (settingsChange != null) return@synchronized reject("settingsChangePending")
         if (id != soundTestId || !soundPlayed) return@synchronized reject("soundTestNotPlayed")
         soundHeard = true
         accept()
@@ -366,6 +395,7 @@ internal class MonitoringCoordinator(
         val now = clockNs()
         when {
             sessionVigente() -> reject("sessionActive")
+            settingsChange != null -> reject("settingsChangePending")
             calibration != null -> reject("calibrationInProgress")
             ref == null || ref.calibrationId != calibrationId -> reject("calibrationNotApplicable")
             soundId != soundTestId || !soundPlayed || !soundHeard -> reject("soundNotConfirmed")

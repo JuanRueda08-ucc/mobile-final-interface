@@ -204,6 +204,67 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
 
   /// Código de rechazo del siguiente cambio de patrón.
   String? rejectPattern;
+  String? settingsChange;
+  (String, String)? finishedSettings;
+  bool failBeginSettings = false;
+  bool loseFinishReply = false;
+  bool restartOnFinish = false;
+
+  @override
+  Future<MonitoringCommandResult> beginSettingsChange(
+    String id,
+    String patternId,
+  ) async {
+    if (failBeginSettings) throw StateError('motor no disponible');
+    if (settingsChange == id) {
+      return MonitoringCommandResult(accepted: true, snapshot: current);
+    }
+    if (current.lifecycle == EngineSessionLifecycle.active ||
+        current.lifecycle == EngineSessionLifecycle.paused) {
+      current = _resequence(current);
+      return MonitoringCommandResult(
+        accepted: false,
+        errorCode: 'sessionActive',
+        snapshot: current,
+      );
+    }
+    final r = await setSoundPattern(patternId);
+    if (r.accepted) settingsChange = id;
+    return r;
+  }
+
+  @override
+  Future<MonitoringCommandResult> finishSettingsChange(
+    String id,
+    String patternId,
+  ) async {
+    if (restartOnFinish) {
+      restartOnFinish = false;
+      settingsChange = null;
+      finishedSettings = null;
+      current = _resequence(fakeSnapshot(engine: 'motor-reabierto'));
+    }
+    if (settingsChange == null && finishedSettings == (id, patternId)) {
+      return MonitoringCommandResult(accepted: true, snapshot: current);
+    }
+    if (settingsChange != id) {
+      return MonitoringCommandResult(
+        accepted: false,
+        errorCode: 'unknownSettingsChange',
+        snapshot: current,
+      );
+    }
+    final r = await setSoundPattern(patternId);
+    if (r.accepted) {
+      settingsChange = null;
+      finishedSettings = (id, patternId);
+    }
+    if (loseFinishReply) {
+      loseFinishReply = false;
+      throw StateError('respuesta perdida después de aplicar');
+    }
+    return r;
+  }
 
   /// Como el motor (fase 5E): un patrón distinto invalida la prueba de
   /// sonido y su confirmación; con sesión vigente se rechaza.
