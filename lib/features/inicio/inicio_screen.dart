@@ -97,7 +97,8 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
     switch (index) {
       case 1 when mode is DemoMode || realHistory:
         context.go(VigiaRoutes.historial);
-      case 2 when mode is DemoMode:
+      // Fase 5E: Ajustes de la variante normal, con su base abierta.
+      case 2 when mode is DemoMode || realHistory:
         context.go(VigiaRoutes.ajustes);
       case 1:
         showNotice(InicioScreen.historialNotice);

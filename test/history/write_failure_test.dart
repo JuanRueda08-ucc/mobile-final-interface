@@ -1,6 +1,7 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vigia/app/app_config.dart';
 import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/clock/monotonic_clock.dart';
 import 'package:vigia/data/demo_history/demo_history_database.dart';
@@ -79,6 +80,8 @@ void main() {
 
   ProviderContainer container() => ProviderContainer(
     overrides: [
+      // Fase 5E: el almacén de preferencias depende de la variante.
+      appModeProvider.overrideWithValue(const DemoMode()),
       monotonicClockProvider.overrideWith((ref) => PackageClock()),
       alertSoundPlayerProvider.overrideWithValue(FakeSoundPlayer()),
       demoHistoryRepositoryProvider.overrideWithValue(repo),

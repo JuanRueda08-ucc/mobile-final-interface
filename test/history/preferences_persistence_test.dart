@@ -184,6 +184,8 @@ void main() {
     ProviderContainer container({AlertSoundPlayer? player}) =>
         ProviderContainer(
           overrides: [
+            // Fase 5E: el almacén de preferencias depende de la variante.
+            appModeProvider.overrideWithValue(const DemoMode()),
             ...demoOverrides(repo, const StoredPreferences()),
             monotonicClockProvider.overrideWith((ref) => PackageClock()),
             alertSoundPlayerProvider.overrideWithValue(player ?? sound),

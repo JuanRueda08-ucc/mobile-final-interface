@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_config.dart';
 import '../../app/router.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_option.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
-import '../../data/demo_history/demo_history_repository.dart';
-import '../monitoring/demo_session_controller.dart';
 import 'preferences_controller.dart';
+import 'variant_settings.dart';
 
 /// P12 · Ajustes (FL11, RF29; B5.2 `vP12`).
 ///
@@ -21,6 +21,9 @@ import 'preferences_controller.dart';
 ///   si Android pide reducir el movimiento, se reduce siempre.
 /// - Sonido abre P13.
 /// - Con sesión vigente solo se puede cambiar el tema (UX §4.2).
+/// - Fase 5E: la misma pantalla sirve a la variante normal, con sus propias
+///   preferencias (`vigia_history_real_v1.sqlite`) y el bloqueo de la sesión
+///   experimental. No lleva el rótulo DEMO: no muestra datos simulados.
 ///
 /// Datos (exportación, borrado y retención), Perfil local y Ayuda no forman
 /// parte de este prototipo; se indica así, sin botones que aparenten
@@ -32,7 +35,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(preferencesProvider);
     final ctl = ref.read(preferencesProvider.notifier);
-    final lock = ref.watch(demoSessionProvider.select((s) => s.isVigente));
+    final lock = ref.watch(settingsLockedProvider);
+    final demo = ref.watch(appModeProvider) is DemoMode;
     final systemReduce = WidgetsBinding
         .instance
         .platformDispatcher
@@ -49,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
       },
       child: VigiaScaffold(
         title: 'Ajustes',
-        isDemo: true,
+        isDemo: demo,
         navIndex: 2,
         onNavSelected: (i) {
           if (i == 0) home();
@@ -120,6 +124,12 @@ class SettingsScreen extends ConsumerWidget {
               tag: 'Error',
               title: 'Preferencia no guardada',
               text: preferenceFailureText(f, v),
+            ),
+          if (!demo)
+            const VigiaParagraph(
+              'Preferencias de esta app. Vigía DEMO guarda las suyas por '
+              'separado.',
+              secondary: true,
             ),
           const VigiaSectionTitle('Más ajustes'),
           VigiaButton(

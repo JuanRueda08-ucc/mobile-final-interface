@@ -152,20 +152,55 @@ class ImportedRecords extends Table {
   Set<Column<Object>> get primaryKey => {recordId};
 }
 
+/// Preferencias de la variante normal (fase 5E; fila única de Área 06 §6).
+/// Son las de esta app: la DEMO tiene las suyas en su propia base. Retención,
+/// alias y explicación vista no forman parte de este prototipo.
+@DataClassName('RealPreferencesRow')
+class RealPreferences extends Table {
+  @override
+  String get tableName => 'preferences';
+
+  IntColumn get singleton =>
+      integer().check(singleton.equals(1)).withDefault(const Constant(1))();
+  TextColumn get theme =>
+      text().check(theme.isIn(const ['system', 'light', 'dark']))();
+
+  /// Solo patrones del catálogo local incluido (Área 06 §9: sin inventar IDs).
+  TextColumn get soundPatternId => text().check(
+    soundPatternId.isIn(const ['patron_1', 'patron_2', 'patron_3']),
+  )();
+  BoolColumn get reducedMotion => boolean()();
+  IntColumn get updatedEpochMs => integer()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {singleton};
+}
+
 @DriftDatabase(
-  tables: [ExperimentalSessions, ExperimentalSessionMarks, ImportedRecords],
+  tables: [
+    ExperimentalSessions,
+    ExperimentalSessionMarks,
+    ImportedRecords,
+    RealPreferences,
+  ],
 )
 class ExperimentalHistoryDatabase extends _$ExperimentalHistoryDatabase {
   ExperimentalHistoryDatabase(super.e);
 
-  /// historyDbVersion de la base real. Sin migraciones: primera versión.
+  /// historyDbVersion de la base real.
+  /// - 1: fase 5D (sesiones, marcas y recibos).
+  /// - 2: fase 5E, añade `preferences`; no toca las tablas de 5D.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
+      if (from == 1 && to == 2) {
+        await m.createTable(realPreferences);
+        return;
+      }
       // Sin ruta destructiva (Área 06 §18).
       throw StateError('Migración del historial real $from→$to no definida');
     },

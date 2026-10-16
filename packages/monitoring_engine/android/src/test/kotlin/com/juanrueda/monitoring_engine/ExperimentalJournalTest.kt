@@ -8,6 +8,7 @@ import com.juanrueda.monitoring_engine.journal.RecordStatus
 import com.juanrueda.monitoring_engine.journal.RecordType
 import com.juanrueda.monitoring_engine.journal.SessionJournal
 import com.juanrueda.monitoring_engine.monitoring.AlertSink
+import com.juanrueda.monitoring_engine.monitoring.SoundPattern
 import com.juanrueda.monitoring_engine.monitoring.CalibrationPhase
 import com.juanrueda.monitoring_engine.monitoring.EyeMeasurement
 import com.juanrueda.monitoring_engine.monitoring.EyeObservation
@@ -36,7 +37,7 @@ internal class ExperimentalJournalTest {
 
     private class Tone : AlertSink {
         var fail: String? = null
-        override fun play(kind: ToneKind): String? = if (kind == ToneKind.PROLONGED_CLOSURE) fail else null
+        override fun play(kind: ToneKind, pattern: SoundPattern): String? = if (kind == ToneKind.PROLONGED_CLOSURE) fail else null
         override fun stop() = Unit
     }
 
@@ -95,7 +96,7 @@ internal class ExperimentalJournalTest {
 
         fun started(): String {
             calibrated()
-            val sound = c.testSound().state.soundTestId!!
+            val sound = c.testSound("patron_1").state.soundTestId!!
             assertTrue(c.confirmSoundHeard(sound).accepted)
             feed(nowMs + 50, nowMs + 50, open)
             val r = c.startSession(last.calibrationId!!, sound)
@@ -223,7 +224,7 @@ internal class ExperimentalJournalTest {
     fun start_isRejectedWhenSessionStartIsNotDurable() {
         val rig = Rig()
         rig.calibrated()
-        val sound = rig.c.testSound().state.soundTestId!!
+        val sound = rig.c.testSound("patron_1").state.soundTestId!!
         rig.c.confirmSoundHeard(sound)
         rig.feed(rig.nowMs + 50, rig.nowMs + 50, open)
         rig.store.failWrites = true
@@ -353,7 +354,7 @@ internal class ExperimentalJournalTest {
     fun failedJournalFactory_rejectsStartWithTypedFailureAndCanRetry() {
         val rig = Rig()
         rig.calibrated()
-        val sound = rig.c.testSound().state.soundTestId!!
+        val sound = rig.c.testSound("patron_1").state.soundTestId!!
         rig.c.confirmSoundHeard(sound)
         rig.feed(rig.nowMs + 50, rig.nowMs + 50, open)
         rig.factoryFails = true
@@ -466,7 +467,7 @@ internal class ExperimentalJournalTest {
         // La DEMO comparte el plugin: cámara, calibración y sonido no abren el journal.
         val rig = Rig()
         rig.calibrated()
-        rig.c.testSound()
+        rig.c.testSound("patron_1")
         rig.feed(rig.nowMs + 50, rig.nowMs + 3000, open)
         rig.c.snapshot()
         assertEquals(0, rig.factoryCalls)

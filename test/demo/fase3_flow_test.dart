@@ -8,7 +8,6 @@ import 'package:vigia/core/audio/alert_sound.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/core/design_system/widgets/vigia_option.dart';
 import 'package:vigia/core/design_system/widgets/vigia_scaffold.dart';
-import 'package:vigia/data/demo_history/demo_history_repository.dart';
 import 'package:vigia/data/demo_history/history_providers.dart';
 import 'package:vigia/demo/inicio_demo.dart';
 import 'package:vigia/features/history/history_screen.dart';
@@ -382,8 +381,20 @@ void main() {
       await tapLabel(tester, 'Historial');
       expect(find.text(InicioScreen.historialNotice), findsOneWidget);
       expect(find.byType(HistoryScreen), findsNothing);
+      // Fase 5E: Ajustes existe en la app normal, con su propia base. Sin
+      // ella abierta no se finge un guardado ni se usa la base DEMO.
       await _go(tester, VigiaRoutes.ajustes);
-      expect(find.byType(InicioScreen), findsOneWidget);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text(DemoLabel.text), findsNothing);
+      await tapLabel(tester, 'Oscuro');
+      await tester.pumpAndSettle();
+      expect(find.text('Preferencia no guardada'), findsOneWidget);
+      expect(
+        find.text(
+          'No se pudo guardar el tema oscuro. El tema sigue en Sistema.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('VIGIA_DEMO_INICIO: revisión sin historial ni escrituras', (

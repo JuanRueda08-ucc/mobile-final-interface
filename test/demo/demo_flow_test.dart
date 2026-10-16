@@ -17,6 +17,8 @@ import 'package:vigia/features/monitoring/monitoring_screen.dart';
 import 'package:vigia/features/preparation/preparation_controller.dart';
 import 'package:vigia/features/preparation/preparation_screen.dart';
 import 'package:vigia/features/preparation/preparation_state.dart';
+import 'package:vigia/features/settings/settings_screen.dart';
+import 'package:vigia/features/settings/sound_screen.dart';
 import 'package:vigia/features/summary/summary_screen.dart';
 
 import '../support/demo_harness.dart';
@@ -217,8 +219,6 @@ void main() {
       VigiaRoutes.preparacion,
       VigiaRoutes.calibracion,
       VigiaRoutes.monitoreo,
-      VigiaRoutes.ajustes,
-      VigiaRoutes.sonido,
     ]) {
       demoRouter(tester).go(r);
       await settle(tester);
@@ -226,7 +226,10 @@ void main() {
     }
     // Fase 5D: Historial, Resumen y detalle existen en la variante normal,
     // pero son las pantallas experimentales reales: nunca datos DEMO.
+    // Fase 5E: también Ajustes y Sonido, con las preferencias de la normal.
     for (final (r, screen) in [
+      (VigiaRoutes.ajustes, SettingsScreen),
+      (VigiaRoutes.sonido, SoundScreen),
       (VigiaRoutes.historial, ExperimentalHistoryScreen),
       (VigiaRoutes.resumen('S-DEMO-0001'), ExperimentalSummaryScreen),
       (VigiaRoutes.detalle('S-DEMO-0001'), ExperimentalSessionDetailScreen),

@@ -60,8 +60,9 @@ void main() {
     }
 
     // Fase 5D: la app normal abre solo su proyección real experimental.
+    // Fase 5E: con sus preferencias (repositorio y preferencias iniciales).
     final real = await bootstrap(const RealMode(), openDatabase: open);
-    expect(real, hasLength(1));
+    expect(real, hasLength(2));
     expect(opened, [realHistoryDatabaseName]);
     expect(realHistoryDatabaseName, 'vigia_history_real_v1');
     expect(

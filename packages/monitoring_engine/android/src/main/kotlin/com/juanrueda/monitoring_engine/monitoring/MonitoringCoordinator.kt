@@ -9,8 +9,11 @@ import com.juanrueda.monitoring_engine.journal.SessionTotals
 
 /** Aviso sonoro local (en Android, `ToneGenerator`). */
 internal interface AlertSink {
-    /** Reproduce el tono de [kind]. Nulo si se inició; si no, el código del fallo. */
-    fun play(kind: ToneKind): String?
+    /**
+     * Reproduce el tono de [kind] del [pattern] indicado. Nulo si se inició;
+     * si no, el código del fallo.
+     */
+    fun play(kind: ToneKind, pattern: SoundPattern): String?
 
     /** Detiene cualquier tono y libera el audio. */
     fun stop()
@@ -60,6 +63,8 @@ internal data class MonitoringState(
     val soundTestPlayed: Boolean,
     val soundHeard: Boolean,
     val soundFailure: String?,
+    /** Patrón de la prueba y de los avisos de la próxima sesión o la vigente (5E). */
+    val soundPatternId: String = SoundPattern.DEFAULT.id,
     // Sesión.
     val lifecycle: SessionLifecycle,
     val resumePending: Boolean,
@@ -104,6 +109,12 @@ internal data class CommandOutcome(val accepted: Boolean, val errorCode: String?
  *   sesión queda terminal.
  * - El aviso de cierre prolongado se decide y se reproduce aquí, sin pasar
  *   por Flutter.
+ * - **Patrón de sonido (fase 5E).** La prueba ([testSound]) y los avisos
+ *   usan el patrón guardado en Ajustes, que Flutter envía. Cambiarlo
+ *   ([setSoundPattern]) invalida la prueba y su confirmación: una respuesta
+ *   tardía de una prueba anterior lleva otro `soundTestId` y no confirma el
+ *   patrón nuevo. Con sesión vigente no se cambia: la sesión conserva el
+ *   patrón con el que se confirmó su prueba.
  * - **Journal (fase 5D).** Con [journalFactory], el inicio solo se acepta si
  *   su hecho es durable; pausa, reanudación confirmada, activaciones, tonos,
  *   puntos de control (≤ 1 por segundo) y el cierre se escriben en el
@@ -171,6 +182,7 @@ internal class MonitoringCoordinator(
     private var soundPlayed = false
     private var soundHeard = false
     private var soundFailure: String? = null
+    private var soundPattern = SoundPattern.DEFAULT
 
     private var lifecycle = SessionLifecycle.NONE
     private var sessionId: String? = null
@@ -294,14 +306,52 @@ internal class MonitoringCoordinator(
         accept()
     }
 
-    fun testSound(): CommandOutcome = synchronized(lock) {
+    /** Prueba el tono con [patternId], que pasa a ser el patrón de la próxima sesión. */
+    fun testSound(patternId: String): CommandOutcome = synchronized(lock) {
         if (sessionVigente()) return@synchronized reject("sessionActive")
-        val failure = alerts.play(ToneKind.TEST)
+        val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
+        if (pattern != soundPattern) invalidateSoundTest(pattern)
+        val failure = alerts.play(ToneKind.TEST, pattern)
         soundTestId = newId()
         soundPlayed = failure == null
         soundHeard = false
         soundFailure = failure
         if (failure == null) accept() else reject(failure)
+    }
+
+    /**
+     * Fija el patrón guardado en Ajustes. Si cambia, la prueba anterior y su
+     * confirmación dejan de valer (RF29.CA3, Área 06: cambiar el patrón
+     * invalida la prueba de audibilidad de la siguiente sesión).
+     */
+    fun setSoundPattern(patternId: String): CommandOutcome = synchronized(lock) {
+        val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
+        if (pattern == soundPattern) return@synchronized accept()
+        if (sessionVigente()) return@synchronized reject("sessionActive")
+        invalidateSoundTest(pattern)
+        alerts.stop()
+        accept()
+    }
+
+    /**
+     * Tono de prueba de [patternId] para Ajustes → Sonido (P13). Es solo un
+     * resultado técnico: no cambia el patrón ni la prueba de la sesión.
+     */
+    fun previewSound(patternId: String): CommandOutcome = synchronized(lock) {
+        val pattern = SoundPattern.byId(patternId) ?: return@synchronized reject("unknownSoundPattern")
+        when {
+            sessionVigente() -> reject("sessionActive")
+            calibration != null -> reject("calibrationInProgress")
+            else -> alerts.play(ToneKind.TEST, pattern)?.let(::reject) ?: accept()
+        }
+    }
+
+    private fun invalidateSoundTest(pattern: SoundPattern) {
+        soundPattern = pattern
+        soundTestId = null
+        soundPlayed = false
+        soundHeard = false
+        soundFailure = null
     }
 
     fun confirmSoundHeard(id: String): CommandOutcome = synchronized(lock) {
@@ -508,7 +558,9 @@ internal class MonitoringCoordinator(
         val changed = before != (run.step to run.probe)
         // Con los ojos cerrados no se lee la pantalla: un pitido de guía pide
         // abrirlos. Es una indicación, no un aviso; su resultado no se cuenta.
-        if (changed && run.step == CalibrationStep.REOPEN) alerts.play(ToneKind.TEST)
+        // Usa siempre el patrón por defecto: la guía de calibración no
+        // depende de Ajustes (fase 5E no cambia la calibración).
+        if (changed && run.step == CalibrationStep.REOPEN) alerts.play(ToneKind.TEST, SoundPattern.DEFAULT)
         return changed
     }
 
@@ -524,7 +576,7 @@ internal class MonitoringCoordinator(
     /** Devuelve el código del fallo, o nulo si el tono se inició. */
     private fun dispatchTone(kind: ToneKind): String? {
         // Un fallo también consume el intento (Área 05 §13).
-        val error = alerts.play(kind)
+        val error = alerts.play(kind, soundPattern)
         if (error == null) tonesPlayed++ else tonesFailed++
         return error
     }
@@ -604,6 +656,7 @@ internal class MonitoringCoordinator(
             soundTestPlayed = soundPlayed,
             soundHeard = soundHeard,
             soundFailure = soundFailure,
+            soundPatternId = soundPattern.id,
             lifecycle = lifecycle,
             resumePending = resumePending,
             sessionId = sessionId,

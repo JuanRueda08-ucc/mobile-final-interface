@@ -62,6 +62,8 @@ Future<String?> readApplicationId() async {
 ///   `vigia_history_real_v1.sqlite`, la proyección del journal nativo
 ///   experimental. La importación la piden las pantallas; el journal es la
 ///   fuente durable y la recuperación de interrumpidas la decide Kotlin.
+///   Fase 5E: carga las preferencias de esa misma base (migrada a v2 si
+///   venía de 5D), nunca las de la DEMO.
 /// - DEMO: comprueba el applicationId, abre `vigia_history_demo_v1.sqlite`,
 ///   marca como interrumpidas las sesiones que quedaron sin cierre (RF19) y
 ///   carga las preferencias guardadas.
@@ -78,17 +80,23 @@ Future<List<Override>> bootstrap(
     // Fuera de Android (pruebas sin canal) no hay motor ni journal.
     if (applicationId == null && openDatabase == null) return const [];
     final db = ExperimentalHistoryDatabase(open(realHistoryDatabaseName));
-    return [
-      experimentalHistoryRepositoryProvider.overrideWithValue(
-        ExperimentalHistoryRepository(db),
-      ),
-    ];
+    final repo = ExperimentalHistoryRepository(db);
+    return realOverrides(repo, await repo.loadPreferences());
   }
   if (mode is! DemoMode) return const [];
   final db = DemoHistoryDatabase(open(demoHistoryDatabaseName));
   final repo = await DriftDemoHistoryRepository.open(db);
   return demoOverrides(repo, await repo.loadPreferences());
 }
+
+/// Sustituciones de la variante normal con su historial y preferencias.
+List<Override> realOverrides(
+  ExperimentalHistoryRepository repo,
+  StoredPreferences preferences,
+) => [
+  experimentalHistoryRepositoryProvider.overrideWithValue(repo),
+  initialPreferencesProvider.overrideWithValue(preferences),
+];
 
 /// Sustituciones del recorrido DEMO con su historial y preferencias.
 List<Override> demoOverrides(

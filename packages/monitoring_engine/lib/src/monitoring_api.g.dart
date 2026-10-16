@@ -591,6 +591,7 @@ class MonitoringSnapshot {
     required this.soundTestPlayed,
     required this.soundHeard,
     this.soundFailure,
+    required this.soundPatternId,
     required this.lifecycle,
     required this.resumePending,
     this.sessionId,
@@ -691,6 +692,10 @@ class MonitoringSnapshot {
 
   String? soundFailure;
 
+  /// Fase 5E: patrón de sonido (`patron_1`…) de la prueba y de los avisos
+  /// de la próxima sesión o de la vigente. Lo fija Flutter con el guardado.
+  String soundPatternId;
+
   EngineSessionLifecycle lifecycle;
 
   /// Reanudación pedida: la pausa sigue abierta hasta cumplir Krecover.
@@ -765,6 +770,7 @@ class MonitoringSnapshot {
       soundTestPlayed,
       soundHeard,
       soundFailure,
+      soundPatternId,
       lifecycle,
       resumePending,
       sessionId,
@@ -822,21 +828,22 @@ class MonitoringSnapshot {
       soundTestPlayed: result[29]! as bool,
       soundHeard: result[30]! as bool,
       soundFailure: result[31] as String?,
-      lifecycle: result[32]! as EngineSessionLifecycle,
-      resumePending: result[33]! as bool,
-      sessionId: result[34] as String?,
-      measurement: result[35]! as EngineMeasurement,
-      signal: result[36]! as EngineSignal,
-      measurementCause: result[37] as String?,
-      activeMs: result[38]! as int,
-      pausedMs: result[39]! as int,
-      evaluableMs: result[40]! as int,
-      closureActivations: result[41]! as int,
-      tonesPlayed: result[42]! as int,
-      tonesFailed: result[43]! as int,
-      closedRunMs: result[44] as int?,
-      recordStatus: result[45] as String?,
-      latestDurableOffsetMs: result[46] as int?,
+      soundPatternId: result[32]! as String,
+      lifecycle: result[33]! as EngineSessionLifecycle,
+      resumePending: result[34]! as bool,
+      sessionId: result[35] as String?,
+      measurement: result[36]! as EngineMeasurement,
+      signal: result[37]! as EngineSignal,
+      measurementCause: result[38] as String?,
+      activeMs: result[39]! as int,
+      pausedMs: result[40]! as int,
+      evaluableMs: result[41]! as int,
+      closureActivations: result[42]! as int,
+      tonesPlayed: result[43]! as int,
+      tonesFailed: result[44]! as int,
+      closedRunMs: result[45] as int?,
+      recordStatus: result[46] as String?,
+      latestDurableOffsetMs: result[47] as int?,
     );
   }
 
@@ -881,6 +888,7 @@ class MonitoringSnapshot {
         _deepEquals(soundTestPlayed, other.soundTestPlayed) &&
         _deepEquals(soundHeard, other.soundHeard) &&
         _deepEquals(soundFailure, other.soundFailure) &&
+        _deepEquals(soundPatternId, other.soundPatternId) &&
         _deepEquals(lifecycle, other.lifecycle) &&
         _deepEquals(resumePending, other.resumePending) &&
         _deepEquals(sessionId, other.sessionId) &&
@@ -904,7 +912,7 @@ class MonitoringSnapshot {
 
   @override
   String toString() {
-    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, observationId: $observationId, eyesValidForMs: $eyesValidForMs, signalValidForMs: $signalValidForMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs, recordStatus: $recordStatus, latestDurableOffsetMs: $latestDurableOffsetMs)';
+    return 'MonitoringSnapshot(engineInstanceId: $engineInstanceId, sequence: $sequence, profileId: $profileId, qualificationStatus: $qualificationStatus, attachedToken: $attachedToken, eyesValid: $eyesValid, eyeIssue: $eyeIssue, earRight: $earRight, earLeft: $earLeft, ratioRight: $ratioRight, ratioLeft: $ratioLeft, observationAgeMs: $observationAgeMs, observationId: $observationId, eyesValidForMs: $eyesValidForMs, signalValidForMs: $signalValidForMs, calibrationStep: $calibrationStep, calibrationAttempt: $calibrationAttempt, calibrationProbe: $calibrationProbe, stepElapsedMs: $stepElapsedMs, stepDurationMs: $stepDurationMs, stepValidSamples: $stepValidSamples, calibrationId: $calibrationId, calibrationRejection: $calibrationRejection, calibrationDetail: $calibrationDetail, openEarRight: $openEarRight, openEarLeft: $openEarLeft, calibrationSamples: $calibrationSamples, calibrationCoverage: $calibrationCoverage, soundTestId: $soundTestId, soundTestPlayed: $soundTestPlayed, soundHeard: $soundHeard, soundFailure: $soundFailure, soundPatternId: $soundPatternId, lifecycle: $lifecycle, resumePending: $resumePending, sessionId: $sessionId, measurement: $measurement, signal: $signal, measurementCause: $measurementCause, activeMs: $activeMs, pausedMs: $pausedMs, evaluableMs: $evaluableMs, closureActivations: $closureActivations, tonesPlayed: $tonesPlayed, tonesFailed: $tonesFailed, closedRunMs: $closedRunMs, recordStatus: $recordStatus, latestDurableOffsetMs: $latestDurableOffsetMs)';
   }
 }
 
@@ -1561,8 +1569,9 @@ class ExperimentalMonitoringHostApi {
     return pigeonVar_replyValue! as MonitoringCommandResult;
   }
 
-  /// Tono local de prueba; devuelve el identificador de la prueba.
-  Future<MonitoringCommandResult> testSound() async {
+  /// Tono local de prueba con el patrón indicado, que pasa a ser el de la
+  /// próxima sesión; devuelve el identificador de la prueba.
+  Future<MonitoringCommandResult> testSound(String patternId) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.testSound$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1570,7 +1579,55 @@ class ExperimentalMonitoringHostApi {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[patternId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Fase 5E: patrón guardado en Ajustes. Si cambia, invalida la prueba de
+  /// sonido y su confirmación. Rechazado con sesión vigente.
+  Future<MonitoringCommandResult> setSoundPattern(String patternId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.setSoundPattern$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[patternId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
+  /// Fase 5E: tono de prueba de un patrón para Ajustes → Sonido (P13). Solo
+  /// resultado técnico; no cambia el patrón ni la prueba de la sesión.
+  Future<MonitoringCommandResult> previewSound(String patternId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.previewSound$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[patternId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

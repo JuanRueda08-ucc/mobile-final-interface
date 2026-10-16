@@ -2,7 +2,10 @@ import 'package:drift/drift.dart';
 
 import '../../features/monitoring/domain/session_model.dart';
 import '../../features/monitoring/domain/session_summary.dart';
+import '../preferences/preferences_store.dart';
 import 'demo_history_database.dart';
+
+export '../preferences/preferences_store.dart';
 
 /// Ciclo guardado de una sesión (Área 06 §6). `interrupted`: el proceso
 /// terminó sin cierre confirmado (RF19).
@@ -91,47 +94,9 @@ final class SessionStartRecord {
   final String calibrationId;
 }
 
-/// Preferencias guardadas (Área 06 §6).
-enum ThemePreference { system, light, dark }
-
-final class StoredPreferences {
-  const StoredPreferences({
-    this.theme = ThemePreference.system,
-    this.soundPatternId = defaultSoundPatternId,
-    this.reducedMotion = false,
-  });
-
-  /// Patrón inicial del catálogo local (Área 06 §9).
-  static const defaultSoundPatternId = 'patron_1';
-
-  final ThemePreference theme;
-  final String soundPatternId;
-  final bool reducedMotion;
-
-  StoredPreferences copyWith({
-    ThemePreference? theme,
-    String? soundPatternId,
-    bool? reducedMotion,
-  }) => StoredPreferences(
-    theme: theme ?? this.theme,
-    soundPatternId: soundPatternId ?? this.soundPatternId,
-    reducedMotion: reducedMotion ?? this.reducedMotion,
-  );
-
-  @override
-  bool operator ==(Object other) =>
-      other is StoredPreferences &&
-      other.theme == theme &&
-      other.soundPatternId == soundPatternId &&
-      other.reducedMotion == reducedMotion;
-
-  @override
-  int get hashCode => Object.hash(theme, soundPatternId, reducedMotion);
-}
-
 /// Historial DEMO: lo usan el controlador de sesión (escritura) y las
 /// pantallas P03, P07, P08, P09 y P12 (lectura). Los widgets no ven Drift.
-abstract interface class DemoHistoryRepository {
+abstract interface class DemoHistoryRepository implements PreferencesStore {
   /// Siguiente número de `S-DEMO-NNNN`, sin reutilizar los ya guardados.
   int reserveSessionNumber();
 
@@ -169,8 +134,7 @@ abstract interface class DemoHistoryRepository {
   Future<StoredSession?> latestSession();
   Future<List<SessionEvent>> events(String sessionId);
 
-  Future<StoredPreferences> loadPreferences();
-  Future<void> savePreferences(StoredPreferences preferences);
+  // Preferencias DEMO: [PreferencesStore], en la fila única de esta base.
 }
 
 /// Implementación con Drift/SQLite.

@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/app_config.dart';
 import '../../core/audio/alert_sound.dart';
-import '../../data/demo_history/demo_history_repository.dart';
 import '../../data/demo_history/history_providers.dart';
+import '../../data/experimental_history/experimental_history_providers.dart';
+import '../../data/preferences/preferences_store.dart';
 
-/// Preferencias leídas al abrir la app (las fija `bootstrap.dart`). Sin base
-/// abierta (modo real o revisión de Inicio) son las iniciales y no se guardan.
+export '../../data/preferences/preferences_store.dart';
+
+/// Preferencias leídas al abrir la app (las fija `bootstrap.dart` con las de
+/// la base de su variante). Sin base abierta (revisión de Inicio, pruebas)
+/// son las iniciales.
 final initialPreferencesProvider = Provider<StoredPreferences>(
   (ref) => const StoredPreferences(),
 );
+
+/// Dónde se guardan las preferencias de esta variante (Área 06 §16):
+/// - DEMO: la fila única de `vigia_history_demo_v1.sqlite`;
+/// - normal (fase 5E): la de `vigia_history_real_v1.sqlite`.
+///
+/// Nunca la de la otra variante. Sin base abierta, cada escritura falla y se
+/// informa: no se finge un guardado.
+final preferencesStoreProvider = Provider<PreferencesStore>((ref) {
+  if (ref.watch(appModeProvider) is RealMode) {
+    return ref.watch(experimentalHistoryRepositoryProvider) ??
+        const _UnavailablePreferences();
+  }
+  return ref.watch(demoHistoryRepositoryProvider);
+});
+
+final class _UnavailablePreferences implements PreferencesStore {
+  const _UnavailablePreferences();
+
+  @override
+  Future<StoredPreferences> loadPreferences() async =>
+      const StoredPreferences();
+
+  @override
+  Future<void> savePreferences(StoredPreferences preferences) =>
+      Future.error(StateError('Base de preferencias no abierta'));
+}
 
 /// Resultado de las escrituras de preferencias.
 enum PreferenceSave { idle, saving, saved, failed }
@@ -73,7 +104,8 @@ final class _Change {
 }
 
 /// Tema, patrón de sonido y movimiento reducido (RF29, P12–P13), guardados en
-/// la fila única de preferencias del historial DEMO.
+/// la fila única de preferencias de la variante ([preferencesStoreProvider]).
+/// Es el mismo controlador para la DEMO y la normal; solo cambia la base.
 ///
 /// Las escrituras se hacen una tras otra, en el orden pedido. Cada una aplica
 /// **su** cambio sobre las últimas preferencias guardadas, así que un cambio
@@ -118,8 +150,9 @@ class PreferencesController extends Notifier<PreferencesState> {
 
   /// Guarda el patrón de las alertas. Solo cambia si quedó guardado: un fallo
   /// deja las alertas con el patrón anterior. Al cambiar, la prueba de sonido
-  /// de Preparación vuelve a ser obligatoria (RF29.CA3): lo aplica
-  /// `PreparationController`.
+  /// vuelve a ser obligatoria (RF29.CA3): en la DEMO lo aplica
+  /// `PreparationController`; en la normal, el motor al recibir el patrón
+  /// (`ExperimentalMonitoringController`).
   Future<bool> setSoundPattern(String patternId) => _enqueue(
     _Change(
       PreferenceField.soundPattern,
@@ -145,7 +178,7 @@ class PreferencesController extends Notifier<PreferencesState> {
     final next = change.apply(_saved);
     var ok = true;
     try {
-      await ref.read(demoHistoryRepositoryProvider).savePreferences(next);
+      await ref.read(preferencesStoreProvider).savePreferences(next);
     } catch (_) {
       ok = false;
     }

@@ -29,6 +29,7 @@ MonitoringSnapshot fakeSnapshot({
   bool soundTestPlayed = false,
   bool soundHeard = false,
   String? soundFailure,
+  String soundPatternId = 'patron_1',
   EngineSessionLifecycle lifecycle = EngineSessionLifecycle.none,
   bool resumePending = false,
   String? sessionId,
@@ -74,6 +75,7 @@ MonitoringSnapshot fakeSnapshot({
   soundTestPlayed: soundTestPlayed,
   soundHeard: soundHeard,
   soundFailure: soundFailure,
+  soundPatternId: soundPatternId,
   lifecycle: lifecycle,
   resumePending: resumePending,
   sessionId: sessionId,
@@ -188,8 +190,70 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
   Future<MonitoringCommandResult> cancelCalibration() =>
       _cmd('cancelCalibration');
 
+  /// Patrones con los que se pidió cada prueba de sonido.
+  final testPatterns = <String>[];
+
   @override
-  Future<MonitoringCommandResult> testSound() => _cmd('testSound');
+  Future<MonitoringCommandResult> testSound(String patternId) {
+    testPatterns.add(patternId);
+    return _cmd('testSound');
+  }
+
+  /// Retiene los cambios de patrón (independiente de [hold]).
+  Completer<void>? patternHold;
+
+  /// Código de rechazo del siguiente cambio de patrón.
+  String? rejectPattern;
+
+  /// Como el motor (fase 5E): un patrón distinto invalida la prueba de
+  /// sonido y su confirmación; con sesión vigente se rechaza.
+  @override
+  Future<MonitoringCommandResult> setSoundPattern(String patternId) async {
+    calls.add('soundPattern:$patternId');
+    final h = patternHold;
+    if (h != null) await h.future;
+    var code = rejectPattern;
+    rejectPattern = null;
+    var s = current;
+    if (code == null && s.soundPatternId != patternId) {
+      if (s.lifecycle == EngineSessionLifecycle.active ||
+          s.lifecycle == EngineSessionLifecycle.paused) {
+        code = 'sessionActive';
+      } else {
+        s = MonitoringSnapshot.decode(s.encode())
+          ..soundPatternId = patternId
+          ..soundTestId = null
+          ..soundTestPlayed = false
+          ..soundHeard = false
+          ..soundFailure = null;
+      }
+    }
+    current = _resequence(s);
+    return MonitoringCommandResult(
+      accepted: code == null,
+      errorCode: code,
+      snapshot: current,
+    );
+  }
+
+  /// Retiene las vistas previas de P13 y fija su rechazo.
+  Completer<void>? previewHold;
+  String? rejectPreview;
+
+  @override
+  Future<MonitoringCommandResult> previewSound(String patternId) async {
+    calls.add('preview:$patternId');
+    final h = previewHold;
+    if (h != null) await h.future;
+    final code = rejectPreview;
+    rejectPreview = null;
+    current = _resequence(current);
+    return MonitoringCommandResult(
+      accepted: code == null,
+      errorCode: code,
+      snapshot: current,
+    );
+  }
 
   @override
   Future<MonitoringCommandResult> confirmSoundHeard(String soundTestId) =>

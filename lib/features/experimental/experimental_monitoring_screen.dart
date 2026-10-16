@@ -14,6 +14,7 @@ import '../camera/front_camera_controller.dart';
 import '../camera/front_camera_screen.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../experimental_history/experimental_history_blocks.dart';
+import '../settings/preferences_controller.dart';
 import 'experimental_monitoring_controller.dart';
 
 /// Monitoreo experimental (fase 5C, variante normal).
@@ -67,6 +68,8 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
     'eyesNotEvaluable' => 'Los ojos no son medibles en este momento.',
     'alarmVolumeZero' => 'El volumen de alarma está en cero.',
     'toneNotStarted' || 'toneUnavailable' => 'Android no inició el tono.',
+    'unknownSoundPattern' => 'El patrón de sonido no está incluido.',
+    'soundTestNotPlayed' => 'Repite la prueba de sonido.',
     _ => 'El motor rechazó la orden ($code).',
   };
 
@@ -241,6 +244,8 @@ class _ExperimentalMonitoringScreenState
   Widget build(BuildContext context) {
     final cam = ref.watch(frontCameraProvider);
     final s = ref.watch(experimentalMonitoringProvider);
+    // La validez de la prueba de sonido depende del patrón guardado.
+    ref.watch(preferencesProvider.select((p) => p.value.soundPatternId));
     final snap = s.snapshot;
     final finalized =
         _showSummary && s.lifecycle == EngineSessionLifecycle.finalized;
@@ -288,7 +293,9 @@ class _ExperimentalMonitoringScreenState
     final accepted = step == CalibrationStep.accepted;
     final busy = s.pending != null;
     final canCalibrate = cameraOk && eyesOk && !s.calibrating && !busy;
-    final soundOk = snap?.soundHeard ?? false;
+    // Fase 5E: solo cuenta la prueba del patrón guardado en Ajustes.
+    final soundPlayed = _exp.soundTestPlayedFor(snap);
+    final soundOk = _exp.soundConfirmedFor(snap);
     final canStart = accepted && soundOk && eyesOk && cameraOk && !busy;
     return [
       CheckGroup(rows: _eyeRows(s, cam)),
@@ -323,12 +330,12 @@ class _ExperimentalMonitoringScreenState
             ok: soundOk,
             value: soundOk
                 ? 'Confirmado'
-                : (snap?.soundTestPlayed ?? false)
+                : soundPlayed
                 ? 'Reproducción técnica correcta'
                 : snap?.soundFailure != null
                 ? 'No se reprodujo'
                 : 'Sin probar',
-            cause: (snap?.soundTestPlayed ?? false) && !soundOk
+            cause: soundPlayed && !soundOk
                 ? 'Esto no confirma que lo hayas oído. Confírmalo si lo '
                       'escuchaste.'
                 : snap?.soundFailure != null
@@ -352,7 +359,7 @@ class _ExperimentalMonitoringScreenState
           VigiaButton(
             label: 'Lo escuché',
             kind: VigiaButtonKind.secondary,
-            onPressed: !busy && (snap?.soundTestPlayed ?? false) && !soundOk
+            onPressed: !busy && soundPlayed && !soundOk
                 ? () => _run(_exp.confirmSoundHeard)
                 : null,
           ),
@@ -374,7 +381,7 @@ class _ExperimentalMonitoringScreenState
       if (!eyesOk) 'ojos medibles',
       if (s.snapshot?.calibrationStep != CalibrationStep.accepted)
         'calibración',
-      if (!(s.snapshot?.soundHeard ?? false)) 'prueba de sonido',
+      if (!_exp.soundConfirmedFor(s.snapshot)) 'prueba de sonido',
     ];
     if (missing.isEmpty) return 'Esperando la respuesta del motor.';
     return 'Para iniciar falta: ${missing.join(', ')}.';

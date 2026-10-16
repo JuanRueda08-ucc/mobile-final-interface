@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/app_config.dart';
 import '../../app/router.dart';
 import '../../core/audio/alert_sound.dart';
 import '../../core/design_system/vigia_icons.dart';
@@ -11,8 +12,8 @@ import '../../core/design_system/widgets/vigia_flow_blocks.dart';
 import '../../core/design_system/widgets/vigia_option.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../common/session_blocked.dart';
-import '../monitoring/demo_session_controller.dart';
 import 'preferences_controller.dart';
+import 'variant_settings.dart';
 
 enum _Test { idle, playing, ok, failed }
 
@@ -25,6 +26,11 @@ enum _Test { idle, playing, ok, failed }
 ///
 /// Bloqueado con sesión vigente (UX §4.2). Salir con cambios sin guardar
 /// ofrece Descartar cambios / Seguir editando (UX §4.1).
+///
+/// Fase 5E, variante normal: «Probar sonido» lo reproduce el motor
+/// experimental con los tonos del patrón; el patrón guardado es el que usará
+/// la próxima sesión, y cambiarlo invalida la prueba de sonido que hubiera
+/// en el monitoreo experimental.
 ///
 /// Los avisos de guardado salen del estado del controlador, no de la
 /// respuesta de cada petición: una respuesta antigua (de éxito o de fallo) no
@@ -50,7 +56,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
     final attempt = ++_testAttempt;
     setState(() => _test = _Test.playing);
     final r = await ref
-        .read(alertSoundPlayerProvider)
+        .read(settingsSoundPlayerProvider)
         .play(AlertSoundKind.test, patternId: patternId);
     if (!mounted || attempt != _testAttempt) return;
     setState(() {
@@ -74,7 +80,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
         text: 'El patrón elegido no se guardó.',
         safeLabel: 'Seguir editando',
         actionLabel: 'Descartar cambios',
-        isDemo: true,
+        isDemo: ref.read(appModeProvider) is DemoMode,
       );
       if (!discard || !mounted) return;
     }
@@ -83,7 +89,8 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final vigente = ref.watch(demoSessionProvider.select((s) => s.isVigente));
+    final vigente = ref.watch(settingsLockedProvider);
+    final mode = ref.watch(appModeProvider);
     final prefs = ref.watch(preferencesProvider);
     // Patrón confirmado: el patrón solo cambia en el estado al guardarse.
     final saved = prefs.value.soundPatternId;
@@ -102,10 +109,14 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
       },
       child: VigiaScaffold(
         title: 'Sonido',
-        isDemo: true,
+        isDemo: mode is DemoMode,
         onBack: () => _back(dirty),
         children: vigente
-            ? sessionBlockedBlocks(context, 'Sonido')
+            ? sessionBlockedBlocks(
+                context,
+                'Sonido',
+                monitoring: monitoringRouteFor(mode),
+              )
             : [
                 const VigiaParagraph(
                   'Patrones incluidos. El catálogo definitivo está pendiente '

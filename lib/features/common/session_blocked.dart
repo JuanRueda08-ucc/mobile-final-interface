@@ -8,7 +8,14 @@ import '../../core/design_system/widgets/vigia_button.dart';
 
 /// Contenido de una función bloqueada por sesión vigente (B5.2 `vBLK`,
 /// UX §4.2, UX11.CA2): también al llegar por ruta directa.
-List<Widget> sessionBlockedBlocks(BuildContext context, String feature) => [
+///
+/// [monitoring] es la ruta del monitoreo de la variante: el recorrido DEMO o,
+/// en la normal, el monitoreo experimental.
+List<Widget> sessionBlockedBlocks(
+  BuildContext context,
+  String feature, {
+  String monitoring = VigiaRoutes.monitoreo,
+}) => [
   StatusCard(
     tone: StatusTone.strong,
     icon: VigiaIcon.lock,
@@ -21,7 +28,7 @@ List<Widget> sessionBlockedBlocks(BuildContext context, String feature) => [
   ),
   VigiaButton(
     label: 'Volver al monitoreo',
-    onPressed: () => context.go(VigiaRoutes.monitoreo),
+    onPressed: () => context.go(monitoring),
   ),
   VigiaButton(
     label: 'Volver al inicio',

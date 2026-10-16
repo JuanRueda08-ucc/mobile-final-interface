@@ -47,12 +47,13 @@ internal class ToneAlertSink(
     private val lock = Any()
     private var generator: ToneHandle? = null
 
-    override fun play(kind: ToneKind): String? = synchronized(lock) {
+    override fun play(kind: ToneKind, pattern: SoundPattern): String? = synchronized(lock) {
         releaseLocked()
         if (alarmVolume() == 0) return "alarmVolumeZero"
-        val (tone, millis) = when (kind) {
-            ToneKind.TEST -> ToneGenerator.TONE_PROP_BEEP to 600
-            ToneKind.PROLONGED_CLOSURE -> ToneGenerator.TONE_CDMA_HIGH_L to 1200
+        val tone = pattern.tone(kind)
+        val millis = when (kind) {
+            ToneKind.TEST -> 600
+            ToneKind.PROLONGED_CLOSURE -> 1200
         }
         return try {
             val g = createTone(AudioManager.STREAM_ALARM, 100)
@@ -162,7 +163,9 @@ internal class ExperimentalMonitoringHost(
     override fun getMonitoringSnapshot() = coordinator.snapshot().toPigeon()
     override fun beginCalibration() = coordinator.beginCalibration().toPigeon()
     override fun cancelCalibration() = coordinator.cancelCalibration().toPigeon()
-    override fun testSound() = coordinator.testSound().toPigeon()
+    override fun testSound(patternId: String) = coordinator.testSound(patternId).toPigeon()
+    override fun setSoundPattern(patternId: String) = coordinator.setSoundPattern(patternId).toPigeon()
+    override fun previewSound(patternId: String) = coordinator.previewSound(patternId).toPigeon()
     override fun confirmSoundHeard(soundTestId: String) = coordinator.confirmSoundHeard(soundTestId).toPigeon()
     override fun startSession(calibrationId: String, soundTestId: String) =
         coordinator.startSession(calibrationId, soundTestId).toPigeon()
@@ -219,6 +222,7 @@ internal fun MonitoringState.toPigeon() = MonitoringSnapshot(
     soundTestPlayed = soundTestPlayed,
     soundHeard = soundHeard,
     soundFailure = soundFailure,
+    soundPatternId = soundPatternId,
     lifecycle = when (lifecycle) {
         SessionLifecycle.NONE -> EngineSessionLifecycle.NONE
         SessionLifecycle.ACTIVE -> EngineSessionLifecycle.ACTIVE

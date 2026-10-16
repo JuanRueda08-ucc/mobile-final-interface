@@ -2941,6 +2941,389 @@ class ImportedRecordsCompanion extends UpdateCompanion<ImportedRecordRow> {
   }
 }
 
+class $RealPreferencesTable extends RealPreferences
+    with TableInfo<$RealPreferencesTable, RealPreferencesRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RealPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _singletonMeta = const VerificationMeta(
+    'singleton',
+  );
+  @override
+  late final GeneratedColumn<int> singleton = GeneratedColumn<int>(
+    'singleton',
+    aliasedName,
+    false,
+    check: () => singleton.equals(1),
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _themeMeta = const VerificationMeta('theme');
+  @override
+  late final GeneratedColumn<String> theme = GeneratedColumn<String>(
+    'theme',
+    aliasedName,
+    false,
+    check: () => theme.isIn(const ['system', 'light', 'dark']),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _soundPatternIdMeta = const VerificationMeta(
+    'soundPatternId',
+  );
+  @override
+  late final GeneratedColumn<String> soundPatternId = GeneratedColumn<String>(
+    'sound_pattern_id',
+    aliasedName,
+    false,
+    check: () =>
+        soundPatternId.isIn(const ['patron_1', 'patron_2', 'patron_3']),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reducedMotionMeta = const VerificationMeta(
+    'reducedMotion',
+  );
+  @override
+  late final GeneratedColumn<bool> reducedMotion = GeneratedColumn<bool>(
+    'reduced_motion',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("reduced_motion" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _updatedEpochMsMeta = const VerificationMeta(
+    'updatedEpochMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedEpochMs = GeneratedColumn<int>(
+    'updated_epoch_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    singleton,
+    theme,
+    soundPatternId,
+    reducedMotion,
+    updatedEpochMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RealPreferencesRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('singleton')) {
+      context.handle(
+        _singletonMeta,
+        singleton.isAcceptableOrUnknown(data['singleton']!, _singletonMeta),
+      );
+    }
+    if (data.containsKey('theme')) {
+      context.handle(
+        _themeMeta,
+        theme.isAcceptableOrUnknown(data['theme']!, _themeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_themeMeta);
+    }
+    if (data.containsKey('sound_pattern_id')) {
+      context.handle(
+        _soundPatternIdMeta,
+        soundPatternId.isAcceptableOrUnknown(
+          data['sound_pattern_id']!,
+          _soundPatternIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_soundPatternIdMeta);
+    }
+    if (data.containsKey('reduced_motion')) {
+      context.handle(
+        _reducedMotionMeta,
+        reducedMotion.isAcceptableOrUnknown(
+          data['reduced_motion']!,
+          _reducedMotionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_reducedMotionMeta);
+    }
+    if (data.containsKey('updated_epoch_ms')) {
+      context.handle(
+        _updatedEpochMsMeta,
+        updatedEpochMs.isAcceptableOrUnknown(
+          data['updated_epoch_ms']!,
+          _updatedEpochMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedEpochMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {singleton};
+  @override
+  RealPreferencesRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RealPreferencesRow(
+      singleton: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}singleton'],
+      )!,
+      theme: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}theme'],
+      )!,
+      soundPatternId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sound_pattern_id'],
+      )!,
+      reducedMotion: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reduced_motion'],
+      )!,
+      updatedEpochMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_epoch_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $RealPreferencesTable createAlias(String alias) {
+    return $RealPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class RealPreferencesRow extends DataClass
+    implements Insertable<RealPreferencesRow> {
+  final int singleton;
+  final String theme;
+
+  /// Solo patrones del catálogo local incluido (Área 06 §9: sin inventar IDs).
+  final String soundPatternId;
+  final bool reducedMotion;
+  final int updatedEpochMs;
+  const RealPreferencesRow({
+    required this.singleton,
+    required this.theme,
+    required this.soundPatternId,
+    required this.reducedMotion,
+    required this.updatedEpochMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['singleton'] = Variable<int>(singleton);
+    map['theme'] = Variable<String>(theme);
+    map['sound_pattern_id'] = Variable<String>(soundPatternId);
+    map['reduced_motion'] = Variable<bool>(reducedMotion);
+    map['updated_epoch_ms'] = Variable<int>(updatedEpochMs);
+    return map;
+  }
+
+  RealPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return RealPreferencesCompanion(
+      singleton: Value(singleton),
+      theme: Value(theme),
+      soundPatternId: Value(soundPatternId),
+      reducedMotion: Value(reducedMotion),
+      updatedEpochMs: Value(updatedEpochMs),
+    );
+  }
+
+  factory RealPreferencesRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RealPreferencesRow(
+      singleton: serializer.fromJson<int>(json['singleton']),
+      theme: serializer.fromJson<String>(json['theme']),
+      soundPatternId: serializer.fromJson<String>(json['soundPatternId']),
+      reducedMotion: serializer.fromJson<bool>(json['reducedMotion']),
+      updatedEpochMs: serializer.fromJson<int>(json['updatedEpochMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'singleton': serializer.toJson<int>(singleton),
+      'theme': serializer.toJson<String>(theme),
+      'soundPatternId': serializer.toJson<String>(soundPatternId),
+      'reducedMotion': serializer.toJson<bool>(reducedMotion),
+      'updatedEpochMs': serializer.toJson<int>(updatedEpochMs),
+    };
+  }
+
+  RealPreferencesRow copyWith({
+    int? singleton,
+    String? theme,
+    String? soundPatternId,
+    bool? reducedMotion,
+    int? updatedEpochMs,
+  }) => RealPreferencesRow(
+    singleton: singleton ?? this.singleton,
+    theme: theme ?? this.theme,
+    soundPatternId: soundPatternId ?? this.soundPatternId,
+    reducedMotion: reducedMotion ?? this.reducedMotion,
+    updatedEpochMs: updatedEpochMs ?? this.updatedEpochMs,
+  );
+  RealPreferencesRow copyWithCompanion(RealPreferencesCompanion data) {
+    return RealPreferencesRow(
+      singleton: data.singleton.present ? data.singleton.value : this.singleton,
+      theme: data.theme.present ? data.theme.value : this.theme,
+      soundPatternId: data.soundPatternId.present
+          ? data.soundPatternId.value
+          : this.soundPatternId,
+      reducedMotion: data.reducedMotion.present
+          ? data.reducedMotion.value
+          : this.reducedMotion,
+      updatedEpochMs: data.updatedEpochMs.present
+          ? data.updatedEpochMs.value
+          : this.updatedEpochMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RealPreferencesRow(')
+          ..write('singleton: $singleton, ')
+          ..write('theme: $theme, ')
+          ..write('soundPatternId: $soundPatternId, ')
+          ..write('reducedMotion: $reducedMotion, ')
+          ..write('updatedEpochMs: $updatedEpochMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    singleton,
+    theme,
+    soundPatternId,
+    reducedMotion,
+    updatedEpochMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RealPreferencesRow &&
+          other.singleton == this.singleton &&
+          other.theme == this.theme &&
+          other.soundPatternId == this.soundPatternId &&
+          other.reducedMotion == this.reducedMotion &&
+          other.updatedEpochMs == this.updatedEpochMs);
+}
+
+class RealPreferencesCompanion extends UpdateCompanion<RealPreferencesRow> {
+  final Value<int> singleton;
+  final Value<String> theme;
+  final Value<String> soundPatternId;
+  final Value<bool> reducedMotion;
+  final Value<int> updatedEpochMs;
+  const RealPreferencesCompanion({
+    this.singleton = const Value.absent(),
+    this.theme = const Value.absent(),
+    this.soundPatternId = const Value.absent(),
+    this.reducedMotion = const Value.absent(),
+    this.updatedEpochMs = const Value.absent(),
+  });
+  RealPreferencesCompanion.insert({
+    this.singleton = const Value.absent(),
+    required String theme,
+    required String soundPatternId,
+    required bool reducedMotion,
+    required int updatedEpochMs,
+  }) : theme = Value(theme),
+       soundPatternId = Value(soundPatternId),
+       reducedMotion = Value(reducedMotion),
+       updatedEpochMs = Value(updatedEpochMs);
+  static Insertable<RealPreferencesRow> custom({
+    Expression<int>? singleton,
+    Expression<String>? theme,
+    Expression<String>? soundPatternId,
+    Expression<bool>? reducedMotion,
+    Expression<int>? updatedEpochMs,
+  }) {
+    return RawValuesInsertable({
+      if (singleton != null) 'singleton': singleton,
+      if (theme != null) 'theme': theme,
+      if (soundPatternId != null) 'sound_pattern_id': soundPatternId,
+      if (reducedMotion != null) 'reduced_motion': reducedMotion,
+      if (updatedEpochMs != null) 'updated_epoch_ms': updatedEpochMs,
+    });
+  }
+
+  RealPreferencesCompanion copyWith({
+    Value<int>? singleton,
+    Value<String>? theme,
+    Value<String>? soundPatternId,
+    Value<bool>? reducedMotion,
+    Value<int>? updatedEpochMs,
+  }) {
+    return RealPreferencesCompanion(
+      singleton: singleton ?? this.singleton,
+      theme: theme ?? this.theme,
+      soundPatternId: soundPatternId ?? this.soundPatternId,
+      reducedMotion: reducedMotion ?? this.reducedMotion,
+      updatedEpochMs: updatedEpochMs ?? this.updatedEpochMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (singleton.present) {
+      map['singleton'] = Variable<int>(singleton.value);
+    }
+    if (theme.present) {
+      map['theme'] = Variable<String>(theme.value);
+    }
+    if (soundPatternId.present) {
+      map['sound_pattern_id'] = Variable<String>(soundPatternId.value);
+    }
+    if (reducedMotion.present) {
+      map['reduced_motion'] = Variable<bool>(reducedMotion.value);
+    }
+    if (updatedEpochMs.present) {
+      map['updated_epoch_ms'] = Variable<int>(updatedEpochMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RealPreferencesCompanion(')
+          ..write('singleton: $singleton, ')
+          ..write('theme: $theme, ')
+          ..write('soundPatternId: $soundPatternId, ')
+          ..write('reducedMotion: $reducedMotion, ')
+          ..write('updatedEpochMs: $updatedEpochMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$ExperimentalHistoryDatabase extends GeneratedDatabase {
   _$ExperimentalHistoryDatabase(QueryExecutor e) : super(e);
   $ExperimentalHistoryDatabaseManager get managers =>
@@ -2952,6 +3335,9 @@ abstract class _$ExperimentalHistoryDatabase extends GeneratedDatabase {
   late final $ImportedRecordsTable importedRecords = $ImportedRecordsTable(
     this,
   );
+  late final $RealPreferencesTable realPreferences = $RealPreferencesTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2960,6 +3346,7 @@ abstract class _$ExperimentalHistoryDatabase extends GeneratedDatabase {
     experimentalSessions,
     experimentalSessionMarks,
     importedRecords,
+    realPreferences,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -4588,6 +4975,225 @@ typedef $$ImportedRecordsTableProcessedTableManager =
       ImportedRecordRow,
       PrefetchHooks Function()
     >;
+typedef $$RealPreferencesTableCreateCompanionBuilder =
+    RealPreferencesCompanion Function({
+      Value<int> singleton,
+      required String theme,
+      required String soundPatternId,
+      required bool reducedMotion,
+      required int updatedEpochMs,
+    });
+typedef $$RealPreferencesTableUpdateCompanionBuilder =
+    RealPreferencesCompanion Function({
+      Value<int> singleton,
+      Value<String> theme,
+      Value<String> soundPatternId,
+      Value<bool> reducedMotion,
+      Value<int> updatedEpochMs,
+    });
+
+class $$RealPreferencesTableFilterComposer
+    extends Composer<_$ExperimentalHistoryDatabase, $RealPreferencesTable> {
+  $$RealPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get singleton => $composableBuilder(
+    column: $table.singleton,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get theme => $composableBuilder(
+    column: $table.theme,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get soundPatternId => $composableBuilder(
+    column: $table.soundPatternId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get reducedMotion => $composableBuilder(
+    column: $table.reducedMotion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedEpochMs => $composableBuilder(
+    column: $table.updatedEpochMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RealPreferencesTableOrderingComposer
+    extends Composer<_$ExperimentalHistoryDatabase, $RealPreferencesTable> {
+  $$RealPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get singleton => $composableBuilder(
+    column: $table.singleton,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get theme => $composableBuilder(
+    column: $table.theme,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get soundPatternId => $composableBuilder(
+    column: $table.soundPatternId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get reducedMotion => $composableBuilder(
+    column: $table.reducedMotion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedEpochMs => $composableBuilder(
+    column: $table.updatedEpochMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RealPreferencesTableAnnotationComposer
+    extends Composer<_$ExperimentalHistoryDatabase, $RealPreferencesTable> {
+  $$RealPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get singleton =>
+      $composableBuilder(column: $table.singleton, builder: (column) => column);
+
+  GeneratedColumn<String> get theme =>
+      $composableBuilder(column: $table.theme, builder: (column) => column);
+
+  GeneratedColumn<String> get soundPatternId => $composableBuilder(
+    column: $table.soundPatternId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get reducedMotion => $composableBuilder(
+    column: $table.reducedMotion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get updatedEpochMs => $composableBuilder(
+    column: $table.updatedEpochMs,
+    builder: (column) => column,
+  );
+}
+
+class $$RealPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$ExperimentalHistoryDatabase,
+          $RealPreferencesTable,
+          RealPreferencesRow,
+          $$RealPreferencesTableFilterComposer,
+          $$RealPreferencesTableOrderingComposer,
+          $$RealPreferencesTableAnnotationComposer,
+          $$RealPreferencesTableCreateCompanionBuilder,
+          $$RealPreferencesTableUpdateCompanionBuilder,
+          (
+            RealPreferencesRow,
+            BaseReferences<
+              _$ExperimentalHistoryDatabase,
+              $RealPreferencesTable,
+              RealPreferencesRow
+            >,
+          ),
+          RealPreferencesRow,
+          PrefetchHooks Function()
+        > {
+  $$RealPreferencesTableTableManager(
+    _$ExperimentalHistoryDatabase db,
+    $RealPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RealPreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RealPreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RealPreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> singleton = const Value.absent(),
+                Value<String> theme = const Value.absent(),
+                Value<String> soundPatternId = const Value.absent(),
+                Value<bool> reducedMotion = const Value.absent(),
+                Value<int> updatedEpochMs = const Value.absent(),
+              }) => RealPreferencesCompanion(
+                singleton: singleton,
+                theme: theme,
+                soundPatternId: soundPatternId,
+                reducedMotion: reducedMotion,
+                updatedEpochMs: updatedEpochMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> singleton = const Value.absent(),
+                required String theme,
+                required String soundPatternId,
+                required bool reducedMotion,
+                required int updatedEpochMs,
+              }) => RealPreferencesCompanion.insert(
+                singleton: singleton,
+                theme: theme,
+                soundPatternId: soundPatternId,
+                reducedMotion: reducedMotion,
+                updatedEpochMs: updatedEpochMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RealPreferencesTable, RealPreferencesRow>(table),
+                  BaseReferences<
+                    _$ExperimentalHistoryDatabase,
+                    $RealPreferencesTable,
+                    RealPreferencesRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RealPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$ExperimentalHistoryDatabase,
+      $RealPreferencesTable,
+      RealPreferencesRow,
+      $$RealPreferencesTableFilterComposer,
+      $$RealPreferencesTableOrderingComposer,
+      $$RealPreferencesTableAnnotationComposer,
+      $$RealPreferencesTableCreateCompanionBuilder,
+      $$RealPreferencesTableUpdateCompanionBuilder,
+      (
+        RealPreferencesRow,
+        BaseReferences<
+          _$ExperimentalHistoryDatabase,
+          $RealPreferencesTable,
+          RealPreferencesRow
+        >,
+      ),
+      RealPreferencesRow,
+      PrefetchHooks Function()
+    >;
 
 class $ExperimentalHistoryDatabaseManager {
   final _$ExperimentalHistoryDatabase _db;
@@ -4601,4 +5207,6 @@ class $ExperimentalHistoryDatabaseManager {
       );
   $$ImportedRecordsTableTableManager get importedRecords =>
       $$ImportedRecordsTableTableManager(_db, _db.importedRecords);
+  $$RealPreferencesTableTableManager get realPreferences =>
+      $$RealPreferencesTableTableManager(_db, _db.realPreferences);
 }

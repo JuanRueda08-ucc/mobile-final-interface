@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
 import '../demo_history/demo_history_repository.dart' show CivilTime;
+import '../preferences/preferences_store.dart';
 import 'experimental_history_database.dart';
 import 'journal_codec.dart';
 
@@ -185,11 +186,39 @@ class _Stop implements Exception {
   final int index;
 }
 
-/// Historial experimental real: proyección Drift del journal nativo.
-class ExperimentalHistoryRepository {
+/// Historial experimental real: proyección Drift del journal nativo. Guarda
+/// también las preferencias de la variante normal (fase 5E), que no vienen
+/// del journal: las escribe solo `PreferencesController`.
+class ExperimentalHistoryRepository implements PreferencesStore {
   ExperimentalHistoryRepository(this._db);
 
   final ExperimentalHistoryDatabase _db;
+
+  @override
+  Future<StoredPreferences> loadPreferences() async {
+    final r = await _db.select(_db.realPreferences).getSingleOrNull();
+    if (r == null) return const StoredPreferences();
+    return StoredPreferences(
+      theme: ThemePreference.values.byName(r.theme),
+      soundPatternId: r.soundPatternId,
+      reducedMotion: r.reducedMotion,
+    );
+  }
+
+  @override
+  Future<void> savePreferences(StoredPreferences p) => _db
+      .into(_db.realPreferences)
+      .insertOnConflictUpdate(
+        RealPreferencesCompanion.insert(
+          // Fila única explícita (misma causa que la corrección P1 de la
+          // fase 3: sin ella SQLite propone otro rowid y el CHECK lo rechaza).
+          singleton: const Value(1),
+          theme: p.theme.name,
+          soundPatternId: p.soundPatternId,
+          reducedMotion: p.reducedMotion,
+          updatedEpochMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
 
   /// Importa [records] en orden, en una sola transacción. Un registro ya
   /// importado con el mismo hash es un no-op; con otro hash, un error de

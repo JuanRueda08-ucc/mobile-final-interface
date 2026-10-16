@@ -17,6 +17,7 @@ import com.juanrueda.monitoring_engine.monitoring.QReason
 import com.juanrueda.monitoring_engine.monitoring.SessionLifecycle
 import com.juanrueda.monitoring_engine.monitoring.SessionPolicy
 import com.juanrueda.monitoring_engine.monitoring.Signal
+import com.juanrueda.monitoring_engine.monitoring.SoundPattern
 import com.juanrueda.monitoring_engine.monitoring.ToneKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -357,10 +358,12 @@ internal class ExperimentalMonitoringTest {
 
     private class FakeTone : AlertSink {
         val played = mutableListOf<ToneKind>()
+        val patterns = mutableListOf<SoundPattern>()
         var stops = 0
         var fail: String? = null
-        override fun play(kind: ToneKind): String? {
+        override fun play(kind: ToneKind, pattern: SoundPattern): String? {
             played += kind
+            patterns += pattern
             return fail
         }
         override fun stop() {
@@ -408,8 +411,8 @@ internal class ExperimentalMonitoringTest {
         return this
     }
 
-    private fun Rig.soundConfirmed(): String {
-        val r = c.testSound()
+    private fun Rig.soundConfirmed(pattern: String = "patron_1"): String {
+        val r = c.testSound(pattern)
         assertTrue(r.accepted)
         val id = r.state.soundTestId!!
         assertTrue(c.confirmSoundHeard(id).accepted)
@@ -424,9 +427,9 @@ internal class ExperimentalMonitoringTest {
         }
     }
 
-    private fun Rig.started(): String {
+    private fun Rig.started(pattern: String = "patron_1"): String {
         calibrated()
-        val sound = soundConfirmed()
+        val sound = soundConfirmed(pattern)
         feed(nowMs + 50, nowMs + 50, open)
         val r = c.startSession(last.calibrationId!!, sound)
         assertTrue(r.accepted, r.errorCode)
@@ -467,7 +470,7 @@ internal class ExperimentalMonitoringTest {
         rig.calibrated()
         val cal = rig.last.calibrationId!!
         assertEquals("soundNotConfirmed", rig.c.startSession(cal, "y").errorCode)
-        val played = rig.c.testSound().state.soundTestId!!
+        val played = rig.c.testSound("patron_1").state.soundTestId!!
         assertEquals("soundNotConfirmed", rig.c.startSession(cal, played).errorCode, "sin «Lo escuché»")
         rig.c.confirmSoundHeard(played)
         // Última observación sin rostro: no se inicia.
@@ -483,7 +486,7 @@ internal class ExperimentalMonitoringTest {
         // Una sola sesión: un segundo inicio (también con otra prueba) se rechaza.
         assertEquals("sessionActive", rig.c.startSession(cal, played).errorCode)
         assertEquals("sessionActive", rig.c.beginCalibration().errorCode)
-        assertEquals("sessionActive", rig.c.testSound().errorCode)
+        assertEquals("sessionActive", rig.c.testSound("patron_1").errorCode)
     }
 
     @Test
@@ -648,7 +651,7 @@ internal class ExperimentalMonitoringTest {
     fun exitAndCancellationStopPreparationAudio() {
         val rig = Rig()
         rig.c.attach(1)
-        rig.c.testSound()
+        rig.c.testSound("patron_1")
         val beforeExit = rig.tone.stops
         rig.c.detach(1)
         assertTrue(rig.tone.stops > beforeExit, "salir detiene el tono de prueba")
@@ -657,5 +660,127 @@ internal class ExperimentalMonitoringTest {
         val beforeCancel = rig.tone.stops
         rig.c.cancelCalibration()
         assertTrue(rig.tone.stops > beforeCancel, "cancelar detiene el pitido de guía")
+    }
+
+    // ------------------------------------------- patrón de sonido (fase 5E)
+
+    @Test
+    fun sound_testUsesRequestedPatternAndReportsIt() {
+        val rig = Rig()
+        assertEquals("patron_1", rig.c.snapshot().soundPatternId, "por defecto")
+        val r = rig.c.testSound("patron_2")
+        assertTrue(r.accepted)
+        assertEquals("patron_2", r.state.soundPatternId)
+        assertEquals(listOf(SoundPattern.PATRON_2), rig.tone.patterns)
+    }
+
+    @Test
+    fun sound_changingPatternInvalidatesTestAndConfirmation() {
+        val rig = Rig().calibrated()
+        val cal = rig.last.calibrationId!!
+        val old = rig.soundConfirmed("patron_2")
+        assertTrue(rig.last.soundHeard)
+        val changed = rig.c.setSoundPattern("patron_3")
+        assertTrue(changed.accepted)
+        with(changed.state) {
+            assertEquals("patron_3", soundPatternId)
+            assertNull(soundTestId)
+            assertFalse(soundTestPlayed)
+            assertFalse(soundHeard)
+        }
+        // La prueba anterior ya no confirma ni inicia nada.
+        assertEquals("soundTestNotPlayed", rig.c.confirmSoundHeard(old).errorCode)
+        rig.feed(rig.nowMs + 50, rig.nowMs + 50, open)
+        assertEquals("soundNotConfirmed", rig.c.startSession(cal, old).errorCode)
+        // Volver al patrón anterior tampoco la revive.
+        assertTrue(rig.c.setSoundPattern("patron_2").accepted)
+        assertEquals("soundTestNotPlayed", rig.c.confirmSoundHeard(old).errorCode)
+    }
+
+    @Test
+    fun sound_sameOrUnknownPatternKeepsConfirmation() {
+        val rig = Rig()
+        val id = rig.soundConfirmed("patron_2")
+        assertTrue(rig.c.setSoundPattern("patron_2").accepted, "mismo patrón: sin cambios")
+        assertEquals(id, rig.last.soundTestId)
+        assertTrue(rig.last.soundHeard)
+        for (bad in listOf("patron_9", "")) {
+            assertEquals("unknownSoundPattern", rig.c.setSoundPattern(bad).errorCode)
+            assertEquals("unknownSoundPattern", rig.c.testSound(bad).errorCode)
+            assertEquals("unknownSoundPattern", rig.c.previewSound(bad).errorCode)
+        }
+        // Un patrón desconocido no se sustituye por otro ni invalida nada.
+        assertEquals("patron_2", rig.last.soundPatternId)
+        assertEquals(id, rig.last.soundTestId)
+        assertTrue(rig.last.soundHeard)
+        assertEquals(listOf(SoundPattern.PATRON_2), rig.tone.patterns)
+    }
+
+    @Test
+    fun sound_lateConfirmationOfOlderTestDoesNotConfirmNewPattern() {
+        val rig = Rig()
+        val first = rig.c.testSound("patron_2").state.soundTestId!!
+        val second = rig.c.testSound("patron_3").state.soundTestId!!
+        // Llega tarde el «Lo escuché» de la prueba del Patrón 2.
+        assertEquals("soundTestNotPlayed", rig.c.confirmSoundHeard(first).errorCode)
+        assertFalse(rig.last.soundHeard)
+        assertEquals("patron_3", rig.last.soundPatternId)
+        assertTrue(rig.c.confirmSoundHeard(second).accepted)
+    }
+
+    @Test
+    fun sound_sessionKeepsConfirmedPatternAndRejectsChanges() {
+        val rig = Rig()
+        val id = rig.started("patron_3")
+        assertEquals("sessionActive", rig.c.setSoundPattern("patron_1").errorCode)
+        assertEquals("sessionActive", rig.c.previewSound("patron_1").errorCode)
+        assertTrue(rig.c.setSoundPattern("patron_3").accepted, "el mismo patrón no cambia nada")
+        assertEquals("patron_3", rig.last.soundPatternId)
+        val t0 = rig.nowMs
+        rig.feed(t0 + 100, t0 + 1100, open)
+        rig.feed(t0 + 1200, t0 + 2700, closed)
+        assertEquals(Signal.PROLONGED_EYE_CLOSURE, rig.last.signal)
+        assertEquals(SoundPattern.PATRON_3, rig.tone.patterns.last(), "el aviso usa el patrón confirmado")
+        assertEquals(ToneKind.PROLONGED_CLOSURE, rig.tone.played.last())
+        // En pausa sigue vigente: tampoco se cambia.
+        assertTrue(rig.c.pauseSession(id).accepted)
+        assertEquals("sessionActive", rig.c.setSoundPattern("patron_1").errorCode)
+        assertTrue(rig.c.stopSession(id).accepted)
+        // Tras finalizar ya se puede cambiar; el inicio consumió la prueba.
+        val after = rig.c.setSoundPattern("patron_1")
+        assertTrue(after.accepted)
+        assertEquals("patron_1", after.state.soundPatternId)
+        assertFalse(after.state.soundHeard)
+    }
+
+    @Test
+    fun sound_previewIsTechnicalAndDoesNotTouchSessionTest() {
+        val rig = Rig()
+        val id = rig.soundConfirmed("patron_2")
+        val preview = rig.c.previewSound("patron_3")
+        assertTrue(preview.accepted)
+        assertEquals(SoundPattern.PATRON_3, rig.tone.patterns.last())
+        with(preview.state) {
+            assertEquals("patron_2", soundPatternId)
+            assertEquals(id, soundTestId)
+            assertTrue(soundHeard)
+        }
+        rig.tone.fail = "alarmVolumeZero"
+        assertEquals("alarmVolumeZero", rig.c.previewSound("patron_1").errorCode)
+        assertTrue(rig.last.soundHeard, "un fallo de la vista previa no toca la prueba")
+        rig.tone.fail = null
+        // Durante la calibración no se reproduce otro tono encima de la guía.
+        rig.c.attach(1)
+        assertTrue(rig.c.beginCalibration().accepted)
+        assertEquals("calibrationInProgress", rig.c.previewSound("patron_1").errorCode)
+    }
+
+    @Test
+    fun sound_calibrationGuideBeepIgnoresSavedPattern() {
+        val rig = Rig()
+        assertTrue(rig.c.setSoundPattern("patron_3").accepted)
+        rig.calibrated()
+        assertEquals(listOf(SoundPattern.PATRON_1, SoundPattern.PATRON_1), rig.tone.patterns)
+        assertEquals("patron_3", rig.last.soundPatternId)
     }
 }

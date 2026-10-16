@@ -11,7 +11,6 @@ import '../../core/design_system/widgets/vigia_option.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../../data/experimental_history/experimental_history_repository.dart';
-import '../inicio/inicio_screen.dart';
 import '../monitoring/domain/session_summary.dart';
 import 'experimental_history_blocks.dart';
 
@@ -161,7 +160,7 @@ class _ExperimentalHistoryScreenState
         notice: notice,
         onNavSelected: (i) {
           if (i == 0) home();
-          if (i == 2) showNotice(InicioScreen.ajustesNotice);
+          if (i == 2) context.go(VigiaRoutes.ajustes);
         },
         children: children,
       ),

@@ -314,6 +314,7 @@ class MonitoringSnapshot {
     required this.calibrationProbe,
     required this.soundTestPlayed,
     required this.soundHeard,
+    required this.soundPatternId,
     required this.lifecycle,
     required this.resumePending,
     required this.measurement,
@@ -393,6 +394,10 @@ class MonitoringSnapshot {
   bool soundHeard;
   String? soundFailure;
 
+  /// Fase 5E: patrón de sonido (`patron_1`…) de la prueba y de los avisos
+  /// de la próxima sesión o de la vigente. Lo fija Flutter con el guardado.
+  String soundPatternId;
+
   EngineSessionLifecycle lifecycle;
 
   /// Reanudación pedida: la pausa sigue abierta hasta cumplir Krecover.
@@ -449,8 +454,17 @@ abstract class ExperimentalMonitoringHostApi {
   MonitoringCommandResult beginCalibration();
   MonitoringCommandResult cancelCalibration();
 
-  /// Tono local de prueba; devuelve el identificador de la prueba.
-  MonitoringCommandResult testSound();
+  /// Tono local de prueba con el patrón indicado, que pasa a ser el de la
+  /// próxima sesión; devuelve el identificador de la prueba.
+  MonitoringCommandResult testSound(String patternId);
+
+  /// Fase 5E: patrón guardado en Ajustes. Si cambia, invalida la prueba de
+  /// sonido y su confirmación. Rechazado con sesión vigente.
+  MonitoringCommandResult setSoundPattern(String patternId);
+
+  /// Fase 5E: tono de prueba de un patrón para Ajustes → Sonido (P13). Solo
+  /// resultado técnico; no cambia el patrón ni la prueba de la sesión.
+  MonitoringCommandResult previewSound(String patternId);
   MonitoringCommandResult confirmSoundHeard(String soundTestId);
 
   /// Única sesión: con la referencia y la prueba de sonido indicadas.

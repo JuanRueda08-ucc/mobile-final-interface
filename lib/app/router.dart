@@ -64,12 +64,15 @@ String? vigiaRedirect({
     return mode is RealMode ? null : VigiaRoutes.inicio;
   }
   // Fase 5D: historial de las sesiones experimentales reales. Sus pantallas
-  // son otras (ver los constructores de ruta); no hay Ajustes en la variante
-  // normal. La salida del monitoreo experimental con sesión vigente ya está
-  // bloqueada en su pantalla.
+  // son otras (ver los constructores de ruta). Fase 5E: Ajustes y Sonido son
+  // los mismos, con las preferencias de la variante normal; con sesión
+  // vigente se bloquean dentro de la pantalla (UX11.CA2). La salida del
+  // monitoreo experimental con sesión vigente ya está bloqueada en su
+  // pantalla.
   if (mode is RealMode &&
       (location.startsWith(VigiaRoutes.historial) ||
-          location.startsWith('/resumen/'))) {
+          location.startsWith('/resumen/') ||
+          location.startsWith(VigiaRoutes.ajustes))) {
     return null;
   }
   // Sin modo demostración no hay recorrido: solo Inicio (motor no comprobado

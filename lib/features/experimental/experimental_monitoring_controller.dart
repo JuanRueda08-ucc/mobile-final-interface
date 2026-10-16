@@ -5,6 +5,7 @@ import 'package:clock/clock.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
+import '../settings/preferences_controller.dart';
 import 'monitoring_query_channel.dart';
 
 /// Estado del recorrido experimental tal como lo presenta Flutter (fase 5C).
@@ -132,6 +133,13 @@ final experimentalMonitoringProvider =
 /// - Conexión: 3000 ms sin mensajes (propuesta de transporte del Área 04
 ///   §8) la declaran no disponible y se deja de mostrar la señal.
 /// - Una orden a la vez; las pulsaciones repetidas no crean otra.
+/// - **Patrón de sonido (fase 5E).** El motor usa el patrón guardado en
+///   Ajustes: se le envía al confirmarse un guardado y cada vez que su
+///   estado indica otro (fuera de sesión), y la prueba de sonido lo lleva
+///   consigo. El cambio de patrón va por su propio canal de orden, así que
+///   no espera a otra orden ni la bloquea. Mientras el motor no informe el
+///   patrón guardado, su prueba no cuenta aquí: no se confirma ni se inicia
+///   con la prueba de otro patrón ([soundConfirmedFor]).
 class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   static const connectionTimeout = Duration(milliseconds: 3000);
 
@@ -159,10 +167,22 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   static const queryTimeout = Duration(milliseconds: 750);
   static const pollInterval = Duration(milliseconds: 100);
 
+  /// Patrón del último rechazo definitivo del motor, por instancia: no se
+  /// reenvía en cada estado (un patrón fuera del catálogo nunca se acepta).
+  (String, String)? _patternRefused;
+
+  /// Patrón guardado (confirmado por SQLite), que debe usar el motor.
+  String get savedSoundPattern =>
+      ref.read(preferencesProvider).value.soundPatternId;
+
   @override
   ExperimentalState build() {
     _bridge = ref.read(experimentalBridgeProvider);
     final sub = _bridge.updates.listen(_notice);
+    ref.listen(
+      preferencesProvider.select((p) => p.value.soundPatternId),
+      (_, _) => _syncPattern(force: true),
+    );
     ref.onDispose(() {
       sub.cancel();
       _cancelTimers();
@@ -378,7 +398,62 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
         signalValidity: signal,
       );
     }
+    _syncPattern();
   }
+
+  /// Envía al motor el patrón guardado si su estado indica otro. Con
+  /// [force] (guardado recién confirmado) se envía aunque no se conozca su
+  /// estado: el motor decide y, con sesión vigente, lo rechaza.
+  void _syncPattern({bool force = false}) {
+    if (!ref.mounted) return;
+    final want = savedSoundPattern;
+    final s = _latest;
+    if (!force) {
+      if (!_active || s == null || s.soundPatternId == want) return;
+      if (s.lifecycle == EngineSessionLifecycle.active ||
+          s.lifecycle == EngineSessionLifecycle.paused) {
+        return; // La sesión conserva su patrón; se envía al terminar.
+      }
+      if (_patternRefused == (s.engineInstanceId, want)) return;
+    }
+    // Una sola llamada real a la vez: al terminar, su estado vuelve a pasar
+    // por aquí y se envía el patrón guardado entonces, si sigue siendo otro.
+    if (MonitoringQueryChannel.pendingCommand(_bridge, 'soundPattern') !=
+        null) {
+      return;
+    }
+    final epoch = _epoch;
+    final ticket = MonitoringQueryChannel.startCommand(
+      _bridge,
+      'soundPattern',
+      epoch,
+      clock.stopwatch(),
+      () => _bridge.setSoundPattern(want),
+    );
+    ticket?.listen((outcome) {
+      final r = outcome.answer;
+      if (!ref.mounted || !_active) return;
+      if (r == null ||
+          outcome.finishedIn >= queryTimeout ||
+          outcome.watch.elapsed >= queryTimeout ||
+          _retiredEngines.contains(r.snapshot.engineInstanceId)) {
+        _query();
+        return;
+      }
+      if (!r.accepted && r.errorCode == 'unknownSoundPattern') {
+        _patternRefused = (r.snapshot.engineInstanceId, want);
+      }
+      _apply(r.snapshot, outcome.watch.elapsed);
+    });
+  }
+
+  /// La prueba de sonido del motor vale para el patrón guardado: el motor
+  /// informa ese patrón y la prueba se reprodujo (o además se confirmó).
+  bool soundTestPlayedFor(MonitoringSnapshot? s) =>
+      s != null && s.soundPatternId == savedSoundPattern && s.soundTestPlayed;
+
+  bool soundConfirmedFor(MonitoringSnapshot? s) =>
+      soundTestPlayedFor(s) && s!.soundHeard;
 
   bool _sameDisplay(MonitoringSnapshot? a, MonitoringSnapshot b) {
     if (a == null) return false;
@@ -470,11 +545,18 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
   Future<bool> cancelCalibration() =>
       _command('cancelCalibration', _bridge.cancelCalibration);
 
-  Future<bool> testSound() => _command('testSound', _bridge.testSound);
+  /// Prueba el tono con el patrón guardado (fase 5E).
+  Future<bool> testSound() {
+    final pattern = savedSoundPattern;
+    return _command('testSound', () => _bridge.testSound(pattern));
+  }
 
+  /// «Lo escuché»: solo para una prueba del patrón guardado. La de otro
+  /// patrón (respuesta tardía o cambio en Ajustes) no se confirma.
   Future<bool> confirmSoundHeard() {
-    final id = state.snapshot?.soundTestId;
-    if (id == null) return Future.value(false);
+    final s = state.snapshot;
+    final id = s?.soundTestId;
+    if (id == null || !soundTestPlayedFor(s)) return Future.value(false);
     return _command('confirmSound', () => _bridge.confirmSoundHeard(id));
   }
 
@@ -482,7 +564,9 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
     final s = state.snapshot;
     final cal = s?.calibrationId;
     final sound = s?.soundTestId;
-    if (cal == null || sound == null) return Future.value(false);
+    if (cal == null || sound == null || !soundConfirmedFor(s)) {
+      return Future.value(false);
+    }
     return _command('start', () => _bridge.startSession(cal, sound));
   }
 
