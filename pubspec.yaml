@@ -85,7 +85,7 @@ flutter:
 
   # Fuentes variables locales (SIL OFL 1.1). Origen y hashes en docs/licenses.md.
   assets:
-    - assets/brand/vigia_mark.png
+    - assets/brand/vigia_symbol.png
     - assets/fonts/Outfit/OFL.txt
     - assets/fonts/Onest/OFL.txt
   fonts:

@@ -260,12 +260,23 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
         'Enviando enlace…',
       ),
     };
+    final fieldSurface = VigiaColors.of(context).surface;
     return AccountForm(
       title: title,
       description: description,
-      accessCover: _mode != _FormMode.reset,
+      accessCover: true,
       isBusy: _busy,
       action: _button(_busy ? busyLabel : label, () => _submitForm(auth)),
+      afterAction: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        spacing: 16,
+        children: _mode == _FormMode.signIn
+            ? [
+                _modeLink('Crear cuenta', _FormMode.register),
+                _modeLink('Olvidé mi contraseña', _FormMode.reset),
+              ]
+            : [_modeLink('Volver al acceso', _FormMode.signIn)],
+      ),
       children: [
         AutofillGroup(
           child: Column(
@@ -284,6 +295,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                   context,
                   label: 'Correo',
                   error: _emailError,
+                  fillColor: fieldSurface,
                 ),
                 onChanged: (_) {
                   if (_emailError != null) setState(() => _emailError = null);
@@ -309,6 +321,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                     context,
                     label: 'Contraseña',
                     error: _passwordError,
+                    fillColor: fieldSurface,
                   ),
                   onChanged: (_) {
                     if (_passwordError != null) {
@@ -321,15 +334,6 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
           ),
         ),
         ?message,
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: _mode == _FormMode.signIn
-              ? [
-                  _modeLink('Crear cuenta', _FormMode.register),
-                  _modeLink('Olvidé mi contraseña', _FormMode.reset),
-                ]
-              : [_modeLink('Volver al acceso', _FormMode.signIn)],
-        ),
       ],
     );
   }

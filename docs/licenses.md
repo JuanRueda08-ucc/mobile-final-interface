@@ -14,10 +14,11 @@ License 1.1 se incluye como asset y se registra en `LicenseRegistry`.
 | `assets/fonts/Onest/Onest-Variable.ttf` | `966c5c29b4755da84b6854d5c21dd4eaa2420225d0e9874de602de176d4a9f31` |
 | `assets/fonts/Onest/OFL.txt` | `071195d8806e226faeee60259c28ca67b458227af5195a73f5cfcab06e3003bc` |
 
-El icono de marca de `assets/brand/vigia_mark.png` es un recorte cuadrado
-del PNG aprobado por la persona usuaria. «Vigía» se dibuja como texto de
-Flutter. El lanzador adaptativo extrae del mismo recorte la máscara de los
-trazos blancos y extiende el degradado en una capa de fondo. Los iconos de
+El archivo `assets/brand/vigia_mark.png` conserva un recorte cuadrado
+del PNG aprobado por la persona usuaria. El lanzador adaptativo usa la
+máscara de sus trazos blancos y una capa que extiende el degradado.
+`assets/brand/vigia_symbol.png` deriva de esa misma máscara y se muestra
+junto a «Vigía», escrito como texto de Flutter. Los iconos de
 interfaz siguen usando los trazos propios del prototipo B5.2 (`IC`) en
 `lib/core/design_system/vigia_icons.dart`.
 

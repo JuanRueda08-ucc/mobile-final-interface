@@ -30,6 +30,11 @@ abstract final class VigiaType {
   );
 
   static final appBarTitle = _heading.copyWith(fontSize: 22, height: 1.2);
+  static final wordmark = _heading.copyWith(
+    fontSize: 24,
+    height: 1.12,
+    letterSpacing: -0.5,
+  );
   static final h1 = _heading.copyWith(fontSize: 30, height: 1.15);
   static final h3 = _heading.copyWith(fontSize: 20, height: 1.3);
 

@@ -7,7 +7,6 @@ import '../../../core/design_system/widgets/screen_aura.dart';
 import '../../../core/design_system/widgets/vigia_blocks.dart';
 import '../../../core/design_system/widgets/vigia_button.dart';
 import '../../../core/design_system/widgets/vigia_flow_blocks.dart';
-import '../../../core/design_system/widgets/vigia_mark.dart';
 import '../../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../../core/design_system/widgets/vigia_text.dart';
 
@@ -18,6 +17,7 @@ class AccountForm extends StatelessWidget {
     required this.description,
     required this.action,
     required this.children,
+    this.afterAction,
     this.detail,
     this.isBusy = false,
     this.onBack,
@@ -29,6 +29,7 @@ class AccountForm extends StatelessWidget {
   final String? detail;
   final VigiaButton action;
   final List<Widget> children;
+  final Widget? afterAction;
   final bool isBusy;
   final VoidCallback? onBack;
   final bool accessCover;
@@ -36,13 +37,18 @@ class AccountForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
+    final submit = Semantics(
+      container: true,
+      liveRegion: isBusy,
+      child: action,
+    );
     return VigiaScaffold(
       title: 'Vigía',
-      showBrandMark: !accessCover,
+      showBrandMark: true,
       onBack: onBack,
       background: accessCover ? const ScreenAura() : null,
       contentKey: accessCover ? ValueKey(title) : null,
-      footer: Semantics(container: true, liveRegion: isBusy, child: action),
+      footer: accessCover ? null : submit,
       children: [
         if (accessCover)
           _AccessCover(title: title, description: description)
@@ -58,6 +64,7 @@ class AccountForm extends StatelessWidget {
             ],
           ),
         ...children,
+        if (accessCover) ...[submit, ?afterAction],
       ],
     );
   }
@@ -75,22 +82,21 @@ class _AccessCover extends StatelessWidget {
     final intro = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: VigiaMark(size: 56),
-        ),
-        const SizedBox(height: 8),
         Semantics(
           header: true,
           child: VigiaText(
             title,
-            style: VigiaType.heroTitle(isLargeText(context) ? 32 : 46)
+            style: VigiaType.heroTitle(isLargeText(context) ? 30 : 40)
                 .copyWith(color: p.ink),
           ),
         ),
         const SizedBox(height: 10),
-        VigiaParagraph(description, secondary: true),
-        const SizedBox(height: 8),
+        VigiaText(
+          description,
+          style: VigiaType.body.copyWith(
+            color: VigiaAura.screenSecondary(p.brightness),
+          ),
+        ),
       ],
     );
     if (MediaQuery.disableAnimationsOf(context)) return intro;
@@ -114,6 +120,7 @@ InputDecoration accountFieldDecoration(
   BuildContext context, {
   required String label,
   String? error,
+  Color? fillColor,
 }) {
   final p = VigiaColors.of(context);
   OutlineInputBorder outline(Color color, {double width = 1}) {
@@ -129,7 +136,7 @@ InputDecoration accountFieldDecoration(
     floatingLabelStyle: VigiaType.body.copyWith(color: p.ink),
     floatingLabelBehavior: FloatingLabelBehavior.always,
     filled: true,
-    fillColor: p.surfaceStrong,
+    fillColor: fillColor ?? p.surfaceStrong,
     constraints: const BoxConstraints(minHeight: VigiaSpace.minTap),
     border: outline(p.control),
     enabledBorder: outline(p.control),

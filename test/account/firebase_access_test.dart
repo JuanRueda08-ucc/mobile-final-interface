@@ -102,7 +102,18 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(button('Iniciar sesión').hitTestable(), findsOneWidget);
+      final submit = button('Iniciar sesión');
+      final password = find.byType(TextField).last;
+      final register = find.widgetWithText(TextButton, 'Crear cuenta');
+      expect(submit.hitTestable(), findsOneWidget);
+      expect(
+        tester.getTopLeft(submit).dy - tester.getBottomLeft(password).dy,
+        inInclusiveRange(0, 24),
+      );
+      expect(
+        tester.getTopLeft(register).dy,
+        greaterThan(tester.getBottomLeft(submit).dy),
+      );
       expect(
         tester.widgetList<TextField>(find.byType(TextField)).last.obscureText,
         isTrue,
@@ -111,7 +122,6 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('firebase/acceso__${configName(config)}.png'),
       );
-      final register = find.widgetWithText(TextButton, 'Crear cuenta');
       await tester.ensureVisible(register);
       await tester.tap(register);
       await tester.pumpAndSettle();

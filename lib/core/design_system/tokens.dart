@@ -12,6 +12,8 @@ abstract final class VigiaBrand {
   static const neutral = Color(0xFFF7F7F5);
   static const ink = Color(0xFF171717);
   static const secondaryInk = Color(0xFF6B6B6B);
+  static const wordmarkLight = Color(0xFF2C2340);
+  static const wordmarkDark = Color(0xFFF0E7FF);
 }
 
 abstract final class VigiaControls {
@@ -173,6 +175,11 @@ abstract final class VigiaAura {
   /// Texto sobre aura (`color.on-aura`, `color.on-aura-secondary`).
   static const onAura = VigiaBrand.ink;
   static const onAuraSecondary = Color(0xFF4E4C50);
+
+  static Color screenSecondary(Brightness brightness) =>
+      brightness == Brightness.dark
+      ? const Color(0xFFF0E8FB)
+      : const Color(0xFF474253);
 }
 
 /// Medidas de B5.2 en unidades lógicas.

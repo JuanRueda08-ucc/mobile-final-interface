@@ -6,6 +6,7 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import '../../app/app_config.dart';
 import '../../app/router.dart';
 import '../../core/design_system/theme.dart';
+import '../../core/design_system/tokens.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/aura_hero.dart';
 import '../../core/design_system/widgets/screen_aura.dart';
@@ -304,6 +305,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
     final paused = snapshot?.lifecycle == EngineSessionLifecycle.paused;
     final ongoing = active || paused;
     final colors = VigiaColors.of(context);
+    final secondary = VigiaAura.screenSecondary(colors.brightness);
     return Padding(
       padding: EdgeInsets.symmetric(vertical: isLargeText(context) ? 8 : 20),
       child: Column(
@@ -312,7 +314,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
         children: [
           VigiaText(
             'Monitoreo',
-            style: VigiaType.pill.copyWith(color: colors.inkSecondary),
+            style: VigiaType.pill.copyWith(color: secondary),
           ),
           Semantics(
             header: true,
@@ -338,11 +340,11 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
                 : () => context.go(VigiaRoutes.experimental),
           ),
           if (snapshot == null) ...[
-            VigiaParagraph(
+            VigiaText(
               checking
                   ? 'Comprobando el estado del motor…'
                   : 'Estado del motor no disponible',
-              secondary: true,
+              style: VigiaType.small.copyWith(color: secondary),
             ),
             if (!checking)
               VigiaButton(

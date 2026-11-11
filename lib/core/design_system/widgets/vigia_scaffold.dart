@@ -100,18 +100,23 @@ class VigiaScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
     // El texto ampliado puede partir por sílabas si una palabra no cabe.
+    final brandInk = p.brightness == Brightness.dark
+        ? VigiaBrand.wordmarkDark
+        : VigiaBrand.wordmarkLight;
     final titleText = VigiaText(
       title,
-      style: VigiaType.appBarTitle.copyWith(color: p.ink),
+      style: showBrandMark
+          ? VigiaType.wordmark.copyWith(color: brandInk)
+          : VigiaType.appBarTitle.copyWith(color: p.ink),
     );
     final heading = Semantics(
       header: true,
       child: showBrandMark
           ? Row(
               mainAxisSize: MainAxisSize.min,
-              spacing: 8,
+              spacing: 7,
               children: [
-                const VigiaMark(size: 32),
+                VigiaMark(size: 31, ink: brandInk),
                 Flexible(child: titleText),
               ],
             )

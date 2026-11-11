@@ -149,6 +149,24 @@ patrones visuales. Las pruebas de disposición y contraste cubren 320,
 calculado para texto secundario en el aura de pantalla fue 4,53:1 en
 claro y 4,97:1 en oscuro. D1 y TalkBack físico quedan pendientes.
 
+**Ajuste de la marca y el aura (2026-11-11).** Inicio y los formularios
+de cuenta muestran el símbolo monocromático junto a «Vigía» en Outfit.
+Las auras de Inicio y Acceso combinan lavanda, azul bruma y verde suave.
+En Acceso, Registro y Recuperación, la acción principal aparece después
+de los campos y antes de los enlaces. La comprobación de Acceso a 320 dp
+al 200 % cubre este orden y la posibilidad de llegar a los enlaces.
+
+El APK normal en modo Release con firma Android Debug está en
+`D:/dev/vigia-entrega/vigia-normal-aura-acceso-pruebas.apk`.
+SHA-256 `d02a0b1de6aed226485bae6847853188ded4347562a1cb50ef5cae733eeefaed`.
+El binario instalado coincide con ese hash y Vigía quedó en primer plano
+en `vigia_pixel`. La compilación Debug completó un hot restart.
+
+Validación propia: 947/947 pruebas Flutter, análisis sin diagnósticos y
+registro 500/500. Se actualizaron 90 patrones visuales. El texto
+secundario del aura de pantalla alcanzó un mínimo calculado de 6,14:1
+en claro y 5,00:1 en oscuro en los tamaños comprobados.
+
 ## Fases
 
 | Fase | Estado | Commits |
