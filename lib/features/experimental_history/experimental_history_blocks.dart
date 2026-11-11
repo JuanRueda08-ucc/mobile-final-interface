@@ -136,7 +136,7 @@ List<Widget> experimentalSummaryBlocks(
       ),
     ];
   }
-  final s = stored.value;
+  final s = stored.isLoading ? null : stored.value;
   if (stored is AsyncError) {
     return const [
       StatusCard(

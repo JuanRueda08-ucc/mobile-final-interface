@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show QueryExecutor;
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -10,6 +11,8 @@ import '../data/demo_history/history_providers.dart';
 import '../data/experimental_history/experimental_history_database.dart';
 import '../data/experimental_history/experimental_history_providers.dart';
 import '../data/experimental_history/experimental_history_repository.dart';
+import '../features/account/firebase_account.dart';
+import '../features/experimental/monitoring_account.dart';
 import '../features/settings/preferences_controller.dart';
 import 'app_config.dart';
 
@@ -81,7 +84,18 @@ Future<List<Override>> bootstrap(
     if (applicationId == null && openDatabase == null) return const [];
     final db = ExperimentalHistoryDatabase(open(realHistoryDatabaseName));
     final repo = ExperimentalHistoryRepository(db);
-    return realOverrides(repo, await repo.loadPreferences());
+    final overrides = realOverrides(repo, await repo.loadPreferences());
+    if (firebaseAccountsEnabled && applicationId == realApplicationId) {
+      await initializeVigiaFirebase();
+      overrides.addAll([
+        firebaseAuthProvider.overrideWithValue(FirebaseAuth.instance),
+        monitoringAccountRequiredProvider.overrideWithValue(true),
+        monitoringAccountIdProvider.overrideWith(
+          (ref) => ref.watch(verifiedFirebaseUidProvider),
+        ),
+      ]);
+    }
+    return overrides;
   }
   if (mode is! DemoMode) return const [];
   final db = DemoHistoryDatabase(open(demoHistoryDatabaseName));

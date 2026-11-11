@@ -24,6 +24,8 @@ part 'experimental_history_database.g.dart';
 @DataClassName('ExperimentalSessionRow')
 class ExperimentalSessions extends Table {
   TextColumn get sessionId => text()();
+  TextColumn get accountId => text().nullable()();
+  BoolColumn get cloudSynced => boolean().withDefault(const Constant(false))();
 
   /// Origen permanente: datos reales experimentales (nunca DEMO).
   TextColumn get origin => text()
@@ -190,19 +192,27 @@ class ExperimentalHistoryDatabase extends _$ExperimentalHistoryDatabase {
   /// historyDbVersion de la base real.
   /// - 1: fase 5D (sesiones, marcas y recibos).
   /// - 2: fase 5E, añade `preferences`; no toca las tablas de 5D.
+  /// - 3: identifica al titular de las sesiones nuevas y confirma su sincronización.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
     onUpgrade: (m, from, to) async {
-      if (from == 1 && to == 2) {
-        await m.createTable(realPreferences);
-        return;
+      if (from < 1 || to != 3 || from > 2) {
+        throw StateError('Migración del historial real $from→$to no definida');
       }
-      // Sin ruta destructiva (Área 06 §18).
-      throw StateError('Migración del historial real $from→$to no definida');
+      await transaction(() async {
+        if (from == 1) {
+          await m.createTable(realPreferences);
+        }
+        await m.addColumn(experimentalSessions, experimentalSessions.accountId);
+        await m.addColumn(
+          experimentalSessions,
+          experimentalSessions.cloudSynced,
+        );
+      });
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');

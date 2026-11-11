@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/account/firebase_account.dart';
+import '../features/account/firebase_account_screen.dart';
 import '../features/calibration/calibration_screen.dart';
 import '../features/camera/front_camera_screen.dart';
 import '../features/experimental/experimental_monitoring_screen.dart';
+import '../features/experimental/experimental_monitoring_controller.dart';
 import '../features/experimental_history/experimental_history_screens.dart';
 import '../features/history/history_screen.dart';
 import '../features/history/session_detail_screen.dart';
@@ -30,6 +33,8 @@ abstract final class VigiaRoutes {
   static const historial = '/historial';
   static const ajustes = '/ajustes';
   static const sonido = '/ajustes/sonido';
+  static const acceso = '/acceso';
+  static const cuenta = '/cuenta';
 
   /// Fase 5A: cámara frontal real y permiso, solo en la variante normal.
   static const camara = '/camara';
@@ -108,6 +113,7 @@ String? vigiaRedirect({
 
 final routerProvider = Provider<GoRouter>((ref) {
   final mode = ref.watch(appModeProvider);
+  final hasAccounts = ref.watch(firebaseAuthProvider) != null;
   // Las guardas se reevalúan cuando cambia el ciclo de la sesión o la
   // posibilidad de calibrar.
   final refresh = ValueNotifier<int>(0);
@@ -119,16 +125,50 @@ final routerProvider = Provider<GoRouter>((ref) {
     preparationProvider.select((p) => p.canCalibrate),
     (_, _) => refresh.value++,
   );
+  if (hasAccounts) {
+    ref.listen(verifiedFirebaseUidProvider, (_, _) => refresh.value++);
+    ref.listen(
+      experimentalMonitoringProvider.select(
+        (s) => s.sessionVigente || s.pending == 'start',
+      ),
+      (_, _) => refresh.value++,
+    );
+  }
   final router = GoRouter(
     initialLocation: VigiaRoutes.inicio,
     refreshListenable: refresh,
-    redirect: (context, state) => vigiaRedirect(
-      mode: mode,
-      session: ref.read(demoSessionProvider),
-      canCalibrate: ref.read(preparationProvider).canCalibrate,
-      location: state.matchedLocation,
-    ),
+    redirect: (context, state) {
+      final location = state.matchedLocation;
+      if (hasAccounts) {
+        final uid = ref.read(verifiedFirebaseUidProvider);
+        if (uid == null) {
+          if (location == VigiaRoutes.acceso) return null;
+          final monitoring = ref.read(experimentalMonitoringProvider);
+          if (location == VigiaRoutes.experimental &&
+              (monitoring.sessionVigente || monitoring.pending == 'start')) {
+            return null;
+          }
+          return VigiaRoutes.acceso;
+        }
+        if (location == VigiaRoutes.acceso) return VigiaRoutes.inicio;
+        if (location == VigiaRoutes.cuenta) return null;
+      }
+      return vigiaRedirect(
+        mode: mode,
+        session: ref.read(demoSessionProvider),
+        canCalibrate: ref.read(preparationProvider).canCalibrate,
+        location: location,
+      );
+    },
     routes: [
+      if (hasAccounts) ...[
+        for (final path in [VigiaRoutes.acceso, VigiaRoutes.cuenta])
+          GoRoute(
+            path: path,
+            pageBuilder: (context, state) =>
+                _page(state, const FirebaseAccountScreen()),
+          ),
+      ],
       GoRoute(
         path: VigiaRoutes.inicio,
         pageBuilder: (context, state) => _page(state, const InicioScreen()),

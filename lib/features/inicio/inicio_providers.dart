@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:monitoring_engine/monitoring_engine.dart';
 
 import '../../app/app_config.dart';
 import '../../data/demo_history/demo_history_repository.dart';
 import '../../data/demo_history/history_providers.dart';
+import '../experimental/experimental_monitoring_controller.dart';
 import '../monitoring/demo_session_controller.dart';
 import '../monitoring/domain/session_model.dart';
 import '../monitoring/domain/session_summary.dart';
@@ -10,7 +12,7 @@ import 'inicio_state.dart';
 
 /// Estado de Inicio (P03) según el modo de la ejecución.
 ///
-/// - Real: motor no comprobado, preparación bloqueada.
+/// - Real: la entrada experimental obtiene su propio estado del motor.
 /// - Revisión: la variante fija de `VIGIA_DEMO_INICIO`.
 /// - Demostración: la sesión vigente o, sin ella, la sesión más reciente del
 ///   historial guardado (último resumen o registro interrumpido), siempre con
@@ -25,6 +27,14 @@ final inicioStateProvider = Provider<InicioState>((ref) {
     ),
   };
 });
+
+/// La pantalla normal consulta el ciclo una vez por visita a Inicio.
+final realInicioMotorProvider = FutureProvider.autoDispose<MonitoringSnapshot>(
+  (ref) => ref
+      .read(experimentalMonitoringProvider.notifier)
+      .queryCurrentSnapshot(onDispose: ref.onDispose),
+  retry: (_, _) => null,
+);
 
 /// Inicio de la demostración a partir de la sesión y del historial.
 InicioState demoInicioState(

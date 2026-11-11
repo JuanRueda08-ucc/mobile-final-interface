@@ -9,17 +9,5 @@
         <service
             android:name="androidx.camera.core.impl.MetadataHolderService"
             tools:node="remove" />
-        <!-- Fase 5B: la DEMO no ejecuta MediaPipe (sin modelo ni biblioteca
-             nativa en su APK): se retiran también los componentes de la
-             telemetría de MediaPipe Tasks. -->
-        <service
-            android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery"
-            tools:node="remove" />
-        <service
-            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
-            tools:node="remove" />
-        <receiver
-            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
-            tools:node="remove" />
     </application>
 </manifest>

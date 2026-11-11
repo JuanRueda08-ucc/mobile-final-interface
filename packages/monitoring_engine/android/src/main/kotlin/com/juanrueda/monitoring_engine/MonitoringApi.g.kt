@@ -1505,6 +1505,7 @@ interface ExperimentalMonitoringHostApi {
   fun confirmSoundHeard(soundTestId: String): MonitoringCommandResult
   /** Única sesión: con la referencia y la prueba de sonido indicadas. */
   fun startSession(calibrationId: String, soundTestId: String): MonitoringCommandResult
+  fun startAccountSession(calibrationId: String, soundTestId: String, accountId: String): MonitoringCommandResult
   /** Corta la medición, detiene el tono y libera la cámara. */
   fun pauseSession(sessionId: String): MonitoringCommandResult
   /** La pausa sigue abierta hasta reunir observaciones válidas (Krecover). */
@@ -1679,6 +1680,25 @@ interface ExperimentalMonitoringHostApi {
             val soundTestIdArg = args[1] as String
             val wrapped: List<Any?> = try {
               listOf(api.startSession(calibrationIdArg, soundTestIdArg))
+            } catch (exception: Throwable) {
+              MonitoringApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.startAccountSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val calibrationIdArg = args[0] as String
+            val soundTestIdArg = args[1] as String
+            val accountIdArg = args[2] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.startAccountSession(calibrationIdArg, soundTestIdArg, accountIdArg))
             } catch (exception: Throwable) {
               MonitoringApiPigeonUtils.wrapError(exception)
             }

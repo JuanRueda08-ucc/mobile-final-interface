@@ -10,6 +10,7 @@ import '../settings/real_settings_writer.dart';
 import 'experimental_bridge_provider.dart';
 export 'experimental_bridge_provider.dart';
 import 'monitoring_query_channel.dart';
+import 'monitoring_account.dart';
 
 /// Estado del recorrido experimental tal como lo presenta Flutter (fase 5C).
 @immutable
@@ -198,24 +199,43 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
 
   /// Consulta al entrar en Ajustes sin abrir cámara ni arrancar el monitoreo.
   Future<void> querySettings() async {
+    _settingsSnapshot(await queryCurrentSnapshot());
+  }
+
+  /// Consulta puntual del ciclo de sesión, sin abrir cámara ni iniciar sondeos.
+  Future<MonitoringSnapshot> queryCurrentSnapshot({
+    void Function(VoidCallback)? onDispose,
+  }) async {
     final ticket =
         MonitoringQueryChannel.pendingOn(_bridge) ??
         MonitoringQueryChannel.start(_bridge, _epoch, clock.stopwatch());
     if (ticket == null) throw StateError('Consulta no disponible');
-    final done = Completer<void>();
+    final done = Completer<MonitoringSnapshot>();
     final listener = ticket.listen((r) {
       if (r.error != null ||
           r.answer == null ||
           r.watch.elapsed >= queryTimeout) {
         done.completeError(StateError('Motor no disponible'));
       } else {
-        _settingsSnapshot(r.answer!);
-        done.complete();
+        done.complete(r.answer!);
+      }
+    });
+    final timeout = Timer(queryTimeout, () {
+      if (!done.isCompleted) {
+        done.completeError(StateError('Motor no disponible'));
+      }
+    });
+    onDispose?.call(() {
+      timeout.cancel();
+      listener.cancel();
+      if (!done.isCompleted) {
+        done.completeError(StateError('Consulta cancelada'));
       }
     });
     try {
-      await done.future.timeout(queryTimeout);
+      return await done.future;
     } finally {
+      timeout.cancel();
       listener.cancel();
     }
   }
@@ -634,6 +654,23 @@ class ExperimentalMonitoringController extends Notifier<ExperimentalState> {
     final sound = s?.soundTestId;
     if (cal == null || sound == null || !soundConfirmedFor(s)) {
       return Future.value(false);
+    }
+    final account = ref.read(monitoringAccountIdProvider);
+    if (account == null && ref.read(monitoringAccountRequiredProvider)) {
+      state = state.copyWith(rejection: () => 'accountRequired');
+      return Future.value(false);
+    }
+    if (account != null) {
+      final bridge = _bridge;
+      if (bridge is! AccountMonitoringBridge) return Future.value(false);
+      return _command(
+        'start',
+        () => (bridge as AccountMonitoringBridge).startAccountSession(
+          cal,
+          sound,
+          account,
+        ),
+      );
     }
     return _command('start', () => _bridge.startSession(cal, sound));
   }

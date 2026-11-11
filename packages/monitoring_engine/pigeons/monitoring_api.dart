@@ -484,6 +484,11 @@ abstract class ExperimentalMonitoringHostApi {
     String calibrationId,
     String soundTestId,
   );
+  MonitoringCommandResult startAccountSession(
+    String calibrationId,
+    String soundTestId,
+    String accountId,
+  );
 
   /// Corta la medición, detiene el tono y libera la cámara.
   MonitoringCommandResult pauseSession(String sessionId);

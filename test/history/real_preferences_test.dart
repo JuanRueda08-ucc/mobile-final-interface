@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions, MigrationStrategy;
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
@@ -48,20 +48,18 @@ class _GatedStore implements PreferencesStore {
   }
 }
 
-/// Esquema 5D: las tres tablas originales, sin abrir ni crear preferencias.
-class _Database5D extends ExperimentalHistoryDatabase {
-  _Database5D(super.executor);
-  @override
-  int get schemaVersion => 1;
-  @override
-  MigrationStrategy get migration => MigrationStrategy(
-    onCreate: (m) async {
-      for (final t in allTables) {
-        if (t.actualTableName != 'preferences') await m.createTable(t);
-      }
-    },
-    beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
+Future<void> _prepareLegacySchema(
+  ExperimentalHistoryDatabase db,
+  int version,
+) async {
+  if (version == 1) await db.customStatement('DROP TABLE preferences');
+  await db.customStatement(
+    'ALTER TABLE experimental_sessions DROP COLUMN account_id',
   );
+  await db.customStatement(
+    'ALTER TABLE experimental_sessions DROP COLUMN cloud_synced',
+  );
+  await db.customStatement('PRAGMA user_version = $version');
 }
 
 /// Fase 5E · Ajustes de la variante normal: preferencias en
@@ -99,7 +97,7 @@ void main() {
     }
   }
 
-  group('Repositorio real (esquema v2)', () {
+  group('Repositorio real (esquema v3)', () {
     test('sin fila: iniciales; guardados sucesivos y entre conexiones dejan '
         'una sola fila', () async {
       expect(await reread(), const StoredPreferences());
@@ -148,32 +146,36 @@ void main() {
       expect((await reread()).soundPatternId, 'patron_2');
     });
 
-    test('migración v1 → v2: conserva los datos de 5D y añade '
-        'preferencias', () async {
-      // Base con el esquema de 5D: la de v2 sin `preferences`, en versión 1.
-      var db = openDb();
-      await db.customStatement('DROP TABLE preferences');
-      await db.customStatement(
-        "INSERT INTO imported_records VALUES ('r-1', 1, 'hash-1', 'started')",
-      );
-      await db.customStatement('PRAGMA user_version = 1');
-      await db.close();
+    for (final version in [1, 2]) {
+      test('migración v$version → v3 conserva recibos y preferencias', () async {
+        var db = openDb();
+        const saved = StoredPreferences(theme: ThemePreference.dark);
+        if (version == 2) {
+          await ExperimentalHistoryRepository(db).savePreferences(saved);
+        }
+        await db.customStatement(
+          "INSERT INTO imported_records VALUES ('r-1', 1, 'hash-1', 'started')",
+        );
+        await _prepareLegacySchema(db, version);
+        await db.close();
 
-      db = openDb();
-      final repo = ExperimentalHistoryRepository(db);
-      expect(await repo.loadPreferences(), const StoredPreferences());
-      expect(await repo.importedCount(), 1, reason: 'los recibos de 5D siguen');
-      await repo.savePreferences(
-        const StoredPreferences(theme: ThemePreference.dark),
-      );
-      final version = await db.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 2);
-      await db.close();
-      expect((await reread()).theme, ThemePreference.dark);
-    });
+        db = openDb();
+        final repo = ExperimentalHistoryRepository(db);
+        expect(
+          await repo.loadPreferences(),
+          version == 1 ? const StoredPreferences() : saved,
+        );
+        expect(await repo.importedCount(), 1);
+        await repo.savePreferences(saved);
+        final schema = await db.customSelect('PRAGMA user_version').getSingle();
+        expect(schema.read<int>('user_version'), 3);
+        await db.close();
+        expect(await reread(), saved);
+      });
+    }
 
     test('migración poblada 5D: conserva cada columna, evento, hash, identidad y estado', () async {
-      final old = _Database5D(NativeDatabase(file));
+      final old = openDb();
       final journal = FakeJournal()
         ..completeSession('finalizada')
         ..started('interrumpida')
@@ -199,7 +201,9 @@ void main() {
           t: [
             for (final r
                 in await db.customSelect('SELECT * FROM $t ORDER BY 1').get())
-              r.data,
+              Map.of(r.data)
+                ..remove('account_id')
+                ..remove('cloud_synced'),
           ],
       };
       final before = await dump(old);
@@ -220,6 +224,7 @@ void main() {
             .toSet(),
         journal.records.map((r) => r.payloadHash).toSet(),
       );
+      await _prepareLegacySchema(old, 1);
       expect(
         (await old.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
@@ -241,6 +246,11 @@ void main() {
         const StoredPreferences(soundPatternId: 'patron_3'),
       );
       expect(await dump(upgraded), before);
+      for (final session
+          in await upgraded.select(upgraded.experimentalSessions).get()) {
+        expect(session.accountId, isNull);
+        expect(session.cloudSynced, isFalse);
+      }
       await repo.importRecords(journal.records);
       expect(
         await dump(upgraded),

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:monitoring_engine/monitoring_engine.dart';
 
 import '../../app/app_config.dart';
 import '../../app/router.dart';
+import '../../core/design_system/theme.dart';
+import '../../core/design_system/tokens.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/aura_hero.dart';
 import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
+import '../../core/design_system/widgets/vigia_text.dart';
 import '../../data/demo_history/history_providers.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../experimental_history/experimental_home_section.dart';
@@ -25,8 +29,7 @@ import 'inicio_state.dart';
 ///   barra abre Historial y Ajustes.
 /// - Con `VIGIA_DEMO_INICIO` es una vista de revisión: sus acciones y la barra
 ///   muestran un aviso, porque la variante no es una sesión iniciada.
-/// - Sin definiciones (motor no comprobado) no hay historial ni ajustes que
-///   abrir en este prototipo: la barra muestra un aviso.
+/// - La variante normal consulta el motor y abre el recorrido experimental.
 class InicioScreen extends ConsumerStatefulWidget {
   const InicioScreen({super.key});
 
@@ -118,6 +121,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
       navIndex: 0,
       onNavSelected: _nav,
       notice: notice,
+      background: state is InicioMotorNoComprobado ? const _InicioAura() : null,
       children: _blocks(state),
     );
   }
@@ -188,54 +192,23 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
           ),
         ];
       case InicioMotorNoComprobado():
+        final result = ModalRoute.isCurrentOf(context) == false
+            ? const AsyncLoading<MonitoringSnapshot>()
+            : ref.watch(realInicioMotorProvider);
         return [
-          const StatusCard(
-            tone: StatusTone.neutral,
-            icon: VigiaIcon.lock,
-            tag: 'Estado del motor',
-            title: 'Estado del motor no comprobado',
-            text:
-                'Esta versión del prototipo todavía no se conecta con el motor de '
-                'monitoreo. No se puede preparar ni iniciar una sesión.',
+          _experimentalEntry(
+            result.isLoading ? null : result.asData?.value,
+            checking: result.isLoading,
           ),
-          const VigiaButton(label: 'Preparar sesión', onPressed: null),
-          const VigiaParagraph(
-            'No disponible hasta comprobar el estado del motor.',
-            secondary: true,
+          if (ref.watch(experimentalHistoryRepositoryProvider) != null)
+            const ExperimentalHomeSection(),
+          const Divider(),
+          VigiaButton(
+            label: 'Comprobar cámara',
+            kind: VigiaButtonKind.secondary,
+            icon: VigiaIcon.target,
+            onPressed: () => context.go(VigiaRoutes.camara),
           ),
-          // Fase 5A: vista previa real de la cámara frontal, sin análisis.
-          if (ref.read(appModeProvider) is RealMode) ...[
-            const VigiaSectionTitle('Cámara frontal'),
-            const VigiaParagraph(
-              'Puedes comprobar el permiso y la vista previa de la cámara. La '
-              'detección de fatiga todavía no está disponible.',
-              secondary: true,
-            ),
-            VigiaButton(
-              label: 'Comprobar cámara',
-              kind: VigiaButtonKind.secondary,
-              icon: VigiaIcon.target,
-              onPressed: () => context.go(VigiaRoutes.camara),
-            ),
-            // Fase 5C: recorrido real experimental (cierre ocular sostenido).
-            const VigiaSectionTitle('Monitoreo experimental'),
-            const VigiaParagraph(
-              'Prueba experimental con la cámara: calibración de los ojos y '
-              'aviso con tono ante un cierre ocular sostenido. Valores de '
-              'laboratorio sin validar; no es una ayuda para conducir.',
-              secondary: true,
-            ),
-            VigiaButton(
-              key: const Key('open-experimental'),
-              label: 'Monitoreo experimental',
-              kind: VigiaButtonKind.secondary,
-              icon: VigiaIcon.eyeClosed,
-              onPressed: () => context.go(VigiaRoutes.experimental),
-            ),
-            // Fase 5D: última sesión experimental guardada.
-            if (ref.read(experimentalHistoryRepositoryProvider) != null)
-              const ExperimentalHomeSection(),
-          ],
         ];
       case InicioMotorDesconocido():
         return [
@@ -317,10 +290,113 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
     }
   }
 
+  Widget _experimentalEntry(
+    MonitoringSnapshot? snapshot, {
+    required bool checking,
+  }) {
+    final active = snapshot?.lifecycle == EngineSessionLifecycle.active;
+    final paused = snapshot?.lifecycle == EngineSessionLifecycle.paused;
+    final ongoing = active || paused;
+    final colors = VigiaColors.of(context);
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isLargeText(context) ? 8 : 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          VigiaText(
+            'Monitoreo experimental',
+            style: VigiaType.pill.copyWith(color: colors.inkSecondary),
+          ),
+          Semantics(
+            header: true,
+            child: VigiaText(
+              ongoing
+                  ? (paused ? 'Sesión pausada' : 'Sesión activa')
+                  : 'Prepara tu sesión',
+              style: VigiaType.heroTitle(isLargeText(context) ? 30 : 40)
+                  .copyWith(color: colors.ink),
+            ),
+          ),
+          VigiaParagraph(
+            ongoing
+                ? 'Vuelve a la sesión experimental en curso.'
+                : 'Ajusta el encuadre y calibra con el vehículo detenido.',
+          ),
+          VigiaButton(
+            key: const Key('open-experimental'),
+            label: ongoing ? 'Volver al monitoreo' : 'Preparar sesión',
+            icon: VigiaIcon.arrow,
+            onPressed: snapshot == null
+                ? null
+                : () => context.go(VigiaRoutes.experimental),
+          ),
+          if (snapshot == null) ...[
+            VigiaParagraph(
+              checking
+                  ? 'Comprobando el estado del motor…'
+                  : 'Estado del motor no disponible',
+              secondary: true,
+            ),
+            if (!checking)
+              VigiaButton(
+                label: 'Consultar estado',
+                kind: VigiaButtonKind.secondary,
+                onPressed: () => ref.invalidate(realInicioMotorProvider),
+              ),
+          ],
+          if (!ongoing)
+            const VigiaParagraph(
+              'Prototipo de laboratorio para observar cierres oculares.',
+              secondary: true,
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _prepareHero() => AuraHero(
     title: 'Prepara tu sesión',
     text: InicioScreen.heroText,
     ctaLabel: 'Preparar sesión',
     onCta: () => _act(InicioAction.prepararSesion),
   );
+}
+
+class _InicioAura extends StatelessWidget {
+  const _InicioAura();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = VigiaColors.of(context);
+    final dark = palette.brightness == Brightness.dark;
+    final accent = dark ? VigiaAura.sky : VigiaAura.lime;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(-1.05, -0.84),
+          radius: 1.12,
+          colors: [
+            Color.alphaBlend(
+              VigiaAura.lilac.withValues(alpha: dark ? 0.30 : 0.78),
+              palette.bg,
+            ),
+            palette.bg,
+          ],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(1.06, -0.34),
+            radius: 0.92,
+            colors: [
+              accent.withValues(alpha: dark ? 0.14 : 0.67),
+              accent.withValues(alpha: 0),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

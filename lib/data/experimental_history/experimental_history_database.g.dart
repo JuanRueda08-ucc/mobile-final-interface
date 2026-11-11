@@ -20,6 +20,32 @@ class $ExperimentalSessionsTable extends ExperimentalSessions
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _cloudSyncedMeta = const VerificationMeta(
+    'cloudSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> cloudSynced = GeneratedColumn<bool>(
+    'cloud_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("cloud_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _originMeta = const VerificationMeta('origin');
   @override
   late final GeneratedColumn<String> origin = GeneratedColumn<String>(
@@ -400,6 +426,8 @@ class $ExperimentalSessionsTable extends ExperimentalSessions
   @override
   List<GeneratedColumn> get $columns => [
     sessionId,
+    accountId,
+    cloudSynced,
     origin,
     qualificationStatus,
     profileId,
@@ -454,6 +482,21 @@ class $ExperimentalSessionsTable extends ExperimentalSessions
       );
     } else if (isInserting) {
       context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('cloud_synced')) {
+      context.handle(
+        _cloudSyncedMeta,
+        cloudSynced.isAcceptableOrUnknown(
+          data['cloud_synced']!,
+          _cloudSyncedMeta,
+        ),
+      );
     }
     if (data.containsKey('origin')) {
       context.handle(
@@ -783,6 +826,14 @@ class $ExperimentalSessionsTable extends ExperimentalSessions
         DriftSqlType.string,
         data['${effectivePrefix}session_id'],
       )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
+      cloudSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}cloud_synced'],
+      )!,
       origin: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}origin'],
@@ -931,6 +982,8 @@ class $ExperimentalSessionsTable extends ExperimentalSessions
 class ExperimentalSessionRow extends DataClass
     implements Insertable<ExperimentalSessionRow> {
   final String sessionId;
+  final String? accountId;
+  final bool cloudSynced;
 
   /// Origen permanente: datos reales experimentales (nunca DEMO).
   final String origin;
@@ -983,6 +1036,8 @@ class ExperimentalSessionRow extends DataClass
   final int? knownPausedMs;
   const ExperimentalSessionRow({
     required this.sessionId,
+    this.accountId,
+    required this.cloudSynced,
     required this.origin,
     required this.qualificationStatus,
     required this.profileId,
@@ -1022,6 +1077,10 @@ class ExperimentalSessionRow extends DataClass
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['session_id'] = Variable<String>(sessionId);
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    map['cloud_synced'] = Variable<bool>(cloudSynced);
     map['origin'] = Variable<String>(origin);
     map['qualification_status'] = Variable<String>(qualificationStatus);
     map['profile_id'] = Variable<String>(profileId);
@@ -1094,6 +1153,10 @@ class ExperimentalSessionRow extends DataClass
   ExperimentalSessionsCompanion toCompanion(bool nullToAbsent) {
     return ExperimentalSessionsCompanion(
       sessionId: Value(sessionId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      cloudSynced: Value(cloudSynced),
       origin: Value(origin),
       qualificationStatus: Value(qualificationStatus),
       profileId: Value(profileId),
@@ -1170,6 +1233,8 @@ class ExperimentalSessionRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ExperimentalSessionRow(
       sessionId: serializer.fromJson<String>(json['sessionId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      cloudSynced: serializer.fromJson<bool>(json['cloudSynced']),
       origin: serializer.fromJson<String>(json['origin']),
       qualificationStatus: serializer.fromJson<String>(
         json['qualificationStatus'],
@@ -1217,6 +1282,8 @@ class ExperimentalSessionRow extends DataClass
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'sessionId': serializer.toJson<String>(sessionId),
+      'accountId': serializer.toJson<String?>(accountId),
+      'cloudSynced': serializer.toJson<bool>(cloudSynced),
       'origin': serializer.toJson<String>(origin),
       'qualificationStatus': serializer.toJson<String>(qualificationStatus),
       'profileId': serializer.toJson<String>(profileId),
@@ -1256,6 +1323,8 @@ class ExperimentalSessionRow extends DataClass
 
   ExperimentalSessionRow copyWith({
     String? sessionId,
+    Value<String?> accountId = const Value.absent(),
+    bool? cloudSynced,
     String? origin,
     String? qualificationStatus,
     String? profileId,
@@ -1292,6 +1361,8 @@ class ExperimentalSessionRow extends DataClass
     Value<int?> knownPausedMs = const Value.absent(),
   }) => ExperimentalSessionRow(
     sessionId: sessionId ?? this.sessionId,
+    accountId: accountId.present ? accountId.value : this.accountId,
+    cloudSynced: cloudSynced ?? this.cloudSynced,
     origin: origin ?? this.origin,
     qualificationStatus: qualificationStatus ?? this.qualificationStatus,
     profileId: profileId ?? this.profileId,
@@ -1346,6 +1417,10 @@ class ExperimentalSessionRow extends DataClass
   ExperimentalSessionRow copyWithCompanion(ExperimentalSessionsCompanion data) {
     return ExperimentalSessionRow(
       sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      cloudSynced: data.cloudSynced.present
+          ? data.cloudSynced.value
+          : this.cloudSynced,
       origin: data.origin.present ? data.origin.value : this.origin,
       qualificationStatus: data.qualificationStatus.present
           ? data.qualificationStatus.value
@@ -1443,6 +1518,8 @@ class ExperimentalSessionRow extends DataClass
   String toString() {
     return (StringBuffer('ExperimentalSessionRow(')
           ..write('sessionId: $sessionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('cloudSynced: $cloudSynced, ')
           ..write('origin: $origin, ')
           ..write('qualificationStatus: $qualificationStatus, ')
           ..write('profileId: $profileId, ')
@@ -1484,6 +1561,8 @@ class ExperimentalSessionRow extends DataClass
   @override
   int get hashCode => Object.hashAll([
     sessionId,
+    accountId,
+    cloudSynced,
     origin,
     qualificationStatus,
     profileId,
@@ -1524,6 +1603,8 @@ class ExperimentalSessionRow extends DataClass
       identical(this, other) ||
       (other is ExperimentalSessionRow &&
           other.sessionId == this.sessionId &&
+          other.accountId == this.accountId &&
+          other.cloudSynced == this.cloudSynced &&
           other.origin == this.origin &&
           other.qualificationStatus == this.qualificationStatus &&
           other.profileId == this.profileId &&
@@ -1563,6 +1644,8 @@ class ExperimentalSessionRow extends DataClass
 class ExperimentalSessionsCompanion
     extends UpdateCompanion<ExperimentalSessionRow> {
   final Value<String> sessionId;
+  final Value<String?> accountId;
+  final Value<bool> cloudSynced;
   final Value<String> origin;
   final Value<String> qualificationStatus;
   final Value<String> profileId;
@@ -1600,6 +1683,8 @@ class ExperimentalSessionsCompanion
   final Value<int> rowid;
   const ExperimentalSessionsCompanion({
     this.sessionId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.cloudSynced = const Value.absent(),
     this.origin = const Value.absent(),
     this.qualificationStatus = const Value.absent(),
     this.profileId = const Value.absent(),
@@ -1638,6 +1723,8 @@ class ExperimentalSessionsCompanion
   });
   ExperimentalSessionsCompanion.insert({
     required String sessionId,
+    this.accountId = const Value.absent(),
+    this.cloudSynced = const Value.absent(),
     this.origin = const Value.absent(),
     this.qualificationStatus = const Value.absent(),
     required String profileId,
@@ -1691,6 +1778,8 @@ class ExperimentalSessionsCompanion
        integrityStatus = Value(integrityStatus);
   static Insertable<ExperimentalSessionRow> custom({
     Expression<String>? sessionId,
+    Expression<String>? accountId,
+    Expression<bool>? cloudSynced,
     Expression<String>? origin,
     Expression<String>? qualificationStatus,
     Expression<String>? profileId,
@@ -1729,6 +1818,8 @@ class ExperimentalSessionsCompanion
   }) {
     return RawValuesInsertable({
       if (sessionId != null) 'session_id': sessionId,
+      if (accountId != null) 'account_id': accountId,
+      if (cloudSynced != null) 'cloud_synced': cloudSynced,
       if (origin != null) 'origin': origin,
       if (qualificationStatus != null)
         'qualification_status': qualificationStatus,
@@ -1773,6 +1864,8 @@ class ExperimentalSessionsCompanion
 
   ExperimentalSessionsCompanion copyWith({
     Value<String>? sessionId,
+    Value<String?>? accountId,
+    Value<bool>? cloudSynced,
     Value<String>? origin,
     Value<String>? qualificationStatus,
     Value<String>? profileId,
@@ -1811,6 +1904,8 @@ class ExperimentalSessionsCompanion
   }) {
     return ExperimentalSessionsCompanion(
       sessionId: sessionId ?? this.sessionId,
+      accountId: accountId ?? this.accountId,
+      cloudSynced: cloudSynced ?? this.cloudSynced,
       origin: origin ?? this.origin,
       qualificationStatus: qualificationStatus ?? this.qualificationStatus,
       profileId: profileId ?? this.profileId,
@@ -1856,6 +1951,12 @@ class ExperimentalSessionsCompanion
     final map = <String, Expression>{};
     if (sessionId.present) {
       map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (cloudSynced.present) {
+      map['cloud_synced'] = Variable<bool>(cloudSynced.value);
     }
     if (origin.present) {
       map['origin'] = Variable<String>(origin.value);
@@ -1973,6 +2074,8 @@ class ExperimentalSessionsCompanion
   String toString() {
     return (StringBuffer('ExperimentalSessionsCompanion(')
           ..write('sessionId: $sessionId, ')
+          ..write('accountId: $accountId, ')
+          ..write('cloudSynced: $cloudSynced, ')
           ..write('origin: $origin, ')
           ..write('qualificationStatus: $qualificationStatus, ')
           ..write('profileId: $profileId, ')
@@ -3365,6 +3468,8 @@ abstract class _$ExperimentalHistoryDatabase extends GeneratedDatabase {
 typedef $$ExperimentalSessionsTableCreateCompanionBuilder =
     ExperimentalSessionsCompanion Function({
       required String sessionId,
+      Value<String?> accountId,
+      Value<bool> cloudSynced,
       Value<String> origin,
       Value<String> qualificationStatus,
       required String profileId,
@@ -3404,6 +3509,8 @@ typedef $$ExperimentalSessionsTableCreateCompanionBuilder =
 typedef $$ExperimentalSessionsTableUpdateCompanionBuilder =
     ExperimentalSessionsCompanion Function({
       Value<String> sessionId,
+      Value<String?> accountId,
+      Value<bool> cloudSynced,
       Value<String> origin,
       Value<String> qualificationStatus,
       Value<String> profileId,
@@ -3497,6 +3604,16 @@ class $$ExperimentalSessionsTableFilterComposer
   });
   ColumnFilters<String> get sessionId => $composableBuilder(
     column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get cloudSynced => $composableBuilder(
+    column: $table.cloudSynced,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3713,6 +3830,16 @@ class $$ExperimentalSessionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get cloudSynced => $composableBuilder(
+    column: $table.cloudSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get origin => $composableBuilder(
     column: $table.origin,
     builder: (column) => ColumnOrderings(column),
@@ -3896,6 +4023,14 @@ class $$ExperimentalSessionsTableAnnotationComposer
   });
   GeneratedColumn<String> get sessionId =>
       $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<bool> get cloudSynced => $composableBuilder(
+    column: $table.cloudSynced,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get origin =>
       $composableBuilder(column: $table.origin, builder: (column) => column);
@@ -4120,6 +4255,8 @@ class $$ExperimentalSessionsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> sessionId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<bool> cloudSynced = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> qualificationStatus = const Value.absent(),
                 Value<String> profileId = const Value.absent(),
@@ -4157,6 +4294,8 @@ class $$ExperimentalSessionsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => ExperimentalSessionsCompanion(
                 sessionId: sessionId,
+                accountId: accountId,
+                cloudSynced: cloudSynced,
                 origin: origin,
                 qualificationStatus: qualificationStatus,
                 profileId: profileId,
@@ -4196,6 +4335,8 @@ class $$ExperimentalSessionsTableTableManager
           createCompanionCallback:
               ({
                 required String sessionId,
+                Value<String?> accountId = const Value.absent(),
+                Value<bool> cloudSynced = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> qualificationStatus = const Value.absent(),
                 required String profileId,
@@ -4233,6 +4374,8 @@ class $$ExperimentalSessionsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => ExperimentalSessionsCompanion.insert(
                 sessionId: sessionId,
+                accountId: accountId,
+                cloudSynced: cloudSynced,
                 origin: origin,
                 qualificationStatus: qualificationStatus,
                 profileId: profileId,

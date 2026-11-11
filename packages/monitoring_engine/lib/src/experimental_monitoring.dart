@@ -44,9 +44,17 @@ abstract interface class ExperimentalMonitoringBridge {
   Object get queryChannel;
 }
 
+abstract interface class AccountMonitoringBridge {
+  Future<MonitoringCommandResult> startAccountSession(
+    String calibrationId,
+    String soundTestId,
+    String accountId,
+  );
+}
+
 /// [ExperimentalMonitoringBridge] sobre los mensajes generados por Pigeon.
 class PigeonExperimentalMonitoringBridge
-    implements ExperimentalMonitoringBridge {
+    implements ExperimentalMonitoringBridge, AccountMonitoringBridge {
   PigeonExperimentalMonitoringBridge({ExperimentalMonitoringHostApi? host})
     : _host = host ?? ExperimentalMonitoringHostApi() {
     ExperimentalMonitoringFlutterApi.setUp(
@@ -112,6 +120,13 @@ class PigeonExperimentalMonitoringBridge
     String calibrationId,
     String soundTestId,
   ) => _host.startSession(calibrationId, soundTestId);
+
+  @override
+  Future<MonitoringCommandResult> startAccountSession(
+    String calibrationId,
+    String soundTestId,
+    String accountId,
+  ) => _host.startAccountSession(calibrationId, soundTestId, accountId);
 
   @override
   Future<MonitoringCommandResult> pauseSession(String sessionId) =>

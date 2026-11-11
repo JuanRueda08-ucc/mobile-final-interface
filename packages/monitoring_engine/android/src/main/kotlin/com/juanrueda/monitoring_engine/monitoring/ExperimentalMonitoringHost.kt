@@ -171,6 +171,8 @@ internal class ExperimentalMonitoringHost(
     override fun confirmSoundHeard(soundTestId: String) = coordinator.confirmSoundHeard(soundTestId).toPigeon()
     override fun startSession(calibrationId: String, soundTestId: String) =
         coordinator.startSession(calibrationId, soundTestId).toPigeon()
+    override fun startAccountSession(calibrationId: String, soundTestId: String, accountId: String) =
+        coordinator.startSession(calibrationId, soundTestId, accountId).toPigeon()
     override fun pauseSession(sessionId: String) = coordinator.pauseSession(sessionId).toPigeon()
     override fun resumeSession(sessionId: String) = coordinator.resumeSession(sessionId).toPigeon()
     override fun stopSession(sessionId: String) = coordinator.stopSession(sessionId).toPigeon()

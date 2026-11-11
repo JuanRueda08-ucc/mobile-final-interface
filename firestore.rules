@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owns(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
+
+    function nonnegative(value) {
+      return value is int && value >= 0;
+    }
+
+    function validSummary(s) {
+      let fields = [
+        'version', 'qualification', 'profile', 'status', 'complete',
+        'startedAtMs', 'startedOffsetMinutes', 'endedAtMs', 'durableMs',
+        'activeMs', 'evaluableMs', 'closures'
+      ];
+      return s.keys().hasAll(fields) && s.keys().hasOnly(fields)
+        && s.version == 1 && s.qualification == 'experimental'
+        && s.profile == 'lab-eye-rules-0.1'
+        && s.complete is bool
+        && s.startedAtMs is int && s.startedAtMs > 0
+        && s.startedOffsetMinutes is int
+        && s.startedOffsetMinutes >= -840 && s.startedOffsetMinutes <= 840
+        && nonnegative(s.durableMs)
+        && ((s.status == 'finalized' && s.endedAtMs is int && s.endedAtMs > 0)
+          || (s.status == 'interrupted' && s.endedAtMs == null && s.complete == false))
+        && ((s.complete == true
+            && nonnegative(s.activeMs) && s.activeMs <= s.durableMs
+            && nonnegative(s.evaluableMs) && s.evaluableMs <= s.activeMs
+            && nonnegative(s.closures))
+          || (s.complete == false
+            && s.activeMs == null && s.evaluableMs == null && s.closures == null));
+    }
+
+    match /users/{uid}/sessions/{sessionId} {
+      allow get, list: if owns(uid);
+      allow create: if owns(uid)
+        && sessionId.matches('[A-Za-z0-9_-]{1,128}')
+        && validSummary(request.resource.data);
+      allow update: if owns(uid)
+        && resource.data.complete == true && request.resource.data.complete == false
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['complete', 'activeMs', 'evaluableMs', 'closures'])
+        && validSummary(request.resource.data);
+    }
+  }
+}

@@ -9,6 +9,7 @@ import 'package:vigia/data/experimental_history/experimental_history_database.da
 import 'package:vigia/data/experimental_history/experimental_history_providers.dart';
 import 'package:vigia/data/experimental_history/experimental_history_repository.dart';
 import 'package:vigia/data/experimental_history/journal_codec.dart';
+import 'package:vigia/features/account/cloud_sessions.dart';
 
 import '../support/fake_journal.dart';
 
@@ -85,6 +86,45 @@ void main() {
   });
 
   group('guardado', () {
+    test('separa titulares y sincroniza solo resúmenes terminales', () async {
+      journal.completeSession('anterior');
+      journal.completeSession('sesion-a', accountId: 'cuenta-a');
+      journal.completeSession('sesion-b', accountId: 'cuenta-b');
+      journal.started('abierta-a', accountId: 'cuenta-a');
+      expect((await sync()).status, JournalSyncStatus.upToDate);
+
+      expect((await repo.sessions()).map((s) => s.sessionId), ['anterior']);
+      expect(await repo.session('sesion-a', accountId: 'cuenta-b'), isNull);
+      expect(await repo.marks('sesion-a', accountId: 'cuenta-b'), isEmpty);
+      final owned = await repo.pendingCloudSessions('cuenta-a');
+      expect(owned.map((s) => s.sessionId), ['sesion-a']);
+      final summary = cloudSessionData(owned.single);
+      expect(summary['activeMs'], 60000);
+      expect(summary['status'], 'finalized');
+      expect(
+        summary.keys,
+        unorderedEquals([
+          'version',
+          'qualification',
+          'profile',
+          'status',
+          'complete',
+          'startedAtMs',
+          'startedOffsetMinutes',
+          'endedAtMs',
+          'durableMs',
+          'activeMs',
+          'evaluableMs',
+          'closures',
+        ]),
+      );
+      await repo.confirmCloudSession('cuenta-b', owned.single);
+      expect(await repo.pendingCloudSessions('cuenta-a'), hasLength(1));
+      await repo.confirmCloudSession('cuenta-a', owned.single);
+      expect(await repo.pendingCloudSessions('cuenta-a'), isEmpty);
+      expect(await repo.pendingCloudSessions('cuenta-b'), hasLength(1));
+    });
+
     test(
       'sesión finalizada: totales del motor, línea temporal y ACK',
       () async {
@@ -227,10 +267,19 @@ void main() {
         expect(s.stop, ImportStop.relation);
         final r = (await repo.session('s1'))!;
         expect(r.endOffset, const Duration(seconds: 70));
-        expect(r.totals, isNull, reason: 'el cierre conflictivo impide declarar totales completos');
-        final stored = await (db.select(db.experimentalSessions)
-              ..where((t) => t.sessionId.equals('s1'))).getSingle();
-        expect(stored.activeMs, 60000, reason: 'el valor del primer cierre se conserva');
+        expect(
+          r.totals,
+          isNull,
+          reason: 'el cierre conflictivo impide declarar totales completos',
+        );
+        final stored = await (db.select(
+          db.experimentalSessions,
+        )..where((t) => t.sessionId.equals('s1'))).getSingle();
+        expect(
+          stored.activeMs,
+          60000,
+          reason: 'el valor del primer cierre se conserva',
+        );
         expect(journal.pending, hasLength(1));
       },
     );

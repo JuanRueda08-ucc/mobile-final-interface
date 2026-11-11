@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -27,6 +28,26 @@ val vigiaDemo: Boolean =
         "true" -> true
         else -> throw GradleException("VIGIA_DEMO=$value no admitido; usa true o false")
     }
+val vigiaFirebase = when (val value = vigiaDartDefines["VIGIA_FIREBASE"]) {
+    null, "", "false" -> false
+    "true" -> true
+    else -> throw GradleException("VIGIA_FIREBASE=$value no admitido; usa true o false")
+}
+if (vigiaFirebase) {
+    if (vigiaDemo || !vigiaDartDefines["VIGIA_DEMO_INICIO"].isNullOrEmpty()) {
+        throw GradleException("Firebase solo está disponible en la variante normal de Vigía")
+    }
+    for (key in listOf("API_KEY", "APP_ID", "SENDER_ID", "PROJECT_ID")) {
+        if (vigiaDartDefines["VIGIA_FIREBASE_$key"].isNullOrBlank()) {
+            throw GradleException("Falta VIGIA_FIREBASE_$key en la configuración del APK")
+        }
+    }
+}
+val releaseKeyFile = rootProject.file("key.properties")
+val releaseKeys = Properties()
+if (releaseKeyFile.isFile) {
+    releaseKeyFile.inputStream().use { releaseKeys.load(it) }
+}
 
 android {
     namespace = "com.juanrueda.vigia"
@@ -69,11 +90,21 @@ android {
         }
     }
 
+    signingConfigs {
+        if (vigiaFirebase && releaseKeyFile.isFile) {
+            create("vigiaRelease") {
+                storeFile = rootProject.file(releaseKeys.getProperty("storeFile"))
+                storePassword = releaseKeys.getProperty("storePassword")
+                keyAlias = releaseKeys.getProperty("keyAlias")
+                keyPassword = releaseKeys.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("vigiaRelease")
+                ?: signingConfigs.getByName("debug")
         }
     }
 }
@@ -87,6 +118,14 @@ androidComponents {
         variant.sources.manifests.addStaticManifestFile(
             if (vigiaDemo) "src/demo/AndroidManifest.xml" else "src/normal/AndroidManifest.xml",
         )
+        if (vigiaFirebase) {
+            variant.sources.manifests.addStaticManifestFile("src/cloud/AndroidManifest.xml")
+        } else {
+            variant.sources.manifests.addStaticManifestFile("src/offline/AndroidManifest.xml")
+            if (variant.buildType == "release") {
+                variant.sources.manifests.addStaticManifestFile("src/offlineRelease/AndroidManifest.xml")
+            }
+        }
     }
 }
 

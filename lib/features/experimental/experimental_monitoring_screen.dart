@@ -10,6 +10,7 @@ import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_flow_blocks.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
+import '../../core/design_system/widgets/vigia_text.dart';
 import '../camera/front_camera_controller.dart';
 import '../camera/front_camera_screen.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
@@ -60,6 +61,7 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
   };
 
   static String rejectionText(String code) => switch (code) {
+    'accountRequired' => 'Inicia sesión con un correo verificado.',
     'sessionActive' => 'Ya hay una sesión en curso.',
     'settingsChangePending' => 'Espera a que termine el guardado de Ajustes.',
     'cameraNotReady' => 'La cámara no está lista.',
@@ -99,6 +101,8 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
       _ExperimentalMonitoringScreenState();
 }
 
+enum _PreparationStep { framing, calibration, sound }
+
 class _ExperimentalMonitoringScreenState
     extends ConsumerState<ExperimentalMonitoringScreen>
     with NoticeHost, JournalSyncOnMount {
@@ -114,6 +118,7 @@ class _ExperimentalMonitoringScreenState
   late final ProviderSubscription<ExperimentalState> _subscription;
   bool _observedSession = false;
   bool _openingCamera = false;
+  bool _returnToFraming = false;
 
   /// El resumen se muestra tras finalizar en esta visita; al volver a entrar
   /// se prepara otra sesión.
@@ -171,7 +176,14 @@ class _ExperimentalMonitoringScreenState
       showNotice(ExperimentalMonitoringScreen.leaveBlockedNotice);
       return;
     }
-    if (s.calibrating) await _exp.cancelCalibration();
+    if (!_showSummary && _preparationStep(s) != _PreparationStep.framing) {
+      if (s.calibrating && !await _exp.cancelCalibration()) {
+        _reportLast();
+        return;
+      }
+      if (mounted) setState(() => _returnToFraming = true);
+      return;
+    }
     if (mounted) context.go(VigiaRoutes.inicio);
   }
 
@@ -250,6 +262,8 @@ class _ExperimentalMonitoringScreenState
     final snap = s.snapshot;
     final finalized =
         _showSummary && s.lifecycle == EngineSessionLifecycle.finalized;
+    final preparing = !finalized && !s.sessionVigente;
+    final step = _preparationStep(s);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -259,26 +273,40 @@ class _ExperimentalMonitoringScreenState
         title: ExperimentalMonitoringScreen.title,
         onBack: _back,
         notice: notice,
+        contentKey: preparing ? ValueKey(step) : null,
+        pinnedContent: preparing && step != _PreparationStep.sound
+            ? (context, constraints) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: FrontCameraStage(
+                  key: const Key('preparation-preview'),
+                  state: cam,
+                  compact: true,
+                  maxHeight: isLargeText(context)
+                      ? (constraints.maxHeight * 0.32).clamp(0.0, 205.0)
+                      : (constraints.maxHeight * 0.42).clamp(0.0, 280.0),
+                ),
+              )
+            : null,
+        footer: preparing
+            ? _preparationAction(s, cam, step)
+            : s.sessionVigente && snap != null
+            ? _sessionControls(s, snap)
+            : null,
         children: [
-          const StatusCard(
-            key: Key('experimental-banner'),
-            tone: StatusTone.warn,
-            icon: VigiaIcon.warn,
-            tag: 'Experimental',
-            title: 'Prototipo experimental',
-            text: ExperimentalMonitoringScreen.experimentalText,
-          ),
-          if (finalized && snap != null)
-            ..._summary(snap)
-          else ...[
-            if (s.lifecycle != EngineSessionLifecycle.paused ||
-                (snap?.resumePending ?? false))
-              FrontCameraStage(state: cam),
-            if (s.sessionVigente && snap != null)
-              ..._session(s, snap)
-            else
-              ..._preparation(s, cam),
-          ],
+          if (finalized && snap != null) ...[
+            const StatusCard(
+              key: Key('experimental-banner'),
+              tone: StatusTone.warn,
+              icon: VigiaIcon.warn,
+              tag: 'Experimental',
+              title: 'Prototipo experimental',
+              text: ExperimentalMonitoringScreen.experimentalText,
+            ),
+            ..._summary(snap),
+          ] else if (preparing)
+            ..._preparation(s, cam, step)
+          else if (snap != null)
+            ..._session(s, snap, cam),
         ],
       ),
     );
@@ -286,42 +314,154 @@ class _ExperimentalMonitoringScreenState
 
   // ------------------------------------------------------- preparación
 
-  List<Widget> _preparation(ExperimentalState s, FrontCameraState cam) {
+  _PreparationStep _preparationStep(ExperimentalState s) {
+    if (s.calibrating || s.pending == 'calibrate') {
+      return _PreparationStep.calibration;
+    }
+    if (_returnToFraming) return _PreparationStep.framing;
+    return switch (s.snapshot?.calibrationStep) {
+      CalibrationStep.accepted => _PreparationStep.sound,
+      CalibrationStep.rejected ||
+      CalibrationStep.canceled => _PreparationStep.calibration,
+      _ => _PreparationStep.framing,
+    };
+  }
+
+  void _beginCalibration() {
+    setState(() => _returnToFraming = false);
+    _run(_exp.beginCalibration);
+  }
+
+  Widget _preparationAction(
+    ExperimentalState s,
+    FrontCameraState cam,
+    _PreparationStep step,
+  ) {
     final snap = s.snapshot;
     final cameraOk = cam.phase == CameraCheckPhase.available;
-    final eyesOk = s.eyesValid;
-    final step = snap?.calibrationStep ?? CalibrationStep.idle;
-    final accepted = step == CalibrationStep.accepted;
     final busy = s.pending != null;
-    final canCalibrate = cameraOk && eyesOk && !s.calibrating && !busy;
+    final canCalibrate = cameraOk && s.eyesValid && !busy;
+    if (step == _PreparationStep.sound) {
+      return VigiaButton(
+        key: const Key('start'),
+        label: 'Iniciar monitoreo experimental',
+        onPressed: canCalibrate && _exp.soundConfirmedFor(snap)
+            ? () => _run(_exp.start)
+            : null,
+      );
+    }
+    if (s.calibrating || s.pending == 'calibrate') {
+      return VigiaButton(
+        label: 'Cancelar calibración',
+        kind: VigiaButtonKind.secondary,
+        onPressed: busy ? null : () => _run(_exp.cancelCalibration),
+      );
+    }
+    return VigiaButton(
+      key: const Key('calibrate'),
+      label: step == _PreparationStep.calibration
+          ? 'Reintentar calibración'
+          : snap?.calibrationStep == CalibrationStep.accepted
+          ? 'Calibrar de nuevo'
+          : 'Calibrar',
+      icon: VigiaIcon.target,
+      onPressed: canCalibrate ? _beginCalibration : null,
+    );
+  }
+
+  List<Widget> _preparation(
+    ExperimentalState s,
+    FrontCameraState cam,
+    _PreparationStep step,
+  ) {
+    return switch (step) {
+      _PreparationStep.framing => [
+        const VigiaSectionTitle('1 de 3 · Encuadre'),
+        CheckGroup(
+          rows: _eyeRows(
+            s,
+            cam,
+            compact: true,
+            eyesFirst: isLargeText(context),
+          ),
+        ),
+        ..._cameraRecovery(cam),
+        if (s.snapshot?.calibrationStep == CalibrationStep.accepted)
+          VigiaButton(
+            label: 'Continuar a sonido',
+            kind: VigiaButtonKind.secondary,
+            onPressed: () => setState(() => _returnToFraming = false),
+          ),
+        const VigiaParagraph(
+          'Con el vehículo detenido, fija el teléfono en un soporte y mira al frente antes de calibrar.',
+          secondary: true,
+        ),
+        const _ExperimentalScope(),
+      ],
+      _PreparationStep.calibration => [
+        const VigiaSectionTitle('2 de 3 · Calibración'),
+        if (s.pending == 'calibrate' && !s.calibrating)
+          const VigiaParagraph('Esperando confirmación del motor…')
+        else
+          ..._calibrationStatus(s),
+        if (!s.calibrating && !s.eyesValid)
+          CheckGroup(
+            rows: [_eyeRows(s, cam, compact: true, eyesFirst: true).first],
+          ),
+        ..._cameraRecovery(cam),
+        const _ExperimentalScope(),
+      ],
+      _PreparationStep.sound => _soundPreparation(s, cam),
+    };
+  }
+
+  List<Widget> _cameraRecovery(FrontCameraState cam) => switch (cam.phase) {
+    CameraCheckPhase.explain || CameraCheckPhase.denied => [
+      const VigiaParagraph(FrontCameraScreen.purpose),
+      const VigiaParagraph(FrontCameraScreen.scope, secondary: true),
+      VigiaButton(
+        label: 'Permitir cámara',
+        kind: VigiaButtonKind.secondary,
+        onPressed: _camera.requestPermission,
+      ),
+    ],
+    CameraCheckPhase.requiresSettings => [
+      const VigiaParagraph(
+        'Concede el permiso de cámara en los ajustes del teléfono.',
+      ),
+      VigiaButton(
+        label: 'Abrir ajustes',
+        kind: VigiaButtonKind.secondary,
+        onPressed: () async {
+          if (!await _camera.openSettings() && mounted) {
+            showNotice(FrontCameraScreen.settingsFailedNotice);
+          }
+        },
+      ),
+    ],
+    CameraCheckPhase.failed ||
+    CameraCheckPhase.inUse ||
+    CameraCheckPhase.disabled ||
+    CameraCheckPhase.noFrontCamera => [
+      VigiaButton(
+        label: 'Reintentar cámara',
+        kind: VigiaButtonKind.secondary,
+        onPressed: _camera.retry,
+      ),
+    ],
+    _ => const [],
+  };
+
+  List<Widget> _soundPreparation(ExperimentalState s, FrontCameraState cam) {
+    final snap = s.snapshot;
+    final busy = s.pending != null;
     // Fase 5E: solo cuenta la prueba del patrón guardado en Ajustes.
     final soundPlayed = _exp.soundTestPlayedFor(snap);
     final soundOk = _exp.soundConfirmedFor(snap);
-    final canStart = accepted && soundOk && eyesOk && cameraOk && !busy;
+    final cameraOk = cam.phase == CameraCheckPhase.available;
     return [
-      CheckGroup(rows: _eyeRows(s, cam)),
-      const VigiaHeading('Calibración'),
-      const VigiaParagraph(
-        'Con el vehículo detenido: mira al frente con los ojos abiertos y, '
-        'cuando se indique, ciérralos dos veces. Un pitido indica que vuelvas '
-        'a abrirlos.',
-        secondary: true,
-      ),
+      const VigiaSectionTitle('3 de 3 · Sonido e inicio'),
       ..._calibrationStatus(s),
-      if (s.calibrating)
-        VigiaButton(
-          label: 'Cancelar calibración',
-          kind: VigiaButtonKind.secondary,
-          onPressed: busy ? null : () => _run(_exp.cancelCalibration),
-        )
-      else
-        VigiaButton(
-          key: const Key('calibrate'),
-          label: accepted ? 'Calibrar de nuevo' : 'Calibrar',
-          kind: accepted ? VigiaButtonKind.secondary : VigiaButtonKind.primary,
-          icon: VigiaIcon.target,
-          onPressed: canCalibrate ? () => _run(_exp.beginCalibration) : null,
-        ),
       const VigiaHeading('Prueba de sonido'),
       CheckGroup(
         rows: [
@@ -366,13 +506,18 @@ class _ExperimentalMonitoringScreenState
           ),
         ],
       ),
-      VigiaButton(
-        key: const Key('start'),
-        label: 'Iniciar monitoreo experimental',
-        onPressed: canStart ? () => _run(_exp.start) : null,
-      ),
-      if (!canStart)
-        VigiaParagraph(_startBlockers(s, cameraOk, eyesOk), secondary: true),
+      if (!cameraOk || !s.eyesValid || !soundOk || busy)
+        VigiaParagraph(
+          _startBlockers(s, cameraOk, s.eyesValid),
+          secondary: true,
+        ),
+      if (!cameraOk || !s.eyesValid)
+        VigiaButton(
+          label: 'Volver al encuadre',
+          kind: VigiaButtonKind.secondary,
+          onPressed: busy ? null : _back,
+        ),
+      const _ExperimentalScope(),
     ];
   }
 
@@ -388,27 +533,35 @@ class _ExperimentalMonitoringScreenState
     return 'Para iniciar falta: ${missing.join(', ')}.';
   }
 
-  List<CheckRow> _eyeRows(ExperimentalState s, FrontCameraState cam) {
+  List<CheckRow> _eyeRows(
+    ExperimentalState s,
+    FrontCameraState cam, {
+    bool compact = false,
+    bool eyesFirst = false,
+  }) {
     final snap = s.snapshot;
     final eyesOk = s.eyesValid;
     final calibrated = snap?.ratioRight != null;
-    return [
+    final rows = [
       CheckRow(
+        compact: compact,
         label: 'Cámara',
         ok: cam.phase == CameraCheckPhase.available,
         value: cam.phase == CameraCheckPhase.available
             ? 'Disponible'
             : 'Cámara no disponible',
-        cause: cam.phase == CameraCheckPhase.available
-            ? null
-            : 'Comprueba el permiso en «Comprobar cámara».',
+        cause: !compact && cam.phase != CameraCheckPhase.available
+            ? 'Comprueba el permiso en «Comprobar cámara».'
+            : null,
       ),
       CheckRow(
+        compact: compact,
         label: 'Rostro',
         ok: cam.facePhase == FacePresencePhase.oneFace,
         value: FrontCameraScreen.presenceLabel(cam.facePhase),
       ),
       CheckRow(
+        compact: compact,
         key: const Key('row-eyes'),
         label: 'Ojos medibles',
         ok: eyesOk,
@@ -426,6 +579,7 @@ class _ExperimentalMonitoringScreenState
             : null,
       ),
       CheckRow(
+        compact: compact,
         key: const Key('row-ear'),
         label: 'Apertura ocular (EAR)',
         ok: eyesOk,
@@ -438,10 +592,13 @@ class _ExperimentalMonitoringScreenState
                   '${ExperimentalMonitoringScreen.decimal(snap?.ratioRight)} · '
                   'izq. ${ExperimentalMonitoringScreen.decimal(snap?.ratioLeft)}. '
                   'Medida geométrica, no un porcentaje de cierre.'
+            : compact
+            ? null
             : 'Medida geométrica de los puntos del ojo, calculada en el '
                   'teléfono.',
       ),
     ];
+    return eyesFirst ? [rows[2], rows[0], rows[1], rows[3]] : rows;
   }
 
   List<Widget> _calibrationStatus(ExperimentalState s) {
@@ -534,68 +691,97 @@ class _ExperimentalMonitoringScreenState
 
   // ------------------------------------------------------------ sesión
 
-  List<Widget> _session(ExperimentalState s, MonitoringSnapshot snap) {
+  StatusCard _sessionStatus(ExperimentalState s, MonitoringSnapshot snap) {
     final paused = s.lifecycle == EngineSessionLifecycle.paused;
-    final busy = s.pending != null;
-    final signal = s.signal;
-    final card = !s.available
-        ? const StatusCard(
-            key: Key('signal'),
-            tone: StatusTone.neutral,
-            icon: VigiaIcon.eyeOff,
-            tag: 'Señal',
-            title: 'Estado del motor no disponible',
-            text: 'No llegan noticias del motor: no se muestra ninguna señal.',
-          )
-        : paused
-        ? StatusCard(
-            key: const Key('signal'),
-            tone: StatusTone.pause,
-            icon: VigiaIcon.pause,
-            tag: 'Sesión',
-            title: snap.resumePending ? 'Reanudando…' : 'Monitoreo pausado',
-            text: snap.resumePending
-                ? 'La pausa sigue abierta hasta reunir observaciones válidas '
-                      'de los ojos.'
-                : 'Evaluación suspendida. La cámara está cerrada.',
-          )
-        : switch (signal) {
-            EngineSignal.prolongedEyeClosure => const StatusCard(
-              key: Key('signal'),
-              tone: StatusTone.close,
-              icon: VigiaIcon.eyeClosed,
-              tag: 'Aviso',
-              title: 'Cierre ocular prolongado',
-              titleSize: 32,
-              text:
-                  'Los ojos llevan cerrados más de lo configurado. Cuando '
-                  'puedas, detente y descansa.',
-            ),
-            EngineSignal.noPersistentSignals => const StatusCard(
-              key: Key('signal'),
-              tone: StatusTone.plain,
-              icon: VigiaIcon.activity,
-              tag: 'Señal',
-              title: 'Sin señales persistentes',
-              text:
-                  'Evaluando cierres oculares prolongados. No es una medida de '
-                  'fatiga.',
-            ),
-            EngineSignal.notEvaluable => StatusCard(
-              key: const Key('signal'),
-              tone: StatusTone.neutral,
-              icon: VigiaIcon.eyeOff,
-              tag: 'Señal',
-              title: 'No evaluable',
-              text: ExperimentalMonitoringScreen.eyeIssueText(
-                snap.measurementCause ?? snap.eyeIssue,
-              ),
-            ),
-          };
+    const key = Key('signal');
+    if (!s.available) {
+      return const StatusCard(
+        key: key,
+        tone: StatusTone.neutral,
+        icon: VigiaIcon.eyeOff,
+        tag: 'Sesión',
+        title: 'Estado del motor no disponible',
+        text: 'Esperando datos actuales del motor.',
+      );
+    }
+    if (paused) {
+      return StatusCard(
+        key: key,
+        tone: StatusTone.pause,
+        icon: VigiaIcon.pause,
+        tag: 'Sesión',
+        title: snap.resumePending ? 'Reanudando…' : 'Monitoreo pausado',
+        text: snap.resumePending
+            ? 'Centra tu rostro. La medición sigue en pausa.'
+            : 'Evaluación suspendida. La cámara está cerrada.',
+      );
+    }
+    if (s.measurement == EngineMeasurement.initializing) {
+      return const StatusCard(
+        key: key,
+        tone: StatusTone.pending,
+        icon: VigiaIcon.clock,
+        tag: 'Sesión',
+        title: 'Inicializando medición',
+        text: 'Esperando medición ocular.',
+      );
+    }
+    return switch (s.signal) {
+      EngineSignal.prolongedEyeClosure => StatusCard(
+        key: key,
+        tone: StatusTone.close,
+        icon: VigiaIcon.eyeClosed,
+        tag: 'Aviso',
+        title: 'Cierre ocular prolongado',
+        titleSize: isLargeText(context) ? 20 : 32,
+        text: 'Detente en un lugar seguro.',
+      ),
+      EngineSignal.noPersistentSignals => const StatusCard(
+        key: key,
+        tone: StatusTone.plain,
+        icon: VigiaIcon.activity,
+        tag: 'Sesión activa',
+        title: 'Sin señales persistentes',
+        text: 'Medición ocular en curso.',
+      ),
+      EngineSignal.notEvaluable => StatusCard(
+        key: key,
+        tone: StatusTone.neutral,
+        icon: VigiaIcon.eyeOff,
+        tag: 'Señal',
+        title: 'No evaluable',
+        text: ExperimentalMonitoringScreen.eyeIssueText(
+          snap.measurementCause ?? snap.eyeIssue,
+        ),
+      ),
+    };
+  }
+
+  List<Widget> _session(
+    ExperimentalState s,
+    MonitoringSnapshot snap,
+    FrontCameraState cam,
+  ) {
+    final paused = s.lifecycle == EngineSessionLifecycle.paused;
+    final showPreview = !paused || snap.resumePending;
+    final operation = switch (s.pending) {
+      'pause' => 'Pausando…',
+      'resume' => 'Solicitando reanudación…',
+      'stop' => 'Finalizando…',
+      _ => null,
+    };
     return [
-      Semantics(liveRegion: true, child: card),
+      _sessionStatus(s, snap),
+      if (operation != null)
+        Semantics(liveRegion: true, child: VigiaParagraph(operation)),
+      if (showPreview) ...[
+        FrontCameraStage(state: cam, compact: true, maxHeight: 240),
+        CheckGroup(rows: _eyeRows(s, cam, compact: true, eyesFirst: true)),
+      ],
       AxesRow(
-        session: paused
+        session: !s.available
+            ? 'Sin confirmar'
+            : paused
             ? (snap.resumePending ? 'Reanudando' : 'En pausa')
             : 'Activa',
         measurement: switch (s.measurement) {
@@ -604,11 +790,13 @@ class _ExperimentalMonitoringScreenState
           EngineMeasurement.limited => 'Limitada',
           EngineMeasurement.unavailable => 'No disponible',
         },
-        signal: switch (signal) {
-          EngineSignal.notEvaluable => 'No evaluable',
-          EngineSignal.noPersistentSignals => 'Sin señales',
-          EngineSignal.prolongedEyeClosure => 'Cierre prolongado',
-        },
+        signal: !s.available || paused
+            ? 'Sin datos'
+            : switch (s.signal) {
+                EngineSignal.notEvaluable => 'No evaluable',
+                EngineSignal.noPersistentSignals => 'Sin señales',
+                EngineSignal.prolongedEyeClosure => 'Cierre prolongado',
+              },
       ),
       KeyValueRow(
         label: 'Tiempo activo',
@@ -626,30 +814,37 @@ class _ExperimentalMonitoringScreenState
         label: 'Tonos de aviso',
         value: '${snap.tonesPlayed} iniciados · ${snap.tonesFailed} fallidos',
       ),
-      if (!paused) CheckGroup(rows: _eyeRows(s, ref.read(frontCameraProvider))),
-      VigiaButtonRow(
-        buttons: [
-          paused
-              ? VigiaButton(
-                  label: 'Reanudar',
-                  kind: VigiaButtonKind.secondary,
-                  icon: VigiaIcon.play,
-                  onPressed: busy || snap.resumePending ? null : _resume,
-                )
-              : VigiaButton(
-                  label: 'Pausar',
-                  kind: VigiaButtonKind.secondary,
-                  icon: VigiaIcon.pause,
-                  onPressed: busy ? null : _pause,
-                ),
-          VigiaButton(
-            key: const Key('finish'),
-            label: 'Finalizar',
-            onPressed: busy ? null : _finish,
-          ),
-        ],
+      const VigiaParagraph(
+        'Usa los controles con el vehículo detenido.',
+        secondary: true,
       ),
+      const _ExperimentalScope(),
     ];
+  }
+
+  Widget _sessionControls(ExperimentalState s, MonitoringSnapshot snap) {
+    final paused = s.lifecycle == EngineSessionLifecycle.paused;
+    final busy = s.pending != null;
+    return VigiaButtonRow(
+      key: const Key('session-controls'),
+      buttons: [
+        VigiaButton(
+          key: const Key('pause-resume'),
+          label: paused ? 'Reanudar' : 'Pausar',
+          kind: VigiaButtonKind.secondary,
+          icon: paused ? VigiaIcon.play : VigiaIcon.pause,
+          height: 56,
+          onPressed: busy || (paused && snap.resumePending)
+              ? null
+              : (paused ? _resume : _pause),
+        ),
+        VigiaButton(
+          key: const Key('finish'),
+          label: 'Finalizar',
+          onPressed: busy ? null : _finish,
+        ),
+      ],
+    );
   }
 
   // ----------------------------------------------------------- resumen
@@ -695,11 +890,28 @@ class _ExperimentalMonitoringScreenState
         label: 'Preparar otra sesión',
         kind: VigiaButtonKind.secondary,
         onPressed: () {
-          setState(() => _showSummary = false);
+          setState(() {
+            _showSummary = false;
+            _returnToFraming = true;
+          });
           _observedSession = false;
           _camera.enter();
         },
       ),
     ];
   }
+}
+
+class _ExperimentalScope extends StatelessWidget {
+  const _ExperimentalScope();
+
+  @override
+  Widget build(BuildContext context) => const ExpansionTile(
+    key: Key('experimental-banner'),
+    title: VigiaParagraph('Acerca del prototipo experimental'),
+    tilePadding: EdgeInsets.zero,
+    childrenPadding: EdgeInsets.only(bottom: 12),
+    expandedAlignment: Alignment.centerLeft,
+    children: [VigiaParagraph(ExperimentalMonitoringScreen.experimentalText)],
+  );
 }

@@ -447,9 +447,16 @@ class _FrontCameraScreenState extends ConsumerState<FrontCameraScreen>
 /// la textura del motor, girada y espejada según su respuesta; si no, dice
 /// el estado sin mostrar ninguna imagen.
 class FrontCameraStage extends StatelessWidget {
-  const FrontCameraStage({super.key, required this.state});
+  const FrontCameraStage({
+    super.key,
+    required this.state,
+    this.maxHeight = 400,
+    this.compact = false,
+  });
 
   final FrontCameraState state;
+  final double maxHeight;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +471,7 @@ class FrontCameraStage extends StatelessWidget {
         label: 'Vista previa de la cámara frontal',
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 400),
+            constraints: BoxConstraints(maxHeight: maxHeight),
             child: AspectRatio(
               aspectRatio: w / h,
               child: ClipRRect(
@@ -481,22 +488,24 @@ class FrontCameraStage extends StatelessWidget {
                         child: Texture(textureId: preview.textureId!),
                       ),
                     ),
-                    const Positioned(
-                      left: 12,
-                      top: 12,
-                      child: _StageTag('Detección facial en pruebas'),
-                    ),
-                    Positioned(
-                      left: 12,
-                      bottom: 12,
-                      child: Semantics(
-                        key: const Key('presence-label'),
-                        liveRegion: true,
-                        child: _StageTag(
-                          FrontCameraScreen.presenceLabel(state.facePhase),
+                    if (!compact)
+                      const Positioned(
+                        left: 12,
+                        top: 12,
+                        child: _StageTag('Detección facial en pruebas'),
+                      ),
+                    if (!compact)
+                      Positioned(
+                        left: 12,
+                        bottom: 12,
+                        child: Semantics(
+                          key: const Key('presence-label'),
+                          liveRegion: true,
+                          child: _StageTag(
+                            FrontCameraScreen.presenceLabel(state.facePhase),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -516,6 +525,19 @@ class FrontCameraStage extends StatelessWidget {
       CameraCheckPhase.requiresSettings => 'Cámara sin permiso',
       _ => 'Cámara no disponible para la vista previa',
     };
+    if (compact) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: p.neutralBg,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: VigiaText(
+          text,
+          style: VigiaType.small.copyWith(color: p.neutralInk),
+        ),
+      );
+    }
     return Semantics(
       container: true,
       label: 'Vista previa no disponible',

@@ -8,6 +8,8 @@ import '../core/design_system/theme.dart';
 import '../core/design_system/vigia_icons.dart';
 import '../core/design_system/widgets/vigia_blocks.dart';
 import '../core/design_system/widgets/vigia_scaffold.dart';
+import '../features/account/cloud_sessions.dart';
+import '../features/account/firebase_account.dart';
 import '../features/settings/preferences_controller.dart';
 import '../features/inicio/inicio_state.dart';
 import 'app_config.dart';
@@ -69,7 +71,7 @@ class _VigiaRouterApp extends ConsumerWidget {
     final reduceMotion = ref.watch(
       preferencesProvider.select((p) => p.value.reducedMotion),
     );
-    return MaterialApp.router(
+    final app = MaterialApp.router(
       title: 'Vigía',
       debugShowCheckedModeBanner: false,
       theme: vigiaLightTheme,
@@ -85,6 +87,9 @@ class _VigiaRouterApp extends ConsumerWidget {
         );
       },
     );
+    return ref.watch(firebaseAuthProvider) == null
+        ? app
+        : CloudSessionSync(child: app);
   }
 }
 

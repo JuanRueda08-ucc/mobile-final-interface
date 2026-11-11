@@ -389,11 +389,12 @@ internal class MonitoringCoordinator(
         accept()
     }
 
-    fun startSession(calibrationId: String, soundId: String): CommandOutcome = synchronized(lock) {
+    fun startSession(calibrationId: String, soundId: String, accountId: String? = null): CommandOutcome = synchronized(lock) {
         val ref = reference
         val o = last
         val now = clockNs()
         when {
+            accountId != null && (accountId.isBlank() || accountId.length > 128 || accountId.contains('/')) -> reject("invalidAccount")
             sessionVigente() -> reject("sessionActive")
             settingsChange != null -> reject("settingsChangePending")
             calibration != null -> reject("calibrationInProgress")
@@ -408,7 +409,7 @@ internal class MonitoringCoordinator(
                     val j = journal
                     if (j != null) {
                         recoveredSessions = j.recover(engineInstanceId)
-                        j.started(sessionStart(id, ref))
+                        j.started(sessionStart(id, ref).copy(accountId = accountId))
                     } else journalFactory == null
                 } catch (_: RuntimeException) {
                     false

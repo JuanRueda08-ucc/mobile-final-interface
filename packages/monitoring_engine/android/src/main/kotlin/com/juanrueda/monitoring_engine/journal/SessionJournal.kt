@@ -42,6 +42,7 @@ internal data class SessionStart(
     val openEarLeft: Double,
     val calibrationSamples: Int,
     val calibrationCoverage: Double,
+    val accountId: String? = null,
 )
 
 /** Estado del registro de la sesión (Área 04 §7.3 `recordStatus`). */
@@ -201,7 +202,7 @@ internal class SessionJournal(
                                 "openSamples" to start.calibrationSamples,
                                 "openCoverageE6" to e6(start.calibrationCoverage),
                             ),
-                        ),
+                        ) + (start.accountId?.let { mapOf("accountId" to it) } ?: emptyMap()),
                     ),
                 ),
                 SessionChange(

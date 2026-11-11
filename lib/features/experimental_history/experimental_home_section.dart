@@ -8,6 +8,7 @@ import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
+import '../../data/experimental_history/experimental_history_repository.dart';
 import '../monitoring/domain/session_summary.dart';
 import 'experimental_history_blocks.dart';
 
@@ -31,7 +32,9 @@ class _ExperimentalHomeSectionState
   Widget build(BuildContext context) {
     final latest = ref.watch(latestExperimentalSessionProvider);
     final sync = ref.watch(journalSyncProvider);
-    final blocks = switch (latest) {
+    final blocks = switch (latest.isLoading
+        ? const AsyncLoading<ExperimentalSessionRecord?>()
+        : latest) {
       AsyncError() => <Widget>[
         const StatusCard(
           tone: StatusTone.alert,
@@ -42,63 +45,39 @@ class _ExperimentalHomeSectionState
         ),
       ],
       AsyncData(value: null) => <Widget>[
-        StatusCard(
-          key: const Key('home-no-experimental'),
-          tone: StatusTone.plain,
-          icon: VigiaIcon.info,
-          tag: 'Historial experimental',
-          title:
-              sync.status == JournalSyncStatus.idle ||
+        VigiaParagraph(
+          sync.status == JournalSyncStatus.idle ||
                   sync.status == JournalSyncStatus.running
-              ? 'Leyendo el registro del motor'
+              ? 'Leyendo el registro del motor…'
               : 'Aún no hay sesiones experimentales',
-          text:
-              'Las sesiones experimentales finalizadas o interrumpidas '
-              'aparecerán aquí. No necesitas cuenta.',
+          key: const Key('home-no-experimental'),
+          secondary: true,
         ),
       ],
       AsyncData(:final value?) when value.isFinalized => <Widget>[
-        PaperSummaryCard(
+        VigiaParagraph(
+          'Experimental · ${ExperimentalHistoryText.record(value)}',
           key: const Key('home-latest-experimental'),
-          tag: 'Experimental · ${ExperimentalHistoryText.record(value)}',
-          title: 'Sesión ${ExperimentalHistoryText.shortId(value.sessionId)}',
-          metrics: [
-            PaperMetric(
-              ExperimentalHistoryText.coverage(value.totals),
-              'Cobertura',
-            ),
-            PaperMetric(
-              value.totals?.closureActivations.toString() ?? 'No disponible',
-              'Cierres prolongados',
-            ),
-          ],
-          actionLabel: 'Ver último resumen',
-          onAction: () => context.go(VigiaRoutes.resumen(value.sessionId)),
+        ),
+        VigiaParagraph(formatDateTime(value.startedAt.fields), secondary: true),
+        KeyValueRow(
+          label: 'Cobertura',
+          value: ExperimentalHistoryText.coverage(value.totals),
+        ),
+        VigiaButton(
+          label: 'Ver último resumen',
+          kind: VigiaButtonKind.secondary,
+          onPressed: () => context.go(VigiaRoutes.resumen(value.sessionId)),
         ),
       ],
       AsyncData(:final value?) when value.isInterrupted => <Widget>[
-        const StatusCard(
+        const VigiaParagraph(
+          'Experimental · Sesión interrumpida',
           key: Key('home-interrupted-experimental'),
-          tone: StatusTone.alert,
-          icon: VigiaIcon.warn,
-          tag: 'Experimental · registro',
-          title: 'Sesión interrumpida',
-          text: 'No hay cierre confirmado. No se reinició la cámara.',
         ),
-        KeyValueRow(
-          label: 'Sesión',
-          value: ExperimentalHistoryText.shortId(value.sessionId),
-        ),
-        KeyValueRow(
-          label: 'Inicio confirmado',
-          value: formatTimeOfDay(value.startedAt.fields),
-        ),
-        KeyValueRow(
-          label: 'Último registro confirmado',
-          value: formatTimeOfDay(value.latestDurableAt.fields),
-        ),
+        VigiaParagraph(formatDateTime(value.startedAt.fields), secondary: true),
         const KeyValueRow(label: 'Final', value: 'Desconocido'),
-        const KeyValueRow(label: 'Duración', value: 'No disponible'),
+        const KeyValueRow(label: 'Cobertura', value: 'No disponible'),
         VigiaButton(
           label: 'Revisar registro',
           kind: VigiaButtonKind.secondary,
@@ -126,8 +105,9 @@ class _ExperimentalHomeSectionState
     };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: VigiaSpace.gap,
+      spacing: VigiaSpace.gap / 2,
       children: [
+        const Divider(),
         const VigiaSectionTitle('Última sesión experimental'),
         ...blocks,
         VigiaButton(

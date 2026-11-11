@@ -9,6 +9,7 @@ import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_option.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
+import '../account/firebase_account.dart';
 import 'preferences_controller.dart';
 import 'variant_settings.dart';
 
@@ -61,6 +62,12 @@ class SettingsScreen extends ConsumerWidget {
           // Ajustes: ya estamos aquí; no se crea otra copia (UX §2.1).
         },
         children: [
+          if (ref.watch(firebaseAuthProvider) != null)
+            VigiaButton(
+              label: 'Mi cuenta',
+              kind: VigiaButtonKind.secondary,
+              onPressed: lock ? null : () => context.go(VigiaRoutes.cuenta),
+            ),
           if (ref.watch(settingsReadyProvider).hasError)
             const StatusCard(
               tone: StatusTone.alert,

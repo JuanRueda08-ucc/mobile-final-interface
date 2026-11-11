@@ -181,7 +181,7 @@ void main() {
       expect(find.byKey(const Key('experimental-banner')), findsOneWidget);
       expect(find.text('Rostro no detectado.'), findsOneWidget);
       expect(enabled(tester, const Key('calibrate')), isFalse);
-      expect(enabled(tester, const Key('start')), isFalse);
+      expect(find.byKey(const Key('start')), findsNothing);
       expect(camera.calls.where((x) => x.startsWith('open:')), hasLength(1));
       expect(find.textContaining('DEMO'), findsNothing);
       expect(find.textContaining('%'), findsNothing);

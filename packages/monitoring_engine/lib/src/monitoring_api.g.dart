@@ -1734,6 +1734,31 @@ class ExperimentalMonitoringHostApi {
     return pigeonVar_replyValue! as MonitoringCommandResult;
   }
 
+  Future<MonitoringCommandResult> startAccountSession(
+    String calibrationId,
+    String soundTestId,
+    String accountId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.monitoring_engine.ExperimentalMonitoringHostApi.startAccountSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[calibrationId, soundTestId, accountId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MonitoringCommandResult;
+  }
+
   /// Corta la medición, detiene el tono y libera la cámara.
   Future<MonitoringCommandResult> pauseSession(String sessionId) async {
     final pigeonVar_channelName =

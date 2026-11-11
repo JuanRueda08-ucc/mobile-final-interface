@@ -50,6 +50,7 @@ class CheckRow extends StatelessWidget {
     required this.value,
     this.cause,
     this.action,
+    this.compact = false,
   });
 
   final String label;
@@ -57,6 +58,7 @@ class CheckRow extends StatelessWidget {
   final String value;
   final String? cause;
   final Widget? action;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +81,7 @@ class CheckRow extends StatelessWidget {
       ),
     );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: EdgeInsets.symmetric(vertical: compact ? 6 : 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

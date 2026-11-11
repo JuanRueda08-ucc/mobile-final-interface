@@ -209,10 +209,12 @@ void main() {
     expect(find.byType(SummaryScreen), findsOneWidget);
   });
 
-  testWidgets('modo normal: motor no comprobado, preparación bloqueada y '
-      'sin rutas del recorrido', (tester) async {
+  testWidgets('modo normal sin respuesta del motor: preparación bloqueada y '
+      'rutas DEMO excluidas', (tester) async {
     await pumpDemo(tester, _cfg, mode: const RealMode());
-    expect(find.text('Estado del motor no comprobado'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 751));
+    await tester.pumpAndSettle();
+    expect(find.text('Estado del motor no disponible'), findsOneWidget);
     expect(find.text(DemoLabel.text), findsNothing);
     expect(_enabled(tester, 'Preparar sesión'), isFalse);
     for (final r in [

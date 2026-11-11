@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
 import 'experimental_history_repository.dart';
+import '../../features/experimental/monitoring_account.dart';
 
 /// Historial experimental real (variante normal). Lo fija el arranque
 /// (`bootstrap.dart`); sin él (pruebas que no lo necesitan, otras
@@ -167,23 +168,39 @@ final experimentalHistoryListProvider =
       ExperimentalHistoryFilter
     >((ref, filter) {
       ref.watch(_revisionProvider);
-      return _repo(ref).sessions(filter: filter);
+      final uid = ref.watch(monitoringAccountIdProvider);
+      if (uid == null && ref.watch(monitoringAccountRequiredProvider)) {
+        return const [];
+      }
+      return _repo(ref).sessions(filter: filter, accountId: uid);
     });
 
 final experimentalSessionProvider =
     FutureProvider.family<ExperimentalSessionRecord?, String>((ref, id) {
       ref.watch(_revisionProvider);
-      return _repo(ref).session(id);
+      final uid = ref.watch(monitoringAccountIdProvider);
+      if (uid == null && ref.watch(monitoringAccountRequiredProvider)) {
+        return null;
+      }
+      return _repo(ref).session(id, accountId: uid);
     });
 
 final experimentalMarksProvider =
     FutureProvider.family<List<ExperimentalMark>, String>((ref, id) {
       ref.watch(_revisionProvider);
-      return _repo(ref).marks(id);
+      final uid = ref.watch(monitoringAccountIdProvider);
+      if (uid == null && ref.watch(monitoringAccountRequiredProvider)) {
+        return const [];
+      }
+      return _repo(ref).marks(id, accountId: uid);
     });
 
 final latestExperimentalSessionProvider =
     FutureProvider<ExperimentalSessionRecord?>((ref) {
       ref.watch(_revisionProvider);
-      return _repo(ref).latest();
+      final uid = ref.watch(monitoringAccountIdProvider);
+      if (uid == null && ref.watch(monitoringAccountRequiredProvider)) {
+        return null;
+      }
+      return _repo(ref).latest(accountId: uid);
     });

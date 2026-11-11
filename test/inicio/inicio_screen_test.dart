@@ -46,16 +46,17 @@ void main() {
 
   group('arranque real sin VIGIA_DEMO_INICIO (P2)', () {
     testWidgets(
-      'muestra «motor no comprobado», sin DEMO y con Preparar bloqueado',
+      'ofrece consultar el motor y bloquea Preparar si el canal no responde',
       (tester) async {
         final handle = tester.ensureSemantics();
         await pumpVigia(tester, resolveInicioState(), _cfg);
 
-        expect(find.text('Estado del motor no comprobado'), findsOneWidget);
+        expect(find.text('Estado del motor no disponible'), findsOneWidget);
+        expect(find.text('Consultar estado'), findsOneWidget);
         expect(find.text(DemoLabel.text), findsNothing);
         // No se presenta «sin historial» como si el motor estuviera disponible.
         expect(find.text('Aún no tienes sesiones'), findsNothing);
-        expect(find.text('Prepara tu sesión'), findsNothing);
+        expect(find.text('Prepara tu sesión'), findsOneWidget);
         expect(_enabled(tester, 'Preparar sesión'), isFalse);
 
         // Ni el toque ni la acción semántica activan la preparación.

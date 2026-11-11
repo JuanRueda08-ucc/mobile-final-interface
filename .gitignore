@@ -61,6 +61,7 @@ key.properties
 **/key.properties
 .env
 .env.*
+google-services.json
 # Binarios de compilación: se registran por hash en la evidencia, no en Git (Área 08 VIG-064)
 *.apk
 *.aab

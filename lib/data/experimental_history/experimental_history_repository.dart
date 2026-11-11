@@ -67,6 +67,7 @@ final class ExperimentalKnownPrefix {
 /// Resumen, Historial y detalle leen este mismo objeto.
 final class ExperimentalSessionRecord {
   const ExperimentalSessionRecord({
+    this.accountId,
     required this.sessionId,
     required this.profileId,
     required this.qualificationStatus,
@@ -88,6 +89,7 @@ final class ExperimentalSessionRecord {
   });
 
   final String sessionId;
+  final String? accountId;
 
   /// `lab-eye-rules-0.1` y `experimental`, leídos de la base.
   final String profileId;
@@ -237,13 +239,17 @@ class ExperimentalHistoryRepository implements PreferencesStore {
           if (invalid != null) {
             final affected = records[invalid.index].sessionId;
             if (affected != null) {
-              await (_db.update(
-                _db.experimentalSessions,
-              )..where((s) => s.sessionId.equals(affected))).write(
-                const ExperimentalSessionsCompanion(
-                  integrityStatus: Value('incomplete'),
-                ),
-              );
+              await (_db.update(_db.experimentalSessions)..where(
+                    (s) =>
+                        s.sessionId.equals(affected) &
+                        s.integrityStatus.equals('complete'),
+                  ))
+                  .write(
+                    const ExperimentalSessionsCompanion(
+                      integrityStatus: Value('incomplete'),
+                      cloudSynced: Value(false),
+                    ),
+                  );
             }
           }
           return result;
@@ -402,11 +408,20 @@ class ExperimentalHistoryRepository implements PreferencesStore {
           // Este historial solo admite el perfil experimental.
           throw _Stop(ImportStop.schema, index);
         }
+        final account = p['accountId'];
+        if (account != null &&
+            (account is! String ||
+                account.isEmpty ||
+                account.length > 128 ||
+                account.contains('/'))) {
+          throw _Stop(ImportStop.integrity, index);
+        }
         await _db
             .into(_db.experimentalSessions)
             .insert(
               ExperimentalSessionsCompanion.insert(
                 sessionId: id,
+                accountId: Value(account as String?),
                 profileId: str(p, 'profileId'),
                 landmarkSchema: str(p, 'landmarkSchema'),
                 modelId: str(p, 'modelId'),
@@ -500,11 +515,47 @@ class ExperimentalHistoryRepository implements PreferencesStore {
 
   // ── Consultas ────────────────────────────────────────────────────────
 
+  Future<List<ExperimentalSessionRecord>> pendingCloudSessions(
+    String accountId,
+  ) async {
+    final rows =
+        await (_db.select(_db.experimentalSessions)..where(
+              (s) =>
+                  s.accountId.equals(accountId) &
+                  s.cloudSynced.equals(false) &
+                  (s.lifecycle.equals('interrupted') |
+                      s.lifecycle.equals('finalized')),
+            ))
+            .get();
+    return rows.map(_record).toList();
+  }
+
+  Future<void> confirmCloudSession(
+    String accountId,
+    ExperimentalSessionRecord record,
+  ) async {
+    await (_db.update(_db.experimentalSessions)..where(
+          (s) =>
+              s.sessionId.equals(record.sessionId) &
+              s.accountId.equals(accountId) &
+              s.integrityStatus.equals(
+                record.complete ? 'complete' : 'incomplete',
+              ),
+        ))
+        .write(const ExperimentalSessionsCompanion(cloudSynced: Value(true)));
+  }
+
   /// Sesiones por inicio descendente, desempate por ID (Área 06 §11).
   Future<List<ExperimentalSessionRecord>> sessions({
     ExperimentalHistoryFilter filter = ExperimentalHistoryFilter.all,
+    String? accountId,
   }) async {
     final q = _db.select(_db.experimentalSessions)
+      ..where(
+        (s) => accountId == null
+            ? s.accountId.isNull()
+            : s.accountId.equals(accountId),
+      )
       ..orderBy([
         (s) => OrderingTerm.desc(s.startedEpochMs),
         (s) => OrderingTerm.desc(s.sessionId),
@@ -520,14 +571,22 @@ class ExperimentalHistoryRepository implements PreferencesStore {
     return [for (final r in await q.get()) _record(r)];
   }
 
-  Future<ExperimentalSessionRecord?> session(String sessionId) async {
+  Future<ExperimentalSessionRecord?> session(
+    String sessionId, {
+    String? accountId,
+  }) async {
     final r = await _row(sessionId);
-    return r == null ? null : _record(r);
+    return r == null || r.accountId != accountId ? null : _record(r);
   }
 
-  Future<ExperimentalSessionRecord?> latest() async {
+  Future<ExperimentalSessionRecord?> latest({String? accountId}) async {
     final r =
         await (_db.select(_db.experimentalSessions)
+              ..where(
+                (s) => accountId == null
+                    ? s.accountId.isNull()
+                    : s.accountId.equals(accountId),
+              )
               ..orderBy([
                 (s) => OrderingTerm.desc(s.startedEpochMs),
                 (s) => OrderingTerm.desc(s.sessionId),
@@ -537,7 +596,11 @@ class ExperimentalHistoryRepository implements PreferencesStore {
     return r == null ? null : _record(r);
   }
 
-  Future<List<ExperimentalMark>> marks(String sessionId) async {
+  Future<List<ExperimentalMark>> marks(
+    String sessionId, {
+    String? accountId,
+  }) async {
+    if (await session(sessionId, accountId: accountId) == null) return const [];
     final rows =
         await (_db.select(_db.experimentalSessionMarks)
               ..where((m) => m.sessionId.equals(sessionId))
@@ -572,6 +635,7 @@ class ExperimentalHistoryRepository implements PreferencesStore {
     final lifecycle = ExperimentalLifecycle.values.byName(r.lifecycle);
     final started = CivilTime(r.startedEpochMs, r.startOffsetMinutes);
     return ExperimentalSessionRecord(
+      accountId: r.accountId,
       sessionId: r.sessionId,
       profileId: r.profileId,
       qualificationStatus: r.qualificationStatus,

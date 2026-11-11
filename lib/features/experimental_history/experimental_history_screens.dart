@@ -11,7 +11,9 @@ import '../../core/design_system/widgets/vigia_option.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../../data/experimental_history/experimental_history_repository.dart';
+import '../account/firebase_account.dart';
 import '../monitoring/domain/session_summary.dart';
+import 'cloud_history_section.dart';
 import 'experimental_history_blocks.dart';
 
 /// Filtro elegido en esta ejecución (UX §2.1).
@@ -48,6 +50,7 @@ class _ExperimentalHistoryScreenState
     final filter = ref.watch(experimentalHistoryFilterProvider);
     final available = ref.watch(experimentalHistoryRepositoryProvider) != null;
     final sync = ref.watch(journalSyncProvider);
+    final uid = ref.watch(verifiedFirebaseUidProvider);
     void home() => context.go(VigiaRoutes.inicio);
     final list = available
         ? ref.watch(experimentalHistoryListProvider(filter))
@@ -93,21 +96,25 @@ class _ExperimentalHistoryScreenState
             text: 'En esta ejecución no se abrió el historial experimental.',
           ),
         ],
-        AsyncData(:final value) when value.isEmpty => [
+        AsyncData(:final value) when value.isEmpty && !list.isLoading => [
           StatusCard(
             tone: StatusTone.plain,
             icon: VigiaIcon.info,
             tag: 'Historial',
             title: filter == ExperimentalHistoryFilter.all
-                ? 'Aún no hay sesiones experimentales'
-                : 'No hay sesiones con este filtro',
+                ? (uid == null
+                      ? 'Aún no hay sesiones experimentales'
+                      : 'Sin sesiones en este teléfono')
+                : (uid == null
+                      ? 'No hay sesiones con este filtro'
+                      : 'Sin sesiones locales con este filtro'),
             text: filter == ExperimentalHistoryFilter.all
                 ? 'Las sesiones experimentales finalizadas o interrumpidas '
                       'aparecerán aquí.'
                 : 'Elige «Todas» para ver todo el historial.',
           ),
         ],
-        AsyncData(:final value) => [
+        AsyncData(:final value) when !list.isLoading => [
           const VigiaParagraph('Más reciente primero.', secondary: true),
           for (final s in value)
             VigiaButton(
@@ -142,6 +149,17 @@ class _ExperimentalHistoryScreenState
           ),
         ],
       },
+      if (uid != null)
+        CloudHistorySection(
+          key: ValueKey(uid),
+          uid: uid,
+          filter: filter,
+          localIds: {
+            for (final row
+                in list?.asData?.value ?? const <ExperimentalSessionRecord>[])
+              if (row.accountId == uid) row.sessionId,
+          },
+        ),
       const VigiaParagraph(
         'Tendencias, valoración, exportación y borrado no forman parte de '
         'este prototipo.',
@@ -247,7 +265,10 @@ class _ExperimentalSessionDetailScreenState
     }
     final s = session.value;
     final m = marks.value;
-    if (session is! AsyncData || m == null) {
+    if (session is! AsyncData ||
+        session.isLoading ||
+        marks.isLoading ||
+        m == null) {
       return const [
         StatusCard(
           tone: StatusTone.pending,

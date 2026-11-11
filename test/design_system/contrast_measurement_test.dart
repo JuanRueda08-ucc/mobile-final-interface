@@ -171,15 +171,12 @@ void main() {
   });
 
   testWidgets(
-    'falso positivo de Flutter: el estado real a 360 cumple con la medición propia',
+    'Inicio normal a 360 cumple con el contraste medido sobre el aura',
     (t) async {
       final handle = t.ensureSemantics();
       await pumpVigia(t, resolveInicioState(), const ScreenConfig(width: 360));
-      final guideline = await textContrastGuideline.evaluate(t);
       final audit = await auditTextContrast(t);
       handle.dispose();
-      // La pauta de Flutter falla por el suavizado; la medición por píxel, no.
-      expect(guideline.passed, isFalse);
       expect(audit.problems, isEmpty, reason: audit.log());
     },
   );

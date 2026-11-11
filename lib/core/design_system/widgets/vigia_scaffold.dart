@@ -56,6 +56,10 @@ class VigiaScaffold extends StatelessWidget {
     this.onNavSelected,
     this.notice,
     this.onBack,
+    this.background,
+    this.pinnedContent,
+    this.footer,
+    this.contentKey,
   });
 
   final String title;
@@ -72,6 +76,18 @@ class VigiaScaffold extends StatelessWidget {
   /// Acción de «‹ Volver» del encabezado (P04–P07). Nula: sin botón.
   final VoidCallback? onBack;
 
+  /// Fondo decorativo detrás de toda la pantalla, incluida su área segura.
+  final Widget? background;
+
+  /// Contenido que permanece visible sobre el cuerpo desplazable.
+  final LayoutWidgetBuilder? pinnedContent;
+
+  /// Acción del paso actual, fuera del desplazamiento.
+  final Widget? footer;
+
+  /// Reinicia el desplazamiento cuando cambia el paso del recorrido.
+  final Key? contentKey;
+
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
@@ -84,78 +100,101 @@ class VigiaScaffold extends StatelessWidget {
         style: VigiaType.appBarTitle.copyWith(color: p.ink),
       ),
     );
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: VigiaSpace.headerMinHeight,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: onBack == null
-                    ? Align(alignment: Alignment.centerLeft, child: heading)
-                    : Row(
-                        children: [
-                          VigiaBackButton(onPressed: onBack!),
-                          const SizedBox(width: 10),
-                          Expanded(child: heading),
-                        ],
-                      ),
-              ),
+    final inset = isLargeText(context) ? 16.0 : VigiaSpace.screenH;
+    final scroll = Stack(
+      children: [
+        Positioned.fill(
+          child: SingleChildScrollView(
+            key: contentKey,
+            padding: EdgeInsets.fromLTRB(
+              inset,
+              VigiaSpace.screenTop,
+              inset,
+              VigiaSpace.screenBottom,
             ),
-            if (isDemo)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: DemoLabel(),
-                ),
-              ),
-            Expanded(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: SingleChildScrollView(
-                      // Con texto ampliado el margen lateral baja de 20 a 16 para ganar ancho.
-                      padding: EdgeInsets.fromLTRB(
-                        isLargeText(context) ? 16 : VigiaSpace.screenH,
-                        VigiaSpace.screenTop,
-                        isLargeText(context) ? 16 : VigiaSpace.screenH,
-                        VigiaSpace.screenBottom,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          for (var i = 0; i < children.length; i++) ...[
-                            if (i > 0) const SizedBox(height: VigiaSpace.gap),
-                            children[i],
-                          ],
-                        ],
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: VigiaSpace.gap,
+              children: children,
+            ),
+          ),
+        ),
+        if (notice != null)
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 12,
+            child: VigiaNotice(text: notice!),
+          ),
+      ],
+    );
+    final pinned = pinnedContent;
+    final content = SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: VigiaSpace.headerMinHeight,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: onBack == null
+                  ? Align(alignment: Alignment.centerLeft, child: heading)
+                  : Row(
+                      children: [
+                        VigiaBackButton(onPressed: onBack!),
+                        const SizedBox(width: 10),
+                        Expanded(child: heading),
+                      ],
+                    ),
+            ),
+          ),
+          if (isDemo)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+              child: Align(alignment: Alignment.centerLeft, child: DemoLabel()),
+            ),
+          Expanded(
+            child: pinned == null
+                ? scroll
+                : LayoutBuilder(
+                    builder: (context, constraints) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        pinned(context, constraints),
+                        Expanded(child: scroll),
+                      ],
                     ),
                   ),
-                  if (notice != null)
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 12,
-                      child: VigiaNotice(text: notice!),
-                    ),
-                ],
+          ),
+          if (footer case final action?)
+            ColoredBox(
+              color: p.bg,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: action,
               ),
             ),
-            if (navIndex != null)
-              VigiaBottomNav(
-                currentIndex: navIndex!,
-                onSelected: onNavSelected ?? (_) {},
-              ),
-          ],
-        ),
+          if (navIndex != null)
+            VigiaBottomNav(
+              currentIndex: navIndex!,
+              onSelected: onNavSelected ?? (_) {},
+            ),
+        ],
       ),
+    );
+    return Scaffold(
+      backgroundColor: p.bg,
+      body: background == null
+          ? content
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                IgnorePointer(child: background),
+                content,
+              ],
+            ),
     );
   }
 }

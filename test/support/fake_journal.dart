@@ -73,10 +73,11 @@ class FakeJournal implements ExperimentalJournalBridge {
     'pauseCount': pauses,
   };
 
-  void started(String id, {int epochMs = 1760000000000}) =>
+  void started(String id, {int epochMs = 1760000000000, String? accountId}) =>
       add('sessionStarted', id, 0, {
         'sessionId': id,
         'engineInstanceId': 'motor-1',
+        'accountId': ?accountId,
         'startedEpochMs': epochMs,
         'startOffsetMinutes': -300,
         'profileId': 'lab-eye-rules-0.1',
@@ -141,8 +142,8 @@ class FakeJournal implements ExperimentalJournalBridge {
 
   /// Sesión completa: 60 s activos (45 s evaluables), 10 s de pausa, una
   /// activación con su tono.
-  void completeSession(String id) {
-    started(id);
+  void completeSession(String id, {String? accountId}) {
+    started(id, accountId: accountId);
     checkpoint(id, 1000, totals(active: 1000));
     closure(id, 20000, 1);
     pause(
@@ -178,8 +179,9 @@ class FakeJournal implements ExperimentalJournalBridge {
     );
   }
 
-  List<JournalRecordMessage> get pending =>
-      records.where((r) => !acked.contains((r.recordId, r.payloadHash))).toList();
+  List<JournalRecordMessage> get pending => records
+      .where((r) => !acked.contains((r.recordId, r.payloadHash)))
+      .toList();
 
   @override
   Future<JournalBatch> readPendingRecords(int limit) async {

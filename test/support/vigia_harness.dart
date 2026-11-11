@@ -55,4 +55,9 @@ Future<void> pumpVigia(
     ),
   );
   await tester.pumpAndSettle();
+  if (state is InicioMotorNoComprobado) {
+    // Sin puente Android, dejar que venza la consulta inicial antes de medir.
+    await tester.pump(const Duration(milliseconds: 751));
+    await tester.pumpAndSettle();
+  }
 }
