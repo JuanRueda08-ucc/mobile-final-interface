@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../core/design_system/vigia_icons.dart';
+import '../../core/design_system/widgets/trial_version_notice.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_scaffold.dart';
@@ -89,6 +90,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             kind: VigiaButtonKind.secondary,
             onPressed: locked || _busy || uid == null ? null : _signOut,
           ),
+          const Divider(),
+          const TrialVersionNotice(),
         ],
       ),
     );

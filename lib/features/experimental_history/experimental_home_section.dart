@@ -40,7 +40,7 @@ class _ExperimentalHomeSectionState
           tone: StatusTone.alert,
           icon: VigiaIcon.close,
           tag: 'Error',
-          title: 'No se pudo cargar el historial experimental',
+          title: 'No se pudo cargar el historial',
           text: 'Esto no significa que no existan sesiones.',
         ),
       ],
@@ -49,14 +49,14 @@ class _ExperimentalHomeSectionState
           sync.status == JournalSyncStatus.idle ||
                   sync.status == JournalSyncStatus.running
               ? 'Leyendo el registro del motor…'
-              : 'Aún no hay sesiones experimentales',
+              : 'Aún no hay sesiones',
           key: const Key('home-no-experimental'),
           secondary: true,
         ),
       ],
       AsyncData(:final value?) when value.isFinalized => <Widget>[
         VigiaParagraph(
-          'Experimental · ${ExperimentalHistoryText.record(value)}',
+          ExperimentalHistoryText.record(value),
           key: const Key('home-latest-experimental'),
         ),
         VigiaParagraph(formatDateTime(value.startedAt.fields), secondary: true),
@@ -72,7 +72,7 @@ class _ExperimentalHomeSectionState
       ],
       AsyncData(:final value?) when value.isInterrupted => <Widget>[
         const VigiaParagraph(
-          'Experimental · Sesión interrumpida',
+          'Sesión interrumpida',
           key: Key('home-interrupted-experimental'),
         ),
         VigiaParagraph(formatDateTime(value.startedAt.fields), secondary: true),
@@ -88,7 +88,7 @@ class _ExperimentalHomeSectionState
         StatusCard(
           tone: StatusTone.pending,
           icon: VigiaIcon.clock,
-          tag: 'Historial experimental',
+          tag: 'Historial',
           title: 'Registro en curso',
           text: 'La última sesión todavía no tiene cierre guardado.',
         ),
@@ -97,7 +97,7 @@ class _ExperimentalHomeSectionState
         StatusCard(
           tone: StatusTone.pending,
           icon: VigiaIcon.clock,
-          tag: 'Historial experimental',
+          tag: 'Historial',
           title: 'Cargando historial',
           text: 'Leyendo los registros guardados en el teléfono.',
         ),
@@ -108,11 +108,11 @@ class _ExperimentalHomeSectionState
       spacing: VigiaSpace.gap / 2,
       children: [
         const Divider(),
-        const VigiaSectionTitle('Última sesión experimental'),
+        const VigiaSectionTitle('Última sesión'),
         ...blocks,
         VigiaButton(
           key: const Key('open-experimental-history'),
-          label: 'Ver historial experimental',
+          label: 'Ver historial',
           kind: VigiaButtonKind.secondary,
           onPressed: () => context.go(VigiaRoutes.historial),
         ),

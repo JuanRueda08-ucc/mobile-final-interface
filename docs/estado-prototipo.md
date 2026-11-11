@@ -97,11 +97,13 @@ el panel se abre desde el encabezado y deja todo el ancho al contenido.
 Los renderizados están en `test/account/navegacion/`. Acceso y registro ya
 usan el aura y el motivo ocular de la portada de Vigía, reutilizan
 `AccountForm` y conservan la verificación y recuperación por enlace. Las
-capturas están en `test/account/firebase/`.
+capturas están en `test/account/firebase/`. El aviso «Versión de prueba» se
+consulta en Cuenta y Ajustes › Acerca de. Monitoreo, sus pasos y el Historial
+usan títulos breves. El detalle conserva el ID de perfil para trazabilidad.
 
-**Siguiente acción.** Consolidar el aviso de prueba en Cuenta y en Acerca
-de, y validar el recorrido con la webcam y dos cuentas verificadas en
-`vigia-e1680`. D1 y la firma de distribución siguen pendientes.
+**Siguiente acción.** Validar el recorrido con la webcam y dos cuentas
+verificadas en `vigia-e1680` con el guion del bloque. D1 y la firma de
+distribución siguen pendientes.
 
 ## Fases
 

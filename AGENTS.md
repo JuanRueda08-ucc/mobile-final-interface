@@ -94,7 +94,7 @@ Esta actualización del usuario prevalece sobre las instrucciones anteriores que
 
 - Android primero, con interfaz Flutter (`lib/`) y un único plugin local Kotlin (`packages/monitoring_engine`).
 - **La simulación se identifica siempre.** Todo dato o resultado simulado lleva el rótulo visible «DEMO — datos simulados» (RF32). Nunca se presenta como detección real de IA ni como medición de la cámara.
-- **Lo experimental también se identifica.** El recorrido real de la variante normal se presenta como «Monitoreo experimental», con valores de laboratorio candidatos, nunca como política de producción ni como ayuda validada para conducir.
+- **Versión de prueba.** En la variante normal, el aviso de Cuenta y de Ajustes › Acerca de explica que la detección usa valores de laboratorio candidatos y que Vigía no es una ayuda validada para conducir. El motor y los registros conservan la calificación `experimental` y el perfil `lab-eye-rules-0.1`.
 - Restricciones del producto:
   - no se usan «Seguro», «Puedes conducir» ni porcentajes de fatiga (RF10, UX07);
   - sin GPS ni micrófono. El servicio de cuentas y resúmenes tiene el alcance del bloque activo.

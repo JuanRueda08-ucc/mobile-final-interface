@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/app_config.dart';
 import '../../app/router.dart';
 import '../../core/design_system/vigia_icons.dart';
+import '../../core/design_system/widgets/trial_version_notice.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_option.dart';
@@ -173,6 +174,10 @@ class SettingsScreen extends ConsumerWidget {
             'umbrales no se pueden editar.',
             secondary: true,
           ),
+          if (!demo) ...[
+            const VigiaSectionTitle('Acerca de'),
+            const TrialVersionNotice(),
+          ],
         ],
       ),
     );

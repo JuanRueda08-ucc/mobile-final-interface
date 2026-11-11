@@ -89,13 +89,13 @@ void main() {
 
       // Inicio: último resumen, rotulado experimental.
       expect(find.byKey(const Key('home-latest-experimental')), findsOneWidget);
-      expect(find.text('Experimental · Completo · guardado'), findsOneWidget);
+      expect(find.text('Completo · guardado'), findsOneWidget);
       expect(find.text('75,0 %'), findsOneWidget);
       expect(find.textContaining('DEMO'), findsNothing);
 
       // Resumen.
       await tapText(tester, 'Ver último resumen');
-      expect(find.byKey(const Key('experimental-data-banner')), findsOneWidget);
+      expect(find.text('Versión de prueba'), findsNothing);
       expect(find.byKey(const Key('summary-saved')), findsOneWidget);
       expect(find.text('75,0 %'), findsOneWidget);
       expect(find.text('60,0 s'), findsWidgets);
@@ -103,10 +103,7 @@ void main() {
 
       // Detalle.
       await tapText(tester, 'Ver detalle');
-      expect(
-        find.text('Real · experimental (lab-eye-rules-0.1)'),
-        findsOneWidget,
-      );
+      expect(find.text('Real · lab-eye-rules-0.1'), findsOneWidget);
       expect(find.text('75,0 %'), findsOneWidget);
       expect(find.text('Completo · guardado'), findsOneWidget);
       expect(find.textContaining('Cierre ocular prolongado 1'), findsOneWidget);
@@ -116,7 +113,7 @@ void main() {
       // Historial.
       await tester.tap(find.bySemanticsLabel('Volver').first);
       await settle(tester);
-      expect(find.textContaining('Experimental · a1b2c3d4 · '), findsOneWidget);
+      expect(find.textContaining('a1b2c3d4 · '), findsOneWidget);
       expect(
         find.textContaining('Finalizada · Cobertura 75,0 %'),
         findsOneWidget,
@@ -168,8 +165,8 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Volver').first);
       await settle(tester);
       await tapText(tester, 'Interrumpidas');
-      expect(find.textContaining('Experimental · s-dos'), findsOneWidget);
-      expect(find.textContaining('Experimental · s-uno'), findsNothing);
+      expect(find.textContaining('s-dos'), findsOneWidget);
+      expect(find.textContaining('s-uno'), findsNothing);
       expect(
         find.textContaining('Interrumpida · Cobertura No disponible'),
         findsOneWidget,
@@ -248,10 +245,10 @@ void main() {
     tester,
   ) async {
     await pumpReal(tester);
-    expect(find.text('Aún no hay sesiones experimentales'), findsOneWidget);
-    await tapText(tester, 'Ver historial experimental');
-    expect(find.text('Aún no hay sesiones experimentales'), findsOneWidget);
-    expect(find.byKey(const Key('experimental-data-banner')), findsOneWidget);
+    expect(find.text('Aún no hay sesiones'), findsOneWidget);
+    await tapText(tester, 'Ver historial');
+    expect(find.text('Aún no hay sesiones'), findsOneWidget);
+    expect(find.text('Versión de prueba'), findsNothing);
   });
 
   testWidgets('un cierre ausente comunica incompleto y permite salir', (

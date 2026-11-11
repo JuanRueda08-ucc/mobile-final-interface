@@ -96,8 +96,11 @@ Commit `0cde331` «Añade Cuenta y navegación lateral a la variante normal».
 - `/cuenta` abre `AccountScreen`. Muestra correo y verificación, consulta el
   proveedor de envío del UID activo y permite reintentar si falla. Comparte
   con Acceso la consulta del motor antes de cerrar sesión. Ajustes retira
-  «Mi cuenta». Cambios en `router.dart`, `lib/features/account/`, Inicio,
-  Historial y Ajustes.
+  «Mi cuenta». Archivos `router.dart`, `account_screen.dart`,
+  `firebase_account.dart`, `firebase_account_screen.dart`, `inicio_screen.dart`,
+  `experimental_history_screens.dart`, `settings_screen.dart`,
+  `vigia_scaffold.dart` y `vigia_icons.dart`. Pruebas en
+  `account_navigation_test.dart` e `inicio_layout_test.dart`.
 - `VigiaScaffold` usa los iconos de B5.2, áreas de toque de al menos 48 dp,
   etiqueta semántica, tooltip y relleno para el destino seleccionado. La
   barra de 56 dp es fija a 360 dp al 100 %. Por debajo de 360 dp o con texto
@@ -115,7 +118,7 @@ Commit `0cde331` «Añade Cuenta y navegación lateral a la variante normal».
 
 ### Paso 2 · Acceso y registro · 2026-11-11
 
-Commit «Rediseña el acceso y el registro de Vigía».
+Commit `bdb92fe` «Rediseña el acceso y el registro de Vigía».
 
 - `FirebaseAccountScreen` reutiliza `AccountForm`. La portada comparte
   `ScreenAura` con Inicio y usa un motivo ocular, un título de mayor tamaño
@@ -126,6 +129,10 @@ Commit «Rediseña el acceso y el registro de Vigía».
   campos indican el error local y la acción muestra el progreso de la
   solicitud. Las pruebas con dobles comprueban el envío de verificación,
   la actualización del token y la recuperación por enlace.
+- Archivos `firebase_account_screen.dart`, `account_form.dart`,
+  `screen_aura.dart`, `inicio_screen.dart` y `firebase_access_test.dart`.
+  `fase3_flow_test.dart` comprueba la navegación por tooltip en la prueba
+  de separación normal/DEMO que todavía buscaba texto de la barra inferior.
 - `flutter analyze --no-pub` sin diagnósticos y registro 500/500. Pruebas
   dirigidas de acceso 6/6. La suite global se inició en una copia fija de
   este paso para preservar el estado de los otros pasos.
@@ -133,4 +140,35 @@ Commit «Rediseña el acceso y el registro de Vigía».
   320 dp al 200 % regeneradas. Cubren «Inicia sesión» y «Crea tu cuenta» en
   360 dp al 100 % y 320 dp al 200 %, en ambos temas.
 - Sin APK en este paso. El recorrido con los correos alojados se comprueba
+  en el paso 4.
+
+### Paso 3 · Versión de prueba · 2026-11-11
+
+Commit «Concentra el aviso de prueba en Cuenta y Ajustes».
+
+- Se revisó la presentación de Inicio, preparación, Monitoreo (P06),
+  finalización, resumen, Historial y detalle. El componente
+  `TrialVersionNotice` aparece una vez en Cuenta y una vez en la sección
+  «Acerca de» de Ajustes. Describe el estado de los valores candidatos y
+  el límite de uso para conducir.
+- Los registros, `qualification: 'experimental'`, `lab-eye-rules-0.1`, las
+  reglas del motor y el rótulo DEMO se conservan. Las expectativas de las
+  pruebas de UI se actualizaron para comprobar los textos nuevos y la
+  ausencia de avisos repetidos en el recorrido.
+- Archivos `trial_version_notice.dart`, `account_screen.dart`,
+  `settings_screen.dart`, `inicio_screen.dart`,
+  `experimental_monitoring_screen.dart` y los tres archivos de presentación
+  `experimental_home_section.dart`, `experimental_history_blocks.dart` y
+  `experimental_history_screens.dart`. Pruebas en
+  `account_navigation_test.dart`, `experimental_monitoring_test.dart`,
+  `experimental_history_ui_test.dart` y `fase5d_render_test.dart`.
+- Ocho PNG nuevos de Cuenta y Acerca de en `test/account/navegacion/` y 80
+  goldens regenerados. Se actualizaron 10 de navegación, 8 de Inicio y
+  Encuadre, 4 de Inicio normal, 12 de 5C, 24 de P06, 20 de 5D y 2 de P12.
+  [Cuenta a 360 dp al 100 %](../test/account/navegacion/cuenta_version__oscuro_360_100.png)
+  y [Acerca de a 320 dp al 200 %](../test/account/navegacion/ajustes_acerca__claro_320_200.png).
+- Registro 500/500. El barrido dirigido aprobó 137 pruebas. Las otras dos
+  usaban el rótulo retirado y el nombre anterior de un botón de Historial.
+  Ambas pasaron al actualizar las expectativas y repetir esas pruebas.
+- La compilación para Android y la verificación con Firebase se registran
   en el paso 4.

@@ -29,16 +29,9 @@ import 'experimental_monitoring_controller.dart';
 class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
   const ExperimentalMonitoringScreen({super.key});
 
-  static const title = 'Monitoreo experimental';
+  static const title = 'Monitoreo';
 
-  static const experimentalText =
-      'Prototipo experimental con valores de laboratorio sin validar (perfil '
-      'lab-eye-rules-0.1). No es una ayuda para conducir ni detecta fatiga: '
-      'solo observa cierres oculares. Las imágenes se procesan en este '
-      'teléfono; no se graban, no se guardan y no se envían.';
-
-  static const leaveBlockedNotice =
-      'Finaliza la sesión experimental antes de salir.';
+  static const leaveBlockedNotice = 'Finaliza la sesión antes de salir.';
 
   /// Texto del motivo técnico por el que los ojos no son medibles.
   static String eyeIssueText(String? code) => switch (code) {
@@ -213,7 +206,7 @@ class _ExperimentalMonitoringScreenState
     final confirmed = await showVigiaConfirm(
       context,
       id: 'D02',
-      title: '¿Finalizar la sesión experimental?',
+      title: '¿Finalizar la sesión?',
       text: 'Se detendrán el monitoreo, la cámara y los avisos.',
       safeLabel: 'Continuar sesión',
       actionLabel: 'Finalizar',
@@ -294,14 +287,6 @@ class _ExperimentalMonitoringScreenState
             : null,
         children: [
           if (finalized && snap != null) ...[
-            const StatusCard(
-              key: Key('experimental-banner'),
-              tone: StatusTone.warn,
-              icon: VigiaIcon.warn,
-              tag: 'Experimental',
-              title: 'Prototipo experimental',
-              text: ExperimentalMonitoringScreen.experimentalText,
-            ),
             ..._summary(snap),
           ] else if (preparing)
             ..._preparation(s, cam, step)
@@ -344,7 +329,7 @@ class _ExperimentalMonitoringScreenState
     if (step == _PreparationStep.sound) {
       return VigiaButton(
         key: const Key('start'),
-        label: 'Iniciar monitoreo experimental',
+        label: 'Iniciar monitoreo',
         onPressed: canCalibrate && _exp.soundConfirmedFor(snap)
             ? () => _run(_exp.start)
             : null,
@@ -396,7 +381,6 @@ class _ExperimentalMonitoringScreenState
           'Con el vehículo detenido, fija el teléfono en un soporte y mira al frente antes de calibrar.',
           secondary: true,
         ),
-        const _ExperimentalScope(),
       ],
       _PreparationStep.calibration => [
         const VigiaSectionTitle('2 de 3 · Calibración'),
@@ -409,7 +393,6 @@ class _ExperimentalMonitoringScreenState
             rows: [_eyeRows(s, cam, compact: true, eyesFirst: true).first],
           ),
         ..._cameraRecovery(cam),
-        const _ExperimentalScope(),
       ],
       _PreparationStep.sound => _soundPreparation(s, cam),
     };
@@ -517,7 +500,6 @@ class _ExperimentalMonitoringScreenState
           kind: VigiaButtonKind.secondary,
           onPressed: busy ? null : _back,
         ),
-      const _ExperimentalScope(),
     ];
   }
 
@@ -818,7 +800,6 @@ class _ExperimentalMonitoringScreenState
         'Usa los controles con el vehículo detenido.',
         secondary: true,
       ),
-      const _ExperimentalScope(),
     ];
   }
 
@@ -861,7 +842,7 @@ class _ExperimentalMonitoringScreenState
         key: const Key('summary'),
         tone: StatusTone.plain,
         icon: VigiaIcon.check,
-        tag: 'Sesión experimental',
+        tag: 'Sesión finalizada',
         title: 'Monitoreo detenido',
         text: snap.recordStatus == 'incomplete'
             ? 'Cámara, análisis y avisos detenidos. El motor no pudo guardar '
@@ -900,18 +881,4 @@ class _ExperimentalMonitoringScreenState
       ),
     ];
   }
-}
-
-class _ExperimentalScope extends StatelessWidget {
-  const _ExperimentalScope();
-
-  @override
-  Widget build(BuildContext context) => const ExpansionTile(
-    key: Key('experimental-banner'),
-    title: VigiaParagraph('Acerca del prototipo experimental'),
-    tilePadding: EdgeInsets.zero,
-    childrenPadding: EdgeInsets.only(bottom: 12),
-    expandedAlignment: Alignment.centerLeft,
-    children: [VigiaParagraph(ExperimentalMonitoringScreen.experimentalText)],
-  );
 }

@@ -101,10 +101,7 @@ void main() {
           finalizedOnly,
           (t) => tapText(t, 'Ver último resumen'),
         ),
-        'historial': (
-          withInterrupted,
-          (t) => tapText(t, 'Ver historial experimental'),
-        ),
+        'historial': (withInterrupted, (t) => tapText(t, 'Ver historial')),
         'detalle_finalizada': (
           finalizedOnly,
           (t) async {

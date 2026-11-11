@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/core/design_system/widgets/trial_version_notice.dart';
 import 'package:vigia/features/account/cloud_sessions.dart';
 import 'package:vigia/features/account/firebase_account.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_controller.dart';
@@ -114,6 +115,17 @@ void main() {
         );
         await tester.pumpAndSettle();
         await capture('cuenta');
+        final trialNotice = find.byType(TrialVersionNotice);
+        expect(trialNotice, findsOneWidget);
+        await tester.ensureVisible(trialNotice);
+        await tester.pumpAndSettle();
+        expect(find.text('Versión de prueba').hitTestable(), findsOneWidget);
+        await capture('cuenta_version');
+        await tester.drag(
+          find.byType(SingleChildScrollView),
+          const Offset(0, 1500),
+        );
+        await tester.pumpAndSettle();
 
         await openRail(tester);
         final accountItem = find.descendant(
@@ -145,12 +157,19 @@ void main() {
         }
 
         await navigate(tester, 'Historial');
+        expect(trialNotice, findsNothing);
         await capture('historial');
         await navigate(tester, 'Ajustes');
         expect(find.text('Tema'), findsOneWidget);
         expect(button('Mi cuenta'), findsNothing);
         await capture('ajustes');
+        expect(trialNotice, findsOneWidget);
+        await tester.ensureVisible(trialNotice);
+        await tester.pumpAndSettle();
+        expect(find.text('Acerca de').hitTestable(), findsOneWidget);
+        await capture('ajustes_acerca');
         await navigate(tester, 'Inicio');
+        expect(trialNotice, findsNothing);
         expect(find.byKey(const Key('open-experimental')), findsOneWidget);
         expect(tester.takeException(), isNull);
       });

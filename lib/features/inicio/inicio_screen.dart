@@ -310,7 +310,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
         spacing: 12,
         children: [
           VigiaText(
-            'Monitoreo experimental',
+            'Monitoreo',
             style: VigiaType.pill.copyWith(color: colors.inkSecondary),
           ),
           Semantics(
@@ -325,7 +325,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
           ),
           VigiaParagraph(
             ongoing
-                ? 'Vuelve a la sesión experimental en curso.'
+                ? 'Vuelve a la sesión en curso.'
                 : 'Ajusta el encuadre y calibra con el vehículo detenido.',
           ),
           VigiaButton(
@@ -350,11 +350,6 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
                 onPressed: () => ref.invalidate(realInicioMotorProvider),
               ),
           ],
-          if (!ongoing)
-            const VigiaParagraph(
-              'Prototipo de laboratorio para observar cierres oculares.',
-              secondary: true,
-            ),
         ],
       ),
     );

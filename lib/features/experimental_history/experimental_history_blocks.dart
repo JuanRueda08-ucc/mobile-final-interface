@@ -12,16 +12,10 @@ import '../../data/experimental_history/experimental_history_providers.dart';
 import '../../data/experimental_history/experimental_history_repository.dart';
 import '../monitoring/domain/session_summary.dart';
 
-/// Textos y bloques comunes del historial experimental real (fase 5D). Inicio,
+/// Textos y bloques comunes del historial real (fase 5D). Inicio,
 /// Resumen, Historial y detalle leen el mismo [ExperimentalSessionRecord] de
 /// la proyección Drift; ninguno usa el estado en memoria del motor.
 abstract final class ExperimentalHistoryText {
-  static const bannerText =
-      'Sesiones medidas con la cámara de este teléfono, con valores de '
-      'laboratorio sin validar (perfil lab-eye-rules-0.1). No son una ayuda '
-      'para conducir ni una medida de fatiga. Se guardan solo tiempos y '
-      'contadores; no imágenes ni puntos de la cara.';
-
   /// «a1b2c3d4»: inicio del identificador único, para listas.
   static String shortId(String id) => id.length <= 8 ? id : id.substring(0, 8);
 
@@ -52,21 +46,6 @@ abstract final class ExperimentalHistoryText {
     ImportStop.relation => 'Un registro no encaja con su sesión.',
     null => 'No se pudo leer el registro del motor.',
   };
-}
-
-/// Rótulo permanente de los datos experimentales reales.
-class ExperimentalDataBanner extends StatelessWidget {
-  const ExperimentalDataBanner({super.key});
-
-  @override
-  Widget build(BuildContext context) => const StatusCard(
-    key: Key('experimental-data-banner'),
-    tone: StatusTone.warn,
-    icon: VigiaIcon.warn,
-    tag: 'Experimental · datos reales',
-    title: 'Sesiones experimentales',
-    text: ExperimentalHistoryText.bannerText,
-  );
 }
 
 /// Pide importar el journal al montarse y, mientras la sesión [sessionId]
@@ -132,7 +111,7 @@ List<Widget> experimentalSummaryBlocks(
         icon: VigiaIcon.info,
         tag: 'Historial',
         title: 'Historial no disponible',
-        text: 'En esta ejecución no se abrió el historial experimental.',
+        text: 'En esta ejecución no se abrió el historial.',
       ),
     ];
   }
@@ -198,7 +177,7 @@ List<Widget> experimentalSummaryBlocks(
       tone: s.complete ? StatusTone.strong : StatusTone.alert,
       icon: s.complete ? VigiaIcon.check : VigiaIcon.warn,
       tag: ExperimentalHistoryText.record(s),
-      title: 'Resumen de la sesión experimental',
+      title: 'Resumen de la sesión',
       text: s.complete
           ? 'Calculado por el motor con la cámara y guardado en el historial '
                 'de este teléfono.'
@@ -214,7 +193,7 @@ List<Widget> experimentalSummaryBlocks(
       titleSize: full ? 44 : 32,
       tag: 'Cobertura',
       title: ExperimentalHistoryText.coverage(t),
-      text: 'Cobertura de medición de esta sesión experimental',
+      text: 'Cobertura de medición de esta sesión',
     ),
     KeyValueRow(label: 'Sesión', value: s.sessionId),
     KeyValueRow(

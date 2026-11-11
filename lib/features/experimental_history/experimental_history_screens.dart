@@ -30,7 +30,7 @@ class _FilterNotifier extends Notifier<ExperimentalHistoryFilter> {
 }
 
 /// P08 · Historial de la variante normal (fase 5D; composición de B5.2
-/// `vP08`). Lista las sesiones experimentales reales guardadas, la más
+/// `vP08`). Lista las sesiones reales guardadas, la más
 /// reciente primero, con fecha, estado y cobertura. Las interrumpidas no se
 /// ocultan ni se presentan como finalizadas. Vacío, cargando y error son
 /// estados distintos. Sin exportación, borrado ni tendencias.
@@ -57,7 +57,6 @@ class _ExperimentalHistoryScreenState
         : null;
 
     final children = <Widget>[
-      const ExperimentalDataBanner(),
       if (sync.status == JournalSyncStatus.stopped ||
           sync.status == JournalSyncStatus.failed)
         StatusCard(
@@ -93,7 +92,7 @@ class _ExperimentalHistoryScreenState
             icon: VigiaIcon.info,
             tag: 'Historial',
             title: 'Historial no disponible',
-            text: 'En esta ejecución no se abrió el historial experimental.',
+            text: 'En esta ejecución no se abrió el historial.',
           ),
         ],
         AsyncData(:final value) when value.isEmpty && !list.isLoading => [
@@ -103,13 +102,13 @@ class _ExperimentalHistoryScreenState
             tag: 'Historial',
             title: filter == ExperimentalHistoryFilter.all
                 ? (uid == null
-                      ? 'Aún no hay sesiones experimentales'
+                      ? 'Aún no hay sesiones'
                       : 'Sin sesiones en este teléfono')
                 : (uid == null
                       ? 'No hay sesiones con este filtro'
                       : 'Sin sesiones locales con este filtro'),
             text: filter == ExperimentalHistoryFilter.all
-                ? 'Las sesiones experimentales finalizadas o interrumpidas '
+                ? 'Las sesiones finalizadas o interrumpidas '
                       'aparecerán aquí.'
                 : 'Elige «Todas» para ver todo el historial.',
           ),
@@ -188,9 +187,9 @@ class _ExperimentalHistoryScreenState
     );
   }
 
-  /// «Experimental · a1b2c3d4 · 15/10/2026 08:12 · Finalizada · Cobertura 75,0 %».
+  /// «a1b2c3d4 · 15/10/2026 08:12 · Finalizada · Cobertura 75,0 %».
   static String rowLabel(ExperimentalSessionRecord s) =>
-      'Experimental · ${ExperimentalHistoryText.shortId(s.sessionId)} · '
+      '${ExperimentalHistoryText.shortId(s.sessionId)} · '
       '${formatDateTime(s.startedAt.fields)} · '
       '${ExperimentalHistoryText.lifecycle(s.lifecycle)} · '
       'Cobertura ${ExperimentalHistoryText.coverage(s.totals)}';
@@ -215,14 +214,13 @@ class _ExperimentalSessionDetailScreenState
     void back() => context.go(VigiaRoutes.historial);
     final available = ref.watch(experimentalHistoryRepositoryProvider) != null;
     final children = <Widget>[
-      const ExperimentalDataBanner(),
       if (!available)
         const StatusCard(
           tone: StatusTone.neutral,
           icon: VigiaIcon.info,
           tag: 'Historial',
           title: 'Historial no disponible',
-          text: 'En esta ejecución no se abrió el historial experimental.',
+          text: 'En esta ejecución no se abrió el historial.',
         )
       else
         ..._content(
@@ -296,10 +294,7 @@ class _ExperimentalSessionDetailScreenState
     }
     return [
       KeyValueRow(label: 'Sesión', value: s.sessionId),
-      KeyValueRow(
-        label: 'Origen',
-        value: 'Real · ${s.qualificationStatus} (${s.profileId})',
-      ),
+      KeyValueRow(label: 'Origen', value: 'Real · ${s.profileId}'),
       KeyValueRow(
         label: 'Estado',
         value: ExperimentalHistoryText.lifecycle(s.lifecycle),
@@ -335,10 +330,7 @@ class _ExperimentalSessionDetailScreenState
             '${s.calibrationSamples} observaciones',
       ),
       KeyValueRow(label: 'Modelo', value: s.modelId),
-      KeyValueRow(
-        label: 'Perfil',
-        value: '${s.profileId} · ${s.qualificationStatus}',
-      ),
+      KeyValueRow(label: 'Perfil', value: s.profileId),
       const VigiaParagraph(
         'Detalle de episodio, valoración, exportación y eliminación no forman '
         'parte de este prototipo.',
@@ -499,7 +491,6 @@ class _ExperimentalSummaryScreenState
         title: 'Resumen',
         onBack: home,
         children: [
-          const ExperimentalDataBanner(),
           ...experimentalSummaryBlocks(
             available
                 ? ref.watch(experimentalSessionProvider(widget.sessionId))

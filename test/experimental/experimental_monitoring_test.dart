@@ -178,7 +178,8 @@ void main() {
         'inicia; abre la cámara real (doble)', (tester) async {
       await open(tester, fakeSnapshot(sequence: 2, eyeIssue: 'noFace'));
       expect(find.text(ExperimentalMonitoringScreen.title), findsWidgets);
-      expect(find.byKey(const Key('experimental-banner')), findsOneWidget);
+      expect(find.text('Monitoreo'), findsOneWidget);
+      expect(find.byKey(const Key('experimental-banner')), findsNothing);
       expect(find.text('Rostro no detectado.'), findsOneWidget);
       expect(enabled(tester, const Key('calibrate')), isFalse);
       expect(find.byKey(const Key('start')), findsNothing);
