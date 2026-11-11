@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
+import 'screen_aura.dart';
 import 'vigia_button.dart';
 import 'vigia_mark.dart';
+import 'vigia_side_nav_item.dart';
 import 'vigia_text.dart';
 
 /// Rótulo visible de simulación (RF32): «DEMO — datos simulados».
@@ -253,19 +255,34 @@ class VigiaScaffold extends StatelessWidget {
           backgroundColor: p.bg,
           drawer: compact
               ? Drawer(
-                  width: 56,
+                  width: _VigiaSideNav.width,
                   shape: const RoundedRectangleBorder(),
-                  backgroundColor: p.navBg,
+                  backgroundColor: p.bg,
+                  surfaceTintColor: Colors.transparent,
                   semanticLabel: 'Navegación principal',
-                  child: SafeArea(
-                    child: _VigiaSideNav(
-                      currentIndex: navIndex!,
-                      accountDestination: accountDestination,
-                      onSelected: (index) {
-                        Navigator.of(context).pop();
-                        select(index);
-                      },
-                    ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (background is ScreenAura)
+                        ClipRect(
+                          child: OverflowBox(
+                            alignment: AlignmentDirectional.centerStart,
+                            minWidth: constraints.maxWidth,
+                            maxWidth: constraints.maxWidth,
+                            child: const ScreenAura(),
+                          ),
+                        ),
+                      SafeArea(
+                        child: _VigiaSideNav(
+                          currentIndex: navIndex!,
+                          accountDestination: accountDestination,
+                          onSelected: (index) {
+                            Navigator.of(context).pop();
+                            select(index);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : null,
@@ -427,14 +444,12 @@ class _NavItem extends StatelessWidget {
     required this.selected,
     required this.vertical,
     required this.onTap,
-    this.iconOnly = false,
   });
 
   final VigiaNavDestination destination;
   final bool selected;
   final bool vertical;
   final VoidCallback onTap;
-  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -457,50 +472,42 @@ class _NavItem extends StatelessWidget {
       label: destination.label,
       onTap: onTap,
       excludeSemantics: true,
-      child: Tooltip(
-        message: iconOnly ? destination.label : '',
-        excludeFromSemantics: true,
-        child: PressScale(
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(VigiaRadius.navItem),
-              highlightColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              focusColor: p.focus.withValues(alpha: 0.32),
-              child: AnimatedContainer(
-                duration: reduce ? Duration.zero : VigiaMotion.colorDuration,
-                alignment: vertical && !iconOnly
-                    ? Alignment.centerLeft
-                    : Alignment.center,
-                constraints: const BoxConstraints(
-                  minHeight: VigiaSpace.navItemMinHeight,
-                  minWidth: VigiaSpace.minTap,
-                ),
-                padding: vertical && !iconOnly
-                    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
-                    : const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-                decoration: BoxDecoration(
-                  color: selected ? p.navSelectedBg : Colors.transparent,
-                  borderRadius: BorderRadius.circular(VigiaRadius.navItem),
-                ),
-                child: iconOnly
-                    ? icon
-                    : vertical
-                    ? Row(
-                        children: [
-                          icon,
-                          const SizedBox(width: 12),
-                          Expanded(child: label),
-                        ],
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [icon, const SizedBox(height: 2), label],
-                      ),
+      child: PressScale(
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(VigiaRadius.navItem),
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            focusColor: p.focus.withValues(alpha: 0.32),
+            child: AnimatedContainer(
+              duration: reduce ? Duration.zero : VigiaMotion.colorDuration,
+              alignment: vertical ? Alignment.centerLeft : Alignment.center,
+              constraints: const BoxConstraints(
+                minHeight: VigiaSpace.navItemMinHeight,
+                minWidth: VigiaSpace.minTap,
               ),
+              padding: vertical
+                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
+                  : const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+              decoration: BoxDecoration(
+                color: selected ? p.navSelectedBg : Colors.transparent,
+                borderRadius: BorderRadius.circular(VigiaRadius.navItem),
+              ),
+              child: vertical
+                  ? Row(
+                      children: [
+                        icon,
+                        const SizedBox(width: 12),
+                        Expanded(child: label),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [icon, const SizedBox(height: 2), label],
+                    ),
             ),
           ),
         ),
@@ -520,6 +527,8 @@ class _VigiaSideNav extends StatelessWidget {
   final bool accountDestination;
   final ValueChanged<int> onSelected;
 
+  static const width = 56.0;
+
   @override
   Widget build(BuildContext context) {
     final destinations = [
@@ -529,36 +538,36 @@ class _VigiaSideNav extends StatelessWidget {
     ];
     return SizedBox(
       key: const Key('vigia-side-nav'),
-      width: 56,
+      width: width,
       height: double.infinity,
-      child: ColoredBox(
-        color: VigiaColors.of(context).navBg,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final items = Padding(
-              padding: const EdgeInsets.fromLTRB(4, 12, 4, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 4,
-                children: [
-                  for (var i = 0; i < destinations.length; i++)
-                    _NavItem(
-                      destination: destinations[i],
-                      selected: i == currentIndex,
-                      vertical: false,
-                      iconOnly: true,
-                      onTap: () => onSelected(i),
-                    ),
-                ],
-              ),
-            );
-            final height =
-                24 + destinations.length * 56 + (destinations.length - 1) * 4;
-            return constraints.maxHeight < height
-                ? SingleChildScrollView(child: items)
-                : Align(alignment: Alignment.topCenter, child: items);
-          },
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const gap = 6.0;
+          const padding = EdgeInsets.fromLTRB(4, 10, 4, 10);
+          final items = Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: gap,
+            children: [
+              for (var i = 0; i < destinations.length; i++)
+                VigiaSideNavItem(
+                  label: destinations[i].label,
+                  icon: destinations[i].icon,
+                  selected: i == currentIndex,
+                  onTap: () => onSelected(i),
+                ),
+            ],
+          );
+          final height =
+              padding.vertical +
+              destinations.length * VigiaSpace.minTap +
+              (destinations.length - 1) * gap;
+          return constraints.maxHeight < height
+              ? SingleChildScrollView(padding: padding, child: items)
+              : Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(padding: padding, child: items),
+                );
+        },
       ),
     );
   }

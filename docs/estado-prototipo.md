@@ -167,6 +167,10 @@ registro 500/500. Se actualizaron 90 patrones visuales. El texto
 secundario del aura de pantalla alcanzó un mínimo calculado de 6,14:1
 en claro y 5,00:1 en oscuro en los tamaños comprobados.
 
+**Barra lateral (2026-11-11).** La navegación normal muestra solo iconos
+sobre el fondo de cada pantalla. El cursor y el toque revelan el nombre
+del destino. [Comportamiento, comprobaciones y APK](bloque-cuenta-navegacion.md#ajuste-de-la-barra-lateral--2026-11-11).
+
 ## Fases
 
 | Fase | Estado | Commits |

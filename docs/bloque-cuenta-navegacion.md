@@ -236,3 +236,25 @@ Commit `eae986d` «Prepara la prueba guiada de Firebase con webcam».
   faciales ni credenciales. Quedan pendientes D1, la prueba directa de
   las reglas de Firestore entre UID, la lectura desde una instalación
   nueva y la revisión independiente del bloque.
+
+### Ajuste de la barra lateral · 2026-11-11
+
+La barra normal muestra solo iconos sobre el fondo de Inicio, Historial,
+Ajustes y Cuenta. El destino activo se distingue con un recuadro teñido
+y los controles ofrecen un área táctil de 48 dp. El cursor revela el
+nombre al lado del icono. El toque abre el destino y mantiene el nombre
+visible hasta 1,4 s o hasta el inicio de otro gesto. En el menú compacto
+se aplica el fondo del tema y se continúa el aura de Inicio cuando
+corresponde.
+
+APK normal en modo Release con firma Android Debug:
+`D:/dev/vigia-entrega/vigia-normal-barra-lateral-pruebas.apk`.
+SHA-256 `9898bd848ec38bd265e8dd8e338f7047072a9e75b7a99cedcb12314c2054d5ac`.
+Se verificó el mismo binario instalado y en primer plano en `vigia_pixel`.
+La compilación Debug completó un hot restart y un hot reload.
+
+Validación propia: 950/950 pruebas Flutter, análisis sin diagnósticos y
+registro 500/500. Se actualizaron 34 renderizados y se añadió una muestra
+con la etiqueta visible. Las pruebas cubren cursor, toque con cierre del
+menú compacto, caducidad, toque repetido y contraste de Inicio en claro
+y oscuro.

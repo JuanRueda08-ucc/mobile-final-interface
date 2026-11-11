@@ -1,3 +1,5 @@
+import 'dart:ui' show PointerDeviceKind;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +63,7 @@ void main() {
     expect(tester.getSize(item).height, greaterThanOrEqualTo(48));
     await tester.tap(item);
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 1500));
   }
 
   Future<_Auth> mount(
@@ -91,6 +94,62 @@ void main() {
     await tester.pumpAndSettle();
     return auth;
   }
+
+  testWidgets('la barra revela el destino al pasar el cursor', (tester) async {
+    await mount(tester, (width: 360.0, scale: 1.0, dark: false));
+    final history = find.byTooltip('Historial');
+    expect(find.text('Historial'), findsNothing);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(300, 700));
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(history));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    final label = find.text('Historial');
+    expect(label, findsOneWidget);
+    expect(
+      tester.getRect(label).left,
+      greaterThan(tester.getRect(history).right),
+    );
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('navegacion/inicio_etiqueta__claro_360_100.png'),
+    );
+    await mouse.moveTo(const Offset(300, 700));
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+    expect(label, findsNothing);
+  });
+
+  testWidgets('tocar muestra el destino al cerrar el menú y navegar', (
+    tester,
+  ) async {
+    await mount(tester, (width: 320.0, scale: 2.0, dark: true));
+    await openRail(tester);
+    await tester.tap(find.byTooltip('Cuenta'));
+    await tester.pumpAndSettle();
+    expect(rail, findsNothing);
+    expect(find.text(testEmail), findsOneWidget);
+    expect(find.text('Cuenta'), findsNWidgets(2));
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(find.text('Cuenta'), findsOneWidget);
+  });
+
+  testWidgets('un segundo toque renueva la etiqueta que va a caducar', (
+    tester,
+  ) async {
+    await mount(tester, (width: 360.0, scale: 1.0, dark: false));
+    final home = find.byTooltip('Inicio');
+    await tester.tap(home);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1350));
+    await tester.tap(home);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Inicio'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(find.text('Inicio'), findsNothing);
+  });
 
   for (final dark in [false, true]) {
     for (final (width, scale) in [(360.0, 1.0), (320.0, 2.0)]) {
