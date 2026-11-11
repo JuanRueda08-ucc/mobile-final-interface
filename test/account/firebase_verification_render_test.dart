@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/features/account/firebase_account.dart';
 import 'package:vigia/features/account/firebase_account_screen.dart';
 
-import '../support/vigia_harness.dart' show loadVigiaFonts;
+import '../support/vigia_harness.dart' show loadVigiaVisualAssets;
 import 'presentation/account_test_harness.dart';
 
 class _PendingUser extends Fake implements User {
@@ -25,7 +25,7 @@ class _PendingAuth extends Fake implements FirebaseAuth {
 }
 
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   for (final dark in [false, true]) {
     for (final (width, scale) in [(360.0, 1.0), (320.0, 2.0)]) {

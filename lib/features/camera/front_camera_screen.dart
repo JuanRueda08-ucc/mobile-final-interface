@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/router.dart';
 import '../../core/design_system/theme.dart';
+import '../../core/design_system/tokens.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
@@ -480,7 +481,7 @@ class FrontCameraStage extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     // Fondo mientras llega el primer cuadro de la cámara.
-                    const ColoredBox(color: Color(0xFF111111)),
+                    const ColoredBox(color: VigiaBrand.ink),
                     Transform.flip(
                       flipX: preview.mirrored ?? true,
                       child: RotatedBox(
@@ -566,11 +567,7 @@ class FrontCameraStage extends StatelessWidget {
               ),
               child: VigiaText(
                 text,
-                style: VigiaType.small.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
+                style: VigiaType.smallIndicator.copyWith(color: p.ink),
               ),
             ),
           ],
@@ -589,12 +586,12 @@ class _StageTag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: const Color(0xFF111111),
+      color: VigiaControls.primaryFill,
       borderRadius: BorderRadius.circular(12),
     ),
     child: VigiaText(
       text,
-      style: VigiaType.demoLabel.copyWith(color: const Color(0xFFFFFFFF)),
+      style: VigiaType.demoLabel.copyWith(color: VigiaControls.primaryInk),
     ),
   );
 }

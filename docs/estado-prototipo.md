@@ -124,6 +124,31 @@ el momento de la liberación automática de la cámara al finalizar. Siguen
 pendientes D1, la comprobación directa de reglas entre UID, la lectura de
 resúmenes desde una instalación nueva y la firma de distribución.
 
+**Identidad visual (2026-11-11).** El icono aprobado sustituye el motivo de
+Acceso y acompaña a «Vigía» en Inicio. Android usa una versión adaptativa
+con los trazos blancos extraídos del mismo PNG y una capa monocromática en
+Android 13 o posterior. Se empaquetan Outfit variable (622 en marca y
+títulos) y Onest variable (400 en cuerpo, 550 en botones principales y 500
+en secundarios e indicadores). Las auras usan la paleta de marca. Los avisos
+de monitoreo se distinguen por sus colores semánticos, textos e iconos.
+[Origen de los recursos y licencias](licenses.md).
+
+APK normal con Firebase, modo Release con firma Android Debug:
+`D:/dev/vigia-entrega/vigia-normal-identidad-visual-pruebas.apk`.
+SHA-256 `b31486e43ae9f2b729849305a3ae802964011222785c7607512307744cf16f3c`.
+Se verificaron las dos fuentes, sus licencias y las capas adaptativas en el
+APK. El mismo binario arrancó y dibujó Acceso en Android 36. Se observó la
+máscara circular en la información de la aplicación. El emulador temporal
+mostró diálogos de falta de respuesta del sistema y de Pixel Launcher.
+La DEMO compiló en modo Debug y completó un hot restart.
+
+Validación propia: `flutter analyze --no-pub` sin diagnósticos,
+`flutter test --no-pub` 947/947 y registro 500/500. Se actualizaron 340
+patrones visuales. Las pruebas de disposición y contraste cubren 320,
+360 y 412 dp en claro y oscuro, con texto hasta el 200 %. El mínimo
+calculado para texto secundario en el aura de pantalla fue 4,53:1 en
+claro y 4,97:1 en oscuro. D1 y TalkBack físico quedan pendientes.
+
 ## Fases
 
 | Fase | Estado | Commits |

@@ -22,7 +22,7 @@ import '../support/vigia_harness.dart';
 ///
 ///   flutter test --update-goldens test/goldens/fase5c_render_test.dart
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   const session = 'S-1';
   final states = <String, MonitoringSnapshot>{

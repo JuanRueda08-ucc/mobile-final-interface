@@ -2,115 +2,95 @@ import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
-/// Familia tipográfica local (assets/fonts/Inter, SIL OFL 1.1). Sin carga remota.
-const String vigiaFontFamily = 'Inter';
+/// Familias variables empaquetadas con la app.
+const vigiaHeadingFont = 'Outfit';
+const vigiaBodyFont = 'Onest';
 
-/// Escala tipográfica de B5.2 (`F(n)` en px lógicos; la escala de texto del
-/// sistema se aplica encima mediante `TextScaler`, sin topes).
+/// Escala B5.2 en px lógicos. El sistema aplica su TextScaler sobre estos tamaños.
 abstract final class VigiaType {
-  static const _base = TextStyle(fontFamily: vigiaFontFamily, height: 1.45);
+  // Flutter 3.47 aplica FontWeight directamente al eje wght de fuentes variables.
+  static const _heading = TextStyle(
+    fontFamily: vigiaHeadingFont,
+    fontWeight: FontWeight(622),
+  );
+  static const _base = TextStyle(
+    fontFamily: vigiaBodyFont,
+    fontWeight: FontWeight.w400,
+    height: 1.45,
+  );
+  static const _medium = TextStyle(
+    fontFamily: vigiaBodyFont,
+    fontWeight: FontWeight.w500,
+  );
 
-  /// `HERO` título: 40 px (32 en sesión vigente), peso 400, interlínea 1,1, −0,01 em.
-  static TextStyle heroTitle(double size) => _base.copyWith(
+  static TextStyle heroTitle(double size) => _heading.copyWith(
     fontSize: size,
     height: 1.1,
-    fontWeight: FontWeight.w400,
     letterSpacing: -0.01 * size,
   );
 
-  /// Encabezado de la pantalla (barra superior): 22/500.
-  static final appBarTitle = _base.copyWith(
-    fontSize: 22,
-    height: 1.2,
-    fontWeight: FontWeight.w500,
-  );
+  static final appBarTitle = _heading.copyWith(fontSize: 22, height: 1.2);
+  static final h1 = _heading.copyWith(fontSize: 30, height: 1.15);
+  static final h3 = _heading.copyWith(fontSize: 20, height: 1.3);
 
-  /// `H`: 30/400.
-  static final h1 = _base.copyWith(
-    fontSize: 30,
-    height: 1.15,
-    fontWeight: FontWeight.w400,
-  );
-
-  /// `H3`: 20/500.
-  static final h3 = _base.copyWith(
-    fontSize: 20,
-    height: 1.3,
-    fontWeight: FontWeight.w500,
-  );
-
-  /// `P`: 16 cuerpo; 14 secundario.
   static final body = _base.copyWith(fontSize: 16);
-  static final small = _base.copyWith(fontSize: 14, height: 1.45);
+  static final small = _base.copyWith(fontSize: 14);
+  static final indicator = _medium.copyWith(fontSize: 16, height: 1.35);
+  static final smallIndicator = _medium.copyWith(fontSize: 14, height: 1.4);
 
-  /// Tarjeta de estado: etiqueta 14, título 22/500, texto 16.
-  static final cardTag = _base.copyWith(fontSize: 14, height: 1.35);
-  static final cardTitle = _base.copyWith(
-    fontSize: 22,
-    height: 1.2,
-    fontWeight: FontWeight.w500,
+  static final cardTag = _medium.copyWith(fontSize: 14, height: 1.35);
+  static final cardTitle = appBarTitle;
+
+  static final secondaryButton = _medium.copyWith(fontSize: 16, height: 1.25);
+  static final primaryButton = secondaryButton.copyWith(
+    fontWeight: const FontWeight(550),
   );
 
-  /// Botones: 16/500.
-  static final button = _base.copyWith(
-    fontSize: 16,
-    height: 1.25,
-    fontWeight: FontWeight.w500,
-  );
-
-  /// Pastilla de etiqueta del aura: 14/500.
-  static final pill = _base.copyWith(
-    fontSize: 14,
-    height: 1.4,
-    fontWeight: FontWeight.w500,
-  );
-
-  /// Rótulo DEMO: 12/500.
-  static final demoLabel = _base.copyWith(
-    fontSize: 12,
-    height: 1.35,
-    fontWeight: FontWeight.w500,
-  );
-
-  /// `KV`: clave 14, valor 14/500 tabular.
+  static final pill = smallIndicator;
+  static final demoLabel = _medium.copyWith(fontSize: 12, height: 1.35);
   static final kvKey = _base.copyWith(fontSize: 14, height: 1.4);
-  static final kvValue = _base.copyWith(
-    fontSize: 14,
-    height: 1.4,
-    fontWeight: FontWeight.w500,
+  static final kvValue = smallIndicator.copyWith(
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
-  /// `PAPER`: título 20/500 tabular; métrica 30/400 tabular; clave 14.
-  static final paperTitle = _base.copyWith(
-    fontSize: 20,
-    height: 1.3,
-    fontWeight: FontWeight.w500,
-    fontFeatures: const [FontFeature.tabularFigures()],
-  );
-  static final metric = _base.copyWith(
+  static final paperTitle = h3;
+  static final metric = _medium.copyWith(
     fontSize: 30,
     height: 1.15,
-    fontWeight: FontWeight.w400,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
-  /// Barra principal: 14/500, interlínea 1,25.
-  static final navLabel = _base.copyWith(
-    fontSize: 14,
-    height: 1.25,
-    fontWeight: FontWeight.w500,
-  );
+  static TextStyle heroMetric(double size) =>
+      metric.copyWith(fontSize: size, height: 1.1, letterSpacing: -0.01 * size);
 
-  /// Título de diálogo: 24/400, interlínea 1,25.
-  static final dialogTitle = _base.copyWith(
-    fontSize: 24,
-    height: 1.25,
-    fontWeight: FontWeight.w400,
-  );
+  static final navLabel = _medium.copyWith(fontSize: 14, height: 1.25);
+  static final dialogTitle = _heading.copyWith(fontSize: 24, height: 1.25);
+  static final toast = kvKey;
 
-  /// Aviso temporal (toast): 14.
-  static final toast = _base.copyWith(fontSize: 14, height: 1.4);
+  static TextTheme material(Color ink) {
+    final text = Typography.material2021().black.apply(
+      fontFamily: vigiaBodyFont,
+      bodyColor: ink,
+      displayColor: ink,
+    );
+    return text.copyWith(
+      displayLarge: text.displayLarge?.merge(_heading),
+      displayMedium: text.displayMedium?.merge(_heading),
+      displaySmall: text.displaySmall?.merge(_heading),
+      headlineLarge: text.headlineLarge?.merge(_heading),
+      headlineMedium: text.headlineMedium?.merge(_heading),
+      headlineSmall: text.headlineSmall?.merge(_heading),
+      titleLarge: text.titleLarge?.merge(_heading),
+      titleMedium: text.titleMedium?.merge(_heading),
+      titleSmall: text.titleSmall?.merge(_heading),
+      bodyLarge: text.bodyLarge?.copyWith(fontWeight: FontWeight.w400),
+      bodyMedium: text.bodyMedium?.copyWith(fontWeight: FontWeight.w400),
+      bodySmall: text.bodySmall?.copyWith(fontWeight: FontWeight.w400),
+      labelLarge: text.labelLarge?.merge(_medium),
+      labelMedium: text.labelMedium?.merge(_medium),
+      labelSmall: text.labelSmall?.merge(_medium),
+    );
+  }
 }
 
 /// Acceso a la paleta B5.2 desde el árbol de widgets.
@@ -152,15 +132,11 @@ ThemeData buildVigiaTheme(VigiaPalette p) {
     brightness: p.brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: p.bg,
-    fontFamily: vigiaFontFamily,
+    fontFamily: vigiaBodyFont,
     focusColor: p.focus.withValues(alpha: 0.24),
     splashFactory:
         NoSplash.splashFactory, // B5.2 usa escala 0,98 al pulsar, no ondas.
-    textTheme: Typography.material2021().black.apply(
-      fontFamily: vigiaFontFamily,
-      bodyColor: p.ink,
-      displayColor: p.ink,
-    ),
+    textTheme: VigiaType.material(p.ink),
     extensions: [VigiaColors(p)],
   );
 }

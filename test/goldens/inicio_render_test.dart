@@ -18,11 +18,11 @@ import '../support/vigia_harness.dart';
 /// - 320 lógicos, texto 200 %, sobre 2400 de alto para mostrar todo el
 ///   contenido sin recortes.
 ///
-/// Escala ×2 (720×1600 px; 640×4800 px los de 200 %). Fuente Inter cargada desde los assets.
+/// Escala ×2 (720×1600 px; 640×4800 px los de 200 %). Fuentes Outfit y Onest cargadas desde los assets.
 /// Movimiento reducido: el aura se dibuja en su posición inicial, que es
 /// también la final de su animación.
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   final configs = [
     const ScreenConfig(width: 360),

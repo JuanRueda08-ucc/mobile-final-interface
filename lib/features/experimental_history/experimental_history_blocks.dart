@@ -188,9 +188,10 @@ List<Widget> experimentalSummaryBlocks(
     AuraHero(
       animate: false,
       minHeight: 170,
-      c0: VigiaAura.lilac,
-      c1: VigiaAura.pink,
+      c0: VigiaBrand.lavender,
+      c1: VigiaAura.softCoral,
       titleSize: full ? 44 : 32,
+      titleIsMetric: true,
       tag: 'Cobertura',
       title: ExperimentalHistoryText.coverage(t),
       text: 'Cobertura de medición de esta sesión',

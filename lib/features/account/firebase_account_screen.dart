@@ -164,7 +164,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
         foregroundColor: p.ink,
         disabledForegroundColor: p.inkSecondary,
         alignment: AlignmentDirectional.centerStart,
-        textStyle: VigiaType.button,
+        textStyle: VigiaType.secondaryButton,
         minimumSize: const Size(VigiaSpace.minTap, VigiaSpace.minTap),
         padding: const EdgeInsets.symmetric(vertical: 10),
         shape: RoundedRectangleBorder(

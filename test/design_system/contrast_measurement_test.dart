@@ -38,7 +38,12 @@ void main() {
 
   Text simple(String s, Color c) => Text(
     s,
-    style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: c, height: 1.45),
+    style: TextStyle(
+      fontFamily: vigiaBodyFont,
+      fontSize: 14,
+      color: c,
+      height: 1.45,
+    ),
   );
 
   group('controles uniformes', () {
@@ -79,7 +84,11 @@ void main() {
         width: 320,
         child: Text.rich(
           TextSpan(
-            style: TextStyle(fontFamily: 'Inter', fontSize: 14, height: 1.45),
+            style: TextStyle(
+              fontFamily: vigiaBodyFont,
+              fontSize: 14,
+              height: 1.45,
+            ),
             children: [
               TextSpan(
                 text: 'Texto negro correcto muy frecuente\n',
@@ -248,7 +257,7 @@ void main() {
                   child: Text.rich(
                     const TextSpan(
                       style: TextStyle(
-                        fontFamily: 'Inter',
+                        fontFamily: vigiaBodyFont,
                         fontSize: 14,
                         height: 1.45,
                       ),
@@ -308,7 +317,7 @@ void main() {
             child: Text(
               'MMMMMMMMMM',
               style: TextStyle(
-                fontFamily: 'Inter',
+                fontFamily: vigiaBodyFont,
                 fontSize: 20,
                 height: 1.45,
                 color: const Color(0xff191873).withValues(alpha: .85),
@@ -380,7 +389,7 @@ void main() {
         Text(
           'Texto con pintura',
           style: TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: vigiaBodyFont,
             fontSize: 14,
             foreground: Paint()..color = Colors.black,
           ),

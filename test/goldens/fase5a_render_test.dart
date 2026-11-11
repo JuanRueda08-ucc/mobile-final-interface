@@ -19,7 +19,7 @@ import '../support/vigia_harness.dart';
 ///
 ///   flutter test --update-goldens test/goldens/fase5a_render_test.dart
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   // Estado → preparación del doble y acción tras entrar.
   final states =

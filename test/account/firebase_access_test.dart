@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/features/account/firebase_account.dart';
 import 'package:vigia/features/account/firebase_account_screen.dart';
 
-import '../support/vigia_harness.dart' show loadVigiaFonts;
+import '../support/vigia_harness.dart' show loadVigiaVisualAssets;
 import 'presentation/account_test_harness.dart';
 
 class _SignedOutAuth extends Fake implements FirebaseAuth {
@@ -88,7 +88,7 @@ class _FlowAuth extends Fake implements FirebaseAuth {
 }
 
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   for (final config in accountConfigs.where(
     (c) => (c.width == 320 && c.scale == 2) || (c.width == 360 && c.scale == 1),

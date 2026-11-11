@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/features/account/presentation/account_email_screen.dart';
 
-import '../../support/vigia_harness.dart' show loadVigiaFonts;
+import '../../support/vigia_harness.dart' show loadVigiaVisualAssets;
 import 'account_test_harness.dart';
 
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   const renderEmail = 'a@example.test';
   final screens = <String, Widget>{

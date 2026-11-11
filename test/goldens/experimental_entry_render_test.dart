@@ -15,7 +15,7 @@ import '../support/fake_experimental.dart';
 import '../support/vigia_harness.dart';
 
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   for (final dark in [false, true]) {
     for (final (width, scale) in [(360.0, 1.0), (320.0, 2.0)]) {

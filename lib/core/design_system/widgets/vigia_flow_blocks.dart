@@ -108,11 +108,7 @@ class CheckRow extends StatelessWidget {
                       ),
                       VigiaText(
                         value,
-                        style: VigiaType.body.copyWith(
-                          color: p.ink,
-                          height: 1.35,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: VigiaType.indicator.copyWith(color: p.ink),
                       ),
                       if (cause != null)
                         VigiaText(
@@ -198,11 +194,7 @@ class AxesRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         VigiaText(
                           v,
-                          style: VigiaType.body.copyWith(
-                            color: p.ink,
-                            height: 1.35,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: VigiaType.indicator.copyWith(color: p.ink),
                         ),
                       ],
                     ),
@@ -379,13 +371,13 @@ class CameraStage extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF111111),
+                color: VigiaControls.primaryFill,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: VigiaText(
                 'DEMO · sin cámara',
                 style: VigiaType.demoLabel.copyWith(
-                  color: const Color(0xFFFFFFFF),
+                  color: VigiaControls.primaryInk,
                 ),
               ),
             ),
@@ -404,11 +396,7 @@ class CameraStage extends StatelessWidget {
               ),
               child: VigiaText(
                 stateText,
-                style: VigiaType.small.copyWith(
-                  color: p.ink,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
+                style: VigiaType.smallIndicator.copyWith(color: p.ink),
               ),
             ),
           ],
@@ -438,7 +426,7 @@ class VigiaButtonRow extends StatelessWidget {
           var widest = 0.0;
           for (final word in b.label.split(' ')) {
             final tp = TextPainter(
-              text: TextSpan(text: word, style: VigiaType.button),
+              text: TextSpan(text: word, style: b.labelStyle),
               textDirection: TextDirection.ltr,
               textScaler: scaler,
               maxLines: 1,

@@ -1,17 +1,25 @@
 # Vigía · Recursos de terceros incluidos en la app
 
-| Recurso | Versión | Origen | Licencia | Archivos en el repositorio | SHA-256 |
-|---|---|---|---|---|---|
-| Fuente Inter | 4.1 (`Version 4.001;git-9221beed3`) | Publicación oficial `rsms/inter` v4.1: `https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip` (descargada el 2026-10-06; zip SHA-256 `9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`) | SIL Open Font License 1.1 | `assets/fonts/Inter/Inter-Regular.ttf` (peso 400) | `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82` |
-| | | | | `assets/fonts/Inter/Inter-Medium.ttf` (peso 500) | `97ad806f526e41546d46365bb3a393145f75b7b1568913db74549ad8b8dba872` |
-| | | | | `assets/fonts/Inter/OFL.txt` (texto de la licencia, copiado de `LICENSE.txt` del zip) | `262481e844521b326f5ecd053e59b98c8b2da78c8ee1bdbb6e8174305e54935a` |
+## Tipografía e identidad
 
-- Solo se incluyen los pesos 400 y 500, que son los que usa el diseño B5.2. Los archivos TTF están sin modificar.
-- La API de GitHub no publica un *digest* para ese zip; la procedencia se apoya en la descarga HTTPS desde la publicación oficial del repositorio y en los hashes anteriores.
-- La licencia se distribuye con la app: `OFL.txt` se declara como asset y se registra en `LicenseRegistry` (`registerVigiaLicenses`, `lib/app/vigia_app.dart`).
-- No se cargan fuentes remotas. El HTML B5.2 trae Inter en WOFF2, un formato que Flutter no admite, por eso se usan los TTF oficiales.
+Outfit y Onest se empaquetan como TTF variables. Se obtuvieron de la
+[revisión `c30b221` del repositorio oficial de Google Fonts](https://github.com/google/fonts/tree/c30b221beb0c1da59d563feb91ec8656a1fa972a/ofl).
+Los archivos conservan sus bytes de origen. Cada licencia SIL Open Font
+License 1.1 se incluye como asset y se registra en `LicenseRegistry`.
 
-**Iconos:** son los trazos SVG propios del prototipo B5.2 (`IC`), redibujados con `CustomPaint` en `lib/core/design_system/vigia_icons.dart`. No hay bibliotecas de iconos de terceros.
+| Archivo | SHA-256 |
+|---|---|
+| `assets/fonts/Outfit/Outfit-Variable.ttf` | `fc7287273e66929776e2ba54f144fe699080bec29f61bf649d70d871468aeade` |
+| `assets/fonts/Outfit/OFL.txt` | `c676351bf8576b9aba743cd5eaa8c0e7ee0d51f805d720447b4df4ddb6a2e416` |
+| `assets/fonts/Onest/Onest-Variable.ttf` | `966c5c29b4755da84b6854d5c21dd4eaa2420225d0e9874de602de176d4a9f31` |
+| `assets/fonts/Onest/OFL.txt` | `071195d8806e226faeee60259c28ca67b458227af5195a73f5cfcab06e3003bc` |
+
+El icono de marca de `assets/brand/vigia_mark.png` es un recorte cuadrado
+del PNG aprobado por la persona usuaria. «Vigía» se dibuja como texto de
+Flutter. El lanzador adaptativo extrae del mismo recorte la máscara de los
+trazos blancos y extiende el degradado en una capa de fondo. Los iconos de
+interfaz siguen usando los trazos propios del prototipo B5.2 (`IC`) en
+`lib/core/design_system/vigia_icons.dart`.
 
 ## Fase 5B · modelo facial y MediaPipe (solo en la app normal)
 
@@ -25,5 +33,5 @@
 | `com.google.android.datatransport` (`transport-api` 3.0.0; `transport-runtime` y `transport-backend-cct` 3.1.0) y `com.google.firebase:firebase-encoders*` | Las indicadas | Google Maven (transitivas de `tasks-core`) | Apache 2.0 (POM) | Dependencia Gradle. Es la telemetría de uso de MediaPipe; sus permisos de red se retiran del manifiesto (ver `docs/fase5b-mediapipe.md`) |
 
 - La licencia del modelo y la de la biblioteca se verificaron por separado (Área 05 §3).
-- Las bibliotecas Android de la fase 5A (CameraX 1.6.2, corrutinas 1.11.0) y estas no se registran todavía en `LicenseRegistry`, como tampoco lo estaban las de la 5A: la página de licencias de la app solo muestra Inter y los paquetes Dart. **Pendiente** antes de distribuir.
+- Las bibliotecas Android de la fase 5A (CameraX 1.6.2, corrutinas 1.11.0) y estas no se registran todavía en `LicenseRegistry`, como tampoco lo estaban las de la 5A: la página de licencias de la app muestra las fuentes locales y los paquetes Dart. **Pendiente** antes de distribuir.
 - Las imágenes de prueba de la fase 5B (dominio público, NASA) solo van en el APK de pruebas del plugin, no en la app: `packages/monitoring_engine/android/src/androidTest/assets/face_fixtures/FUENTES.md`.

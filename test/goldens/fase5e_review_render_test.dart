@@ -13,6 +13,7 @@ import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/bootstrap.dart';
 import 'package:vigia/app/router.dart';
 import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/core/design_system/widgets/vigia_blocks.dart';
 import 'package:vigia/data/experimental_history/experimental_history_database.dart';
 import 'package:vigia/data/experimental_history/experimental_history_providers.dart';
 import 'package:vigia/data/experimental_history/experimental_history_repository.dart';
@@ -25,7 +26,7 @@ import '../support/vigia_harness.dart';
 /// Muestras nuevas de revisión; nunca actualiza los patrones preexistentes.
 /// Acciones de accesibilidad reales del árbol Flutter, no TalkBack físico.
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   Future<void> settle(WidgetTester t) async {
@@ -117,7 +118,13 @@ void main() {
           findsOneWidget,
         );
         await action(t, 'Guardar');
-        expect(find.text('Patrón guardado'), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is StatusCard && widget.title == 'Patrón guardado',
+          ),
+          findsOneWidget,
+        );
         expect(
           (await t.runAsync(repo.loadPreferences))!.soundPatternId,
           'patron_2',

@@ -19,7 +19,7 @@ import '../support/vigia_harness.dart';
 /// reducido. Tiempo de la sesión controlado por la prueba: los relojes y
 /// señales de P06 son reproducibles.
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   const main = [
     'P03_sesion_vigente',

@@ -29,9 +29,10 @@ class AuraHero extends StatefulWidget {
     this.ctaLabel,
     this.onCta,
     this.titleSize = 40,
+    this.titleIsMetric = false,
     this.minHeight = 230,
-    this.c0 = VigiaAura.lilac,
-    this.c1 = VigiaAura.lime,
+    this.c0 = VigiaBrand.lavender,
+    this.c1 = VigiaBrand.softGreen,
     this.animate = true,
   });
 
@@ -41,6 +42,7 @@ class AuraHero extends StatefulWidget {
   final String? ctaLabel;
   final VoidCallback? onCta;
   final double titleSize;
+  final bool titleIsMetric;
   final double minHeight;
   final Color c0;
   final Color c1;
@@ -85,6 +87,9 @@ class _AuraHeroState extends State<AuraHero>
     // Con texto ampliado se gana ancho: relleno 16 y sin el tope de 270 del texto.
     final large = isLargeText(context);
     final pad = large ? 16.0 : VigiaSpace.heroPadding;
+    final titleStyle = widget.titleIsMetric
+        ? VigiaType.heroMetric(widget.titleSize)
+        : VigiaType.heroTitle(widget.titleSize);
     final angle = 165 * math.pi / 180;
     final dir = Alignment(math.sin(angle), -math.cos(angle));
     return ClipRRect(
@@ -129,13 +134,13 @@ class _AuraHeroState extends State<AuraHero>
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: VigiaAura.ctaBg,
+                          color: VigiaControls.primaryFill,
                           borderRadius: BorderRadius.circular(VigiaRadius.tag),
                         ),
                         child: VigiaText(
                           widget.tag!,
                           style: VigiaType.pill.copyWith(
-                            color: VigiaAura.ctaInk,
+                            color: VigiaControls.primaryInk,
                           ),
                         ),
                       ),
@@ -145,8 +150,7 @@ class _AuraHeroState extends State<AuraHero>
                       header: true,
                       child: VigiaText(
                         widget.title,
-                        style: VigiaType.heroTitle(widget.titleSize)
-                            .copyWith(color: VigiaAura.onAura),
+                        style: titleStyle.copyWith(color: VigiaAura.onAura),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -278,7 +282,7 @@ class _AuraBlobs extends StatelessWidget {
                       ), // blur(24px)
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: VigiaAura.white,
+                          color: VigiaBrand.neutral,
                           borderRadius: _coreRadius(phase),
                         ),
                       ),

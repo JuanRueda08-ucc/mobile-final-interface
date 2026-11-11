@@ -38,7 +38,7 @@ class _Auth extends Fake implements FirebaseAuth {
 }
 
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   const railKey = Key('vigia-side-nav');
   final rail = find.byKey(railKey);

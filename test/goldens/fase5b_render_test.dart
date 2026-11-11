@@ -18,7 +18,7 @@ import '../support/vigia_harness.dart';
 ///
 ///   flutter test --update-goldens test/goldens/fase5b_render_test.dart
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   // Estado → resultados que emite el motor (el último es el que se ve).
   final states = <String, List<(FaceAnalysisStatus, String?, bool)>>{

@@ -1,16 +1,40 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/core/design_system/theme.dart';
+import 'package:vigia/core/design_system/widgets/vigia_mark.dart';
 import 'package:vigia/features/inicio/inicio_state.dart';
 
-/// Carga Inter desde los assets del proyecto para que las pruebas y los
+/// Carga Outfit y Onest desde los assets del proyecto para que las pruebas y los
 /// renderizados usen la tipografía real (sin ella, flutter_test usa Ahem).
 Future<void> loadVigiaFonts() async {
-  final loader = FontLoader('Inter')
-    ..addFont(rootBundle.load('assets/fonts/Inter/Inter-Regular.ttf'))
-    ..addFont(rootBundle.load('assets/fonts/Inter/Inter-Medium.ttf'));
-  await loader.load();
+  for (final family in [vigiaHeadingFont, vigiaBodyFont]) {
+    final loader = FontLoader(family)
+      ..addFont(rootBundle.load('assets/fonts/$family/$family-Variable.ttf'));
+    await loader.load();
+  }
+}
+
+Future<void> loadVigiaVisualAssets() async {
+  await loadVigiaFonts();
+  // La decodificación es asíncrona. Un pumpAndSettle puede terminar antes
+  // del primer fotograma de la imagen y capturar el hueco del icono.
+  final stream = const AssetImage(VigiaMark.asset)
+      .resolve(const ImageConfiguration());
+  final loaded = Completer<void>();
+  final listener = ImageStreamListener((image, _) {
+    image.dispose();
+    loaded.complete();
+  }, onError: loaded.completeError);
+  stream.addListener(listener);
+  try {
+    await loaded.future;
+  } finally {
+    stream.removeListener(listener);
+  }
 }
 
 /// Configuración de pantalla para una comprobación.

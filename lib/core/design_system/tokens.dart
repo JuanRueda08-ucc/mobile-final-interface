@@ -2,6 +2,26 @@ import 'dart:ui' show Brightness;
 
 import 'package:flutter/animation.dart';
 
+/// Colores de referencia de la identidad visual.
+abstract final class VigiaBrand {
+  static const lavender = Color(0xFFC8B6FF);
+  static const softGreen = Color(0xFFE7FDB5);
+  static const orange = Color(0xFFFFB454); // Referencia del icono.
+  static const coral = Color(0xFFFF7A8A);
+  static const mistBlue = Color(0xFF9BC8F1);
+  static const neutral = Color(0xFFF7F7F5);
+  static const ink = Color(0xFF171717);
+  static const secondaryInk = Color(0xFF6B6B6B);
+}
+
+abstract final class VigiaControls {
+  static const primaryFill = VigiaBrand.ink;
+  static const primaryInk = Color(0xFFFFFFFF);
+  static const secondaryFill = VigiaBrand.neutral;
+  static const secondaryInk = VigiaBrand.ink;
+  static const secondaryBorder = Color(0xFF555551);
+}
+
 /// Tokens visuales de Vigía tomados del prototipo B5.2 (tokens B4.2).
 ///
 /// Fuente: `docs/source/Vigia B5.2 Completo (standalone).html`, constantes
@@ -56,7 +76,9 @@ class VigiaPalette {
   final Color onPaper; // onp
   final Color paperSecondary; // pps
   final Color scrim; // scrim
-  final Color warnBg; // wb  (advertencia)
+  // Superficie y tinta del tema para la medición normal.
+  // Pares semánticos independientes para advertencia, cierre y otros estados.
+  final Color warnBg; // wb (advertencia)
   final Color warnInk; // wt
   final Color closeBg; // cb  (cierre ocular)
   final Color closeInk; // ct
@@ -75,18 +97,18 @@ class VigiaPalette {
 
   static const light = VigiaPalette(
     brightness: Brightness.light,
-    bg: Color(0xFFFBFAF7),
+    bg: VigiaBrand.neutral,
     surface: Color(0xFFFFFFFF),
-    surfaceStrong: Color(0xFFF0EEEB),
-    ink: Color(0xFF111111),
-    inkSecondary: Color(0xFF595954),
+    surfaceStrong: Color(0xFFF0EFED),
+    ink: VigiaBrand.ink,
+    inkSecondary: VigiaBrand.secondaryInk,
     line: Color(0xFFD6D4CE),
     border: Color(0xFF74746C),
     control: Color(0xFF74746C),
     focus: Color(0xFF57439A),
     paper: Color(0xFFFFFFFF),
-    onPaper: Color(0xFF111111),
-    paperSecondary: Color(0xFF595954),
+    onPaper: VigiaBrand.ink,
+    paperSecondary: VigiaBrand.secondaryInk,
     scrim: Color(0x7A000000), // rgba(0,0,0,.48)
     warnBg: Color(0xFFFFE4A8),
     warnInk: Color(0xFF3A2800),
@@ -100,10 +122,10 @@ class VigiaPalette {
     pendingInk: Color(0xFF233C50),
     errorBg: Color(0xFFFFE0D8),
     errorInk: Color(0xFF78231C),
-    navBg: Color(0xFF111111),
+    navBg: VigiaBrand.ink,
     navInk: Color(0xFFFAFAF7),
     navSelectedBg: Color(0xFFFFFFFF),
-    navSelectedInk: Color(0xFF111111),
+    navSelectedInk: VigiaBrand.ink,
   );
 
   /// Tema oscuro «grafito violeta» de B4.2.
@@ -119,8 +141,8 @@ class VigiaPalette {
     control: Color(0xFF9A95A8),
     focus: Color(0xFFDEC9FF),
     paper: Color(0xFFF7F5F0),
-    onPaper: Color(0xFF111111),
-    paperSecondary: Color(0xFF595954),
+    onPaper: VigiaBrand.ink,
+    paperSecondary: VigiaBrand.secondaryInk,
     scrim: Color(0xA30A0810), // rgba(10,8,16,.64)
     warnBg: Color(0xFF4A3606),
     warnInk: Color(0xFFFFE4A8),
@@ -143,22 +165,14 @@ class VigiaPalette {
 
 /// Colores del aura pastel (B5.2 `AU`); iguales en ambos temas.
 abstract final class VigiaAura {
-  static const lilac = Color(0xFFCDB4FF);
-  static const lime = Color(0xFFE7FFA6);
-  static const sky = Color(0xFFBEEBFF);
-  static const pink = Color(0xFFFFD1E8);
-  static const white = Color(0xFFFFFEFA);
+  static final softCoral = Color.alphaBlend(
+    VigiaBrand.coral.withValues(alpha: 0.23),
+    VigiaBrand.neutral,
+  );
 
   /// Texto sobre aura (`color.on-aura`, `color.on-aura-secondary`).
-  static const onAura = Color(0xFF111111);
+  static const onAura = VigiaBrand.ink;
   static const onAuraSecondary = Color(0xFF4E4C50);
-
-  /// Botón principal sobre aura (`heroBtn`): colores fijos en ambos temas.
-  static const ctaBg = Color(0xFF111111);
-  static const ctaInk = Color(0xFFFFFFFF);
-
-  /// Borde del botón secundario sobre papel (`PAPER`).
-  static const paperButtonBorder = Color(0xFF74746C);
 }
 
 /// Medidas de B5.2 en unidades lógicas.

@@ -20,7 +20,7 @@ import '../support/vigia_harness.dart';
 /// reducido. Las sesiones guardadas salen del recorrido real sobre una base
 /// SQLite en memoria; el tiempo lo controla la prueba.
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
 
   const main = [
     'P03_registro_interrumpido',

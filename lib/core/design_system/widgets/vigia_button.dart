@@ -7,16 +7,16 @@ import 'vigia_text.dart';
 
 /// Variantes de botón de B5.2 (`mkBtn`, `heroBtn` y el botón de `PAPER`).
 enum VigiaButtonKind {
-  /// Fondo tinta, texto fondo; 56 de alto.
+  /// Fondo negro, texto blanco; 56 de alto.
   primary,
 
-  /// Fondo `sfs`, borde 1,5 `ctl`; 48 de alto.
+  /// Fondo claro y borde oscuro; 48 de alto.
   secondary,
 
-  /// CTA sobre aura (`heroBtn`): #111111/#FFFFFF en ambos temas, con flecha.
+  /// Acción principal sobre aura, con flecha.
   onAura,
 
-  /// Secundario sobre papel (`PAPER`): transparente, texto #111111, borde #74746C.
+  /// Acción secundaria sobre la tarjeta de papel.
   onPaper,
 }
 
@@ -39,6 +39,13 @@ class VigiaButton extends StatelessWidget {
   final VigiaButtonKind kind;
   final VigiaIcon? icon;
   final bool expand;
+
+  TextStyle get labelStyle => switch (kind) {
+    VigiaButtonKind.primary ||
+    VigiaButtonKind.onAura => VigiaType.primaryButton,
+    VigiaButtonKind.secondary ||
+    VigiaButtonKind.onPaper => VigiaType.secondaryButton,
+  };
 
   /// Altura mínima explícita (B5.2 usa 56 en los controles de P06).
   final double? height;
@@ -64,20 +71,22 @@ class VigiaButton extends StatelessWidget {
     } else {
       switch (kind) {
         case VigiaButtonKind.primary:
-          bg = p.ink;
-          fg = p.bg;
-        case VigiaButtonKind.secondary:
-          bg = p.surfaceStrong;
-          fg = p.ink;
-          side = BorderSide(color: p.control, width: 1.5);
+          if (p.brightness == Brightness.dark) {
+            side = BorderSide(color: p.control);
+          }
+          bg = VigiaControls.primaryFill;
+          fg = VigiaControls.primaryInk;
         case VigiaButtonKind.onAura:
-          bg = VigiaAura.ctaBg;
-          fg = VigiaAura.ctaInk;
+          bg = VigiaControls.primaryFill;
+          fg = VigiaControls.primaryInk;
+        case VigiaButtonKind.secondary:
         case VigiaButtonKind.onPaper:
-          bg = Colors.transparent;
-          fg = const Color(0xFF111111);
+          bg = kind == VigiaButtonKind.onPaper
+              ? p.paper
+              : VigiaControls.secondaryFill;
+          fg = VigiaControls.secondaryInk;
           side = const BorderSide(
-            color: VigiaAura.paperButtonBorder,
+            color: VigiaControls.secondaryBorder,
             width: 1.5,
           );
       }
@@ -97,7 +106,7 @@ class VigiaButton extends StatelessWidget {
             child: VigiaText(
               label,
               textAlign: TextAlign.center,
-              style: VigiaType.button.copyWith(color: fg),
+              style: labelStyle.copyWith(color: fg),
             ),
           ),
           if (iconToShow != null) ...[

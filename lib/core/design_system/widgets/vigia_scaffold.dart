@@ -4,6 +4,7 @@ import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
 import 'vigia_button.dart';
+import 'vigia_mark.dart';
 import 'vigia_text.dart';
 
 /// Rótulo visible de simulación (RF32): «DEMO — datos simulados».
@@ -41,7 +42,7 @@ const vigiaNavDestinations = [
 ];
 
 /// Estructura de pantalla de B5.2:
-/// - encabezado (mín. 64, título 22/500);
+/// - encabezado (mín. 64, título 22);
 /// - rótulo DEMO opcional;
 /// - contenido desplazable (márgenes 12/20/24, separación 16 entre bloques);
 /// - barra principal opcional;
@@ -59,6 +60,7 @@ class VigiaScaffold extends StatelessWidget {
     this.notice,
     this.onBack,
     this.background,
+    this.showBrandMark = false,
     this.pinnedContent,
     this.footer,
     this.contentKey,
@@ -83,6 +85,8 @@ class VigiaScaffold extends StatelessWidget {
   /// Fondo decorativo detrás de toda la pantalla, incluida su área segura.
   final Widget? background;
 
+  final bool showBrandMark;
+
   /// Contenido que permanece visible sobre el cuerpo desplazable.
   final LayoutWidgetBuilder? pinnedContent;
 
@@ -95,14 +99,23 @@ class VigiaScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
+    // El texto ampliado puede partir por sílabas si una palabra no cabe.
+    final titleText = VigiaText(
+      title,
+      style: VigiaType.appBarTitle.copyWith(color: p.ink),
+    );
     final heading = Semantics(
       header: true,
-      // Con texto ampliado, una palabra que no cabe se parte por sílabas con
-      // guion (p. ej. «Calibra-ción» a 320/200 %), no dejando una letra sola.
-      child: VigiaText(
-        title,
-        style: VigiaType.appBarTitle.copyWith(color: p.ink),
-      ),
+      child: showBrandMark
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 8,
+              children: [
+                const VigiaMark(size: 32),
+                Flexible(child: titleText),
+              ],
+            )
+          : titleText,
     );
     final inset = isLargeText(context) ? 16.0 : VigiaSpace.screenH;
     final scroll = Stack(

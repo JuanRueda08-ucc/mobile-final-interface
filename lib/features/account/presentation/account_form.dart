@@ -7,6 +7,7 @@ import '../../../core/design_system/widgets/screen_aura.dart';
 import '../../../core/design_system/widgets/vigia_blocks.dart';
 import '../../../core/design_system/widgets/vigia_button.dart';
 import '../../../core/design_system/widgets/vigia_flow_blocks.dart';
+import '../../../core/design_system/widgets/vigia_mark.dart';
 import '../../../core/design_system/widgets/vigia_scaffold.dart';
 import '../../../core/design_system/widgets/vigia_text.dart';
 
@@ -37,6 +38,7 @@ class AccountForm extends StatelessWidget {
     final p = VigiaColors.of(context);
     return VigiaScaffold(
       title: 'Vigía',
+      showBrandMark: !accessCover,
       onBack: onBack,
       background: accessCover ? const ScreenAura() : null,
       contentKey: accessCover ? ValueKey(title) : null,
@@ -73,14 +75,9 @@ class _AccessCover extends StatelessWidget {
     final intro = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Align(
+        const Align(
           alignment: AlignmentDirectional.centerEnd,
-          child: ExcludeSemantics(
-            child: CustomPaint(
-              size: const Size(112, 56),
-              painter: _EyeMark(ink: p.ink),
-            ),
-          ),
+          child: VigiaMark(size: 56),
         ),
         const SizedBox(height: 8),
         Semantics(
@@ -111,38 +108,6 @@ class _AccessCover extends StatelessWidget {
       ),
     );
   }
-}
-
-class _EyeMark extends CustomPainter {
-  const _EyeMark({required this.ink});
-
-  final Color ink;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final line = Paint()
-      ..color = ink
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final eye = Path()
-      ..moveTo(10, center.dy)
-      ..cubicTo(37, 1, 75, 1, 102, center.dy)
-      ..cubicTo(75, 55, 37, 55, 10, center.dy)
-      ..close();
-    canvas.drawPath(eye, line);
-    canvas.drawCircle(center, 13, line);
-    canvas.drawCircle(center, 5, Paint()..color = ink);
-    line.color = ink.withValues(alpha: 0.45);
-    canvas.drawLine(Offset(0, center.dy), Offset(6, center.dy), line);
-    canvas.drawLine(Offset(106, center.dy), Offset(112, center.dy), line);
-    canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, 6), line);
-    canvas.drawLine(Offset(center.dx, 50), Offset(center.dx, 56), line);
-  }
-
-  @override
-  bool shouldRepaint(_EyeMark oldDelegate) => oldDelegate.ink != ink;
 }
 
 InputDecoration accountFieldDecoration(

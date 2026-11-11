@@ -27,7 +27,7 @@ import '../support/vigia_harness.dart';
 ///
 ///   flutter test --update-goldens test/goldens/fase5e_render_test.dart
 void main() {
-  setUpAll(loadVigiaFonts);
+  setUpAll(loadVigiaVisualAssets);
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   const failingInsert =

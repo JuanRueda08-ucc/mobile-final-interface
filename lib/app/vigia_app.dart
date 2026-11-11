@@ -123,10 +123,12 @@ class VigiaStartupErrorApp extends StatelessWidget {
   }
 }
 
-/// Registra la licencia SIL OFL 1.1 de Inter, que se distribuye con la app.
+/// Registra las licencias SIL OFL 1.1 de Outfit y Onest.
 void registerVigiaLicenses() {
   LicenseRegistry.addLicense(() async* {
-    final ofl = await rootBundle.loadString('assets/fonts/Inter/OFL.txt');
-    yield LicenseEntryWithLineBreaks(const ['Inter (fuente)'], ofl);
+    for (final family in [vigiaHeadingFont, vigiaBodyFont]) {
+      final ofl = await rootBundle.loadString('assets/fonts/$family/OFL.txt');
+      yield LicenseEntryWithLineBreaks(['$family (fuente)'], ofl);
+    }
   });
 }

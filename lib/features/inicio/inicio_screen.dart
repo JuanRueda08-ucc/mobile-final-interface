@@ -120,6 +120,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
     final state = ref.watch(inicioStateProvider);
     return VigiaScaffold(
       title: 'Vigía',
+      showBrandMark: true,
       isDemo: state.isDemo,
       navIndex: 0,
       sideNavigation: ref.watch(appModeProvider) is RealMode,
