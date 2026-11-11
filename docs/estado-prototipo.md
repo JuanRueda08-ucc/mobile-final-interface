@@ -101,9 +101,17 @@ capturas están en `test/account/firebase/`. El aviso «Versión de prueba» se
 consulta en Cuenta y Ajustes › Acerca de. Monitoreo, sus pasos y el Historial
 usan títulos breves. El detalle conserva el ID de perfil para trazabilidad.
 
-**Siguiente acción.** Validar el recorrido con la webcam y dos cuentas
-verificadas en `vigia-e1680` con el guion del bloque. D1 y la firma de
-distribución siguen pendientes.
+**APK del bloque de Cuenta.** El primer APK Debug quedó descartado tras
+fallar al cargar `libdartjni.so`. Se verificó que la copia de compilación
+carecía del registro generado de plugins Android. Se regeneró el registro
+en la raíz y se compiló el APK Release de `5da7c85` con firma Android Debug.
+Ruta `D:/dev/vigia-entrega/vigia-normal-cuenta-navegacion-pruebas.apk`,
+SHA-256 `19b96af98ec3d0b2f1d56db0f9bf8157b4e5cb0dddeed0c8dfbde29c0941b0f5`.
+Las bibliotecas nativas están presentes y el mismo APK muestra el acceso
+en `vigia_pixel`, con capa temporal y `webcam0`.
+
+**Siguiente acción.** Completar el guion de webcam y dos cuentas verificadas
+en `vigia-e1680`. D1 y la firma de distribución siguen pendientes.
 
 ## Fases
 

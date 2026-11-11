@@ -49,6 +49,11 @@ El script verifica el paquete Android y deja las definiciones dentro de
 prototipo sin esa configuración y la variante DEMO release mantienen sus
 manifiestos sin acceso a Internet.
 
+En una copia nueva, ejecuta `flutter pub get` antes de usar `--no-pub`.
+El registro generado `.flutter-plugins-dependencies` permite incluir los
+plugins de Android. Comprueba que el APK incluye `libdartjni.so` y
+`libmediapipe_tasks_jni.so` para las ABI entregadas y que abre el acceso.
+
 Para la publicación, configura una clave de distribución en
 `android/key.properties` con `storeFile`, `storePassword`, `keyAlias` y
 `keyPassword`. Usa la misma clave para futuras actualizaciones. Gradle usa
@@ -63,7 +68,7 @@ desinstalar si los necesitas.
 - Crea dos cuentas reales. Antes de verificar el correo, comprueba que
   Inicio y las rutas de Historial están bloqueados. Verifica el correo de
   cada cuenta, reinicia la app y prueba recuperar la contraseña.
-- Completa una sesión con A. Cierra sesión desde Ajustes y abre B. Comprueba
+- Completa una sesión con A. Cierra sesión desde Cuenta y abre B. Comprueba
   que B no ve el resumen de A y que Firestore rechaza una lectura o escritura
   cruzada. Prueba una escritura con un campo ajeno al resumen y otra desde
   una cuenta sin verificar.
@@ -74,6 +79,9 @@ desinstalar si los necesitas.
   Comprueba la acción principal, el desplazamiento y el foco con el teclado.
 - Verifica el APK final y su firma. La prueba de cámara real y calibración
   se completa en Android físico cuando esté disponible.
+
+El [guion de Cuenta, navegación y acceso](bloque-cuenta-navegacion.md#recorrido-guiado-en-vigia-e1680)
+documenta la prueba guiada con webcam y dos cuentas en el proyecto alojado.
 
 ## Publicar en GitHub Releases
 

@@ -108,6 +108,8 @@ Commit `0cde331` «Añade Cuenta y navegación lateral a la variante normal».
   [Panel claro a 320 dp al 200 %](../test/account/navegacion/cuenta_panel__claro_320_200.png)
   y [panel oscuro a 320 dp al 200 %](../test/account/navegacion/cuenta_panel__oscuro_320_200.png).
 - `flutter analyze` sin diagnósticos. Registro de especificaciones 500/500.
+- `flutter test` completo del paso 1 dio 938 aprobadas y una prueba con
+  el selector de texto de la barra anterior. El ajuste quedó en `bdb92fe`.
 - 18 PNG nuevos en `test/account/navegacion/` y 34 goldens regenerados de Inicio
   normal (`inicio/` y `experimental_entry/`), Inicio/Historial 5D y Ajustes
   P12 (`fase5e/` y `fase5e_review/`). La comprobación usa dobles del motor y
@@ -134,8 +136,8 @@ Commit `bdb92fe` «Rediseña el acceso y el registro de Vigía».
   `fase3_flow_test.dart` comprueba la navegación por tooltip en la prueba
   de separación normal/DEMO que todavía buscaba texto de la barra inferior.
 - `flutter analyze --no-pub` sin diagnósticos y registro 500/500. Pruebas
-  dirigidas de acceso 6/6. La suite global se inició en una copia fija de
-  este paso para preservar el estado de los otros pasos.
+  dirigidas de acceso 6/6. La suite global de la copia fija del paso 2
+  aprobó 943/943, incluida la prueba corregida de separación normal/DEMO.
 - Ocho capturas en `test/account/firebase/`, seis nuevas y dos de acceso a
   320 dp al 200 % regeneradas. Cubren «Inicia sesión» y «Crea tu cuenta» en
   360 dp al 100 % y 320 dp al 200 %, en ambos temas.
@@ -144,7 +146,7 @@ Commit `bdb92fe` «Rediseña el acceso y el registro de Vigía».
 
 ### Paso 3 · Versión de prueba · 2026-11-11
 
-Commit «Concentra el aviso de prueba en Cuenta y Ajustes».
+Commit `5da7c85` «Concentra el aviso de prueba en Cuenta y Ajustes».
 
 - Se revisó la presentación de Inicio, preparación, Monitoreo (P06),
   finalización, resumen, Historial y detalle. El componente
@@ -167,8 +169,47 @@ Commit «Concentra el aviso de prueba en Cuenta y Ajustes».
   Encuadre, 4 de Inicio normal, 12 de 5C, 24 de P06, 20 de 5D y 2 de P12.
   [Cuenta a 360 dp al 100 %](../test/account/navegacion/cuenta_version__oscuro_360_100.png)
   y [Acerca de a 320 dp al 200 %](../test/account/navegacion/ajustes_acerca__claro_320_200.png).
-- Registro 500/500. El barrido dirigido aprobó 137 pruebas. Las otras dos
+- `flutter analyze --no-pub` sin diagnósticos y registro 500/500. El barrido
+  dirigido aprobó 137 pruebas. Las otras dos
   usaban el rótulo retirado y el nombre anterior de un botón de Historial.
   Ambas pasaron al actualizar las expectativas y repetir esas pruebas.
+- La suite global de la interfaz final y los cuatro renderizados del paso 4
+  dio 946 aprobadas y un timeout de 30 s en la prueba de importar más de
+  5000 hechos. Esa prueba y la del selector de navegación del paso 1
+  pasaron en la repetición dirigida en `main` (2/2).
 - La compilación para Android y la verificación con Firebase se registran
   en el paso 4.
+
+### Paso 4 · Prueba guiada con Firebase · 2026-11-11
+
+Commit «Prepara la prueba guiada de Firebase con webcam».
+
+- El guion de esta guía cubre registro, verificación, monitoreo con webcam,
+  sincronización e historial separado entre A y B. Se actualizó la ruta de
+  salida en `docs/cuentas-firebase.md` y se añadió
+  `test/account/firebase_verification_render_test.dart`.
+- `flutter analyze --no-pub` sin diagnósticos, registro 500/500 y 4/4
+  renderizados nuevos `verificacion__*.png` en `test/account/firebase/`,
+  en claro y oscuro a 360 dp al 100 % y 320 dp al 200 %. Son capturas con
+  dobles de la pantalla de enlace pendiente.
+- El primer APK Debug quedó descartado. SHA-256
+  `9ec712fbdfe9e3155ae4fa27353d95ed1bfda109de30df83ce4a3855a7ee880c`.
+  En `vigia_pixel`, la persona usuaria observó un fallo de `libdartjni.so`
+  antes de Acceso. El archivo ZIP confirmó que faltaban las bibliotecas
+  de los plugins. La copia aislada de pruebas no contenía
+  `.flutter-plugins-dependencies` y la compilación usó `--no-pub`.
+  El binario quedó en `build/codex-validacion/vigia-debug-incompleto.apk`.
+- Se regeneró el registro de plugins Android con `flutter pub get --offline`
+  en la raíz antes de reconstruir el APK. El ajuste documentado para
+  Gradle usa `TMP`, `TEMP` y el directorio de sockets de Java en una ruta
+  ASCII para recuperar la conexión de loopback.
+- APK reconstruido en modo Release con firma Android Debug, código
+  `5da7c85`, 99 679 926 bytes, en
+  `D:/dev/vigia-entrega/vigia-normal-cuenta-navegacion-pruebas.apk`.
+  SHA-256 `19b96af98ec3d0b2f1d56db0f9bf8157b4e5cb0dddeed0c8dfbde29c0941b0f5`.
+  Se comprobaron la firma, `libdartjni.so`, `libmediapipe_tasks_jni.so` y
+  `libsqlite3.so` en las tres ABI, y `vigia-e1680` en el binario x86_64.
+  El `base.apk` instalado coincide por SHA-256 y Android mostró
+  «Inicia sesión» y «Crear cuenta».
+- `vigia_pixel` inició Android con `webcam0`, gráficos de host y capa
+  temporal. Está listo para la comprobación interactiva con A y B.
