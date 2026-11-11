@@ -1,8 +1,94 @@
 # Vigía · Estado del prototipo
 
-Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real), `docs/fase5d-historial-experimental.md` (historial experimental) y `docs/fase5e-ajustes-reales.md` (Ajustes de la variante real). Entorno: `docs/toolchain.md`.
+Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGENTS.md`. Guías: `docs/fase2-recorrido-demo.md` (recorrido), `docs/fase3-historial-ajustes.md` (app DEMO, historial y Ajustes) `docs/fase5a-camara-permisos.md` (cámara frontal real y permisos) `docs/fase5b-mediapipe.md` (presencia facial con MediaPipe) `docs/fase5c-monitoreo-experimental.md` (monitoreo experimental real), `docs/fase5d-historial-experimental.md` (historial experimental), `docs/fase5e-ajustes-reales.md` (Ajustes de la variante real) y `docs/cuentas-firebase.md` (cuentas e historial por cuenta, bloque activo). `docs/cuentas-supabase.md` conserva el plan descartado con Supabase. Entorno: `docs/toolchain.md`.
 
-**Actualizado:** 2026-10-16 (5E revisada y reparada por Codex, validación propia de las reparaciones; Claude detenido. 5D conservada, recorrido real de 5D/5E pendiente hasta disponer de Android físico).
+**Actualizado:** 2026-11-11. El usuario eligió Firebase Authentication +
+Cloud Firestore alojados para cuentas reales e historial por cuenta en la
+variante normal. Proyecto registrado en Firebase: `vigia-e1680`, con la
+app Android `com.juanrueda.vigia`. La configuración de compilación está en
+`.dart_tool/vigia-firebase.json`, excluida de Git.
+[Configuración, verificación y publicación](cuentas-firebase.md).
+
+La integración incorpora registro, acceso, verificación y recuperación por
+correo. El journal identifica al titular al iniciar la sesión y la
+proyección SQLite v3 conserva esa identidad para sincronizar resúmenes
+terminales. Se verificaron el análisis de Dart, los renderizados de acceso
+en ambos temas al 200 %, la compilación del APK base y los manifiestos de
+Firebase y DEMO. Esta es validación propia. La consola muestra
+Correo electrónico/contraseña habilitado y una versión publicada de las
+reglas de Firestore en la base `(default)`. Authentication respondió con
+HTTP 200 al consultar la configuración pública. Firestore devolvió HTTP 403
+a una lectura de prueba sin autenticar. Sigue pendiente comprobar el acceso
+permitido al propietario y el aislamiento entre dos cuentas verificadas.
+La primera suite global dio 931 aprobadas y dos fallos en las bases
+históricas de prueba. Tras representar el esquema antiguo sin las columnas
+de cuenta, pasaron las 60 pruebas dirigidas de migración, acceso e historial.
+
+Se compiló el APK con la configuración real de `vigia-e1680` y se comprobó
+que sus valores están incluidos en el binario arm64. APK de pruebas con
+firma Android Debug:
+`D:/dev/vigia-entrega/vigia-normal-firebase-pruebas.apk`, SHA-256
+`f289470df793524fa5a08c37028d3fc9a9d927f9092e5dc96858389534a89fec`.
+El APK declara CAMERA, INTERNET y ACCESS_NETWORK_STATE. En `vigia_pixel`
+se comprobó que el APK instalado coincide por SHA-256 con el de pruebas.
+En la primera prueba Android mostró «Process system isn't responding».
+Cuando terminó el arranque en frío con gráficos por software, Vigía abrió
+en el mismo emulador. Se comprobó la pantalla «Inicia sesión» y quedó abierto
+el formulario «Crea tu cuenta». El registro y la sincronización con cuentas
+reales siguen pendientes de validación.
+
+**Bloque de interfaz autorizado el 2026-11-10.** Sobre la base 5E, la
+variante normal incorpora el aura de fondo en Inicio (P03) y consulta el
+ciclo del motor para ofrecer Preparar sesión, Volver al monitoreo o Consultar
+estado. La preparación experimental separa Encuadre, Calibración y Sonido.
+En los dos primeros pasos la vista previa y la acción permanecen fuera del
+desplazamiento. Se reutilizan la misma apertura de cámara y los estados del
+motor. La validación con dobles de Flutter no sustituye el recorrido con un
+rostro real ni constituye una revisión independiente.
+
+Los renderizados de Inicio y Encuadre están en `test/goldens/experimental_entry/`.
+La prueba de 320 dp al 200 % comprueba que el motivo ocular y la acción
+quedan a la vista, y que al pasar a Calibración sigue la misma apertura de
+cámara. APK de revisión: `D:/dev/vigia-entrega/vigia-normal-inicio-encuadre-release.apk`,
+SHA-256 `46b45a20e06ad28679aabd0cb8da9a8d54e5e8fce7086a84d6b7b021da5c3065`.
+Se confirmó el mismo hash en el emulador y el nuevo Inicio en primer plano.
+`flutter analyze --no-pub` y el registro (500 comprobaciones) pasaron. La
+suite global terminó con 869 pruebas aprobadas y ocho fallos: seis goldens
+previos de P06 y dos expectativas antiguas de Inicio. Estas dos se adaptaron
+al nuevo diseño y pasaron al repetirlas de forma dirigida. La calibración
+con un rostro real queda pendiente de la prueba de la persona usuaria.
+
+**P06 · Monitoreo experimental.** La vista de sesión muestra primero el
+estado del motor o el aviso. Pausar, Reanudar y Finalizar quedan fuera del
+desplazamiento. La vista previa agrupa cámara, rostro y medición ocular con
+los estados disponibles. El aviso sigue sin exigir respuesta y el cierre
+conserva su confirmación. Los 24 renderizados nuevos están en
+`test/goldens/p06/` y representan seis estados en claro y oscuro al 100 % y al
+200 % con un motor de prueba. Las imágenes históricas de 5C siguen en su
+directorio original.
+Análisis sin problemas, 72 pruebas dirigidas aprobadas y registro con 500
+comprobaciones. APK local de revisión:
+`D:/dev/vigia-entrega/vigia-normal-p06-release.apk`, SHA-256
+`63bd807aa8bc87d773f33e2a51992bf80ee9caf60cad372ffd6ca8d96b62bee7`.
+La validación de este APK en Android y la suite global quedan pendientes.
+
+**Verificación del árbol de trabajo (2026-11-11, Claude, validación propia).**
+Con todo el trabajo de Inicio, preparación, P06 y Cuentas sin commit:
+`flutter analyze --no-pub` sin problemas, `flutter test` completo con
+**934 pruebas aprobadas y ningún fallo** (los fallos de goldens de P06 y de
+las bases históricas anotados arriba ya no se reproducen) y
+`python tools/spec_registry.py check` OK. No se recompiló ni se instaló APK.
+
+**Estado de Git.** `main` va 11 commits por delante de `origin/main`
+(`eae1c78`…`06c8b42`, fases 5D y 5E) sin push. Todo el bloque de interfaz y
+de Cuentas Firebase está **sin commit**: no existe aún en ningún commit ni en
+GitHub. Faltan `android/key.properties` (clave de distribución) y la
+revisión independiente del bloque.
+
+**Siguiente acción.** Validar el registro, la verificación por correo y el
+aislamiento del historial con dos cuentas en `vigia-e1680`. Tras validarlos,
+firmar el APK para GitHub Releases. D1 y el recorrido real completo con
+cámara siguen pendientes.
 
 ## Fases
 
@@ -17,6 +103,8 @@ Resumen para retomar el trabajo en una sesión nueva. Plan activo y reglas: `AGE
 | 5C. Monitoreo experimental (variante normal) | **Implementado; pendiente de la revisión integrada de Codex.** Commit local en `main`, sin publicar. Valores de laboratorio `lab-eye-rules-0.1` (experimental) | commit de la fase 5C |
 | 5D. Persistencia e Historial experimental (variante normal) | **Implementada, con validación automatizada y sintética** (revisada y reparada por Codex; validación propia de sus reparaciones). **Recorrido real completo con cámara pendiente** (calibración, sesión, persistencia y reinicio con una sesión real), aplazado por el usuario hasta disponer de Android físico. La iluminación **no** está demostrada como causa de los rechazos de calibración; umbrales sin cambios. Commits locales sin publicar. Guía: `docs/fase5d-historial-experimental.md` | `eae1c78`, `2000f76`, `be7ab5b`, `74a2083` y documentación |
 | 5E. Ajustes de la variante real | **Revisada y reparada por Codex**: tres defectos reproducidos; validación propia de las reparaciones, sin revisión independiente de estas. Commits locales sin publicar. D1 y cámara pendientes. Guía y evidencia: `docs/fase5e-ajustes-reales.md`, `docs/evidence/fase5e-revision-codex.md` | `4a84774`, `60c89af` (Claude), `6e89972` (reparaciones) y documentación |
+| Interfaz: Inicio con aura, preparación por pasos y P06 (variante normal, 2026-11-10) | **Implementada con dobles de Flutter; sin commit** (cambios en el árbol de trabajo). Sin recorrido con rostro real ni revisión independiente | sin commit |
+| Cuentas Firebase: acceso, registro, verificación por enlace, recuperación e historial por cuenta (2026-11-10/11) | **Implementada con validación propia; sin commit.** Proyecto `vigia-e1680` configurado (proveedor de correo y reglas publicadas). Pendiente: registro real, aislamiento entre dos cuentas, firma de distribución y GitHub Releases. Guía: `docs/cuentas-firebase.md` | sin commit |
 
 Las fases 1 a 4 están aprobadas, cada una dentro de su alcance, como prototipo DEMO y con las limitaciones de «No comprobado». La fase 5A añade a la **variante normal** la vista previa real de la cámara frontal y el permiso CAMERA. La fase 5B añade, en esa misma pantalla, **detección facial en pruebas** con MediaPipe Face Landmarker en el teléfono: indica si hay ningún rostro, uno o varios. **No hay detección de fatiga**: no se evalúan los ojos, y no hay calibración, sesiones ni alertas reales. El recorrido DEMO sigue simulado, rotulado «DEMO — datos simulados» y sin permiso CAMERA.
 
@@ -725,7 +813,7 @@ sin red. No se abrió webcam/AVD ni se instaló el APK reparado en esta revisió
 No se cambian umbrales ni se atribuyen los rechazos a iluminación. Evidencia
 completa: `docs/evidence/fase5e-revision-codex.md`.
 
-## Siguiente acción (actualizada 2026-10-16, tras reparar 5E)
+## Continuidad histórica del 2026-10-16, tras reparar 5E
 
 **Claude permanece detenido.** La revisión del trabajo de Claude y validación
 propia de las reparaciones 5E están entregadas, sin revisión independiente de

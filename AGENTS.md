@@ -4,9 +4,31 @@ Aplican a Claude Code y a Codex. `CLAUDE.md` importa este archivo. Autor del pro
 
 **Al retomar el trabajo en una sesión nueva**, lee primero `docs/estado-prototipo.md`: estado verificado, commits, pendientes y siguiente acción.
 
-## Plan activo (actualización expresa del usuario, 2026-10-06)
+## Bloque activo · Cuentas e historial por cuenta (2026-11-10)
 
-Para la entrega académica, el usuario sustituyó la secuencia de tareas del Área 08 por este **plan por fases**, que es el **plan activo**:
+El usuario eligió **Firebase Authentication + Cloud Firestore** para la
+variante normal publicable. Usa correo y contraseña con verificación por
+enlace. El APK firmado se distribuye desde GitHub Releases tras validar el
+proyecto alojado. Guía: [Cuentas e historial por cuenta](docs/cuentas-firebase.md).
+
+- La interfaz de Firebase reutiliza el formulario del trabajo de acceso
+  previo. Las pantallas con código por correo se conservan como referencia
+  de diseño. La guía indica qué reutilizar para seguir iterando con dobles.
+- Esta autorización amplía la restricción histórica de cuentas y red solo
+  para autenticación y sincronización de resúmenes de la variante normal.
+  Cámara, inferencia, calibración y registro durable siguen siendo locales.
+  No se envían imágenes, video, puntos faciales ni muestras oculares.
+- La DEMO sigue separada. El historial local anterior pertenece al perfil
+  local hasta una importación explícita. Todo cambio debe conservar el
+  trabajo sin commit de Inicio, preparación y P06.
+- La publicación depende de configurar y validar el proyecto alojado y
+  firmar el APK. Las credenciales administrativas se gestionan fuera del
+  cliente. La validación propia y la revisión independiente se registran
+  por separado.
+
+## Plan de referencia y fases anteriores
+
+El 2026-10-06, el usuario sustituyó la secuencia del Área 08 por un plan por fases para la entrega académica.
 
 1. Instrucciones del proyecto, base visual e Inicio.
 2. Recorrido principal: Preparación, Calibración demostrativa, Monitoreo, alertas, pausa/reanudación, finalización y resumen.
@@ -50,7 +72,7 @@ Esta actualización del usuario prevalece sobre las instrucciones anteriores que
 
 ## Colaboración y Git
 
-- **Claude implementa y Codex revisa** cada bloque (fase) terminado. Para el bloque integrado 5B + 5C rige la excepción autorizada arriba: Codex también puede reparar sus hallazgos y Claude permanece detenido. Ninguno presenta la validación de sus propios cambios como revisión independiente.
+- **Claude implementa y Codex revisa** cada bloque (fase) terminado, salvo las excepciones autorizadas para los bloques 5B + 5C, 5D, 5E y la división de interfaz e integración de Cuentas descrita arriba. Ninguno presenta la validación de sus propios cambios como revisión independiente.
 - Se trabaja en la rama `main`, con commits por fase o por corrección de revisión. Las PRs no son obligatorias.
 - Un bloque revisado y aprobado puede subirse a `main` en `origin` sin otra ceremonia. No se hace push de trabajo sin revisar salvo petición del usuario.
 - No se reescribe historia publicada (sin `--amend` ni `push --force` sobre commits subidos) ni se borra trabajo previo.
@@ -69,7 +91,7 @@ Esta actualización del usuario prevalece sobre las instrucciones anteriores que
 - **Lo experimental también se identifica.** El recorrido real de la variante normal se presenta como «Monitoreo experimental», con valores de laboratorio candidatos, nunca como política de producción ni como ayuda validada para conducir.
 - Restricciones del producto:
   - no se usan «Seguro», «Puedes conducir» ni porcentajes de fatiga (RF10, UX07);
-  - no se añaden backend, cuentas, GPS ni micrófono;
+  - sin GPS ni micrófono. El servicio de cuentas y resúmenes tiene el alcance del bloque activo.
   - las alertas no exigen respuesta.
 - Se conservan los IDs de pantalla, diálogo y requisito de las fuentes (P01–P18, D01–D08, RF, UX) en el código y la documentación cuando ayuden a la trazabilidad.
 
