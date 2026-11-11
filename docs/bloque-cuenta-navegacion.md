@@ -182,7 +182,7 @@ Commit `5da7c85` «Concentra el aviso de prueba en Cuenta y Ajustes».
 
 ### Paso 4 · Prueba guiada con Firebase · 2026-11-11
 
-Commit «Prepara la prueba guiada de Firebase con webcam».
+Commit `eae986d` «Prepara la prueba guiada de Firebase con webcam».
 
 - El guion de esta guía cubre registro, verificación, monitoreo con webcam,
   sincronización e historial separado entre A y B. Se actualizó la ruta de
@@ -192,6 +192,9 @@ Commit «Prepara la prueba guiada de Firebase con webcam».
   renderizados nuevos `verificacion__*.png` en `test/account/firebase/`,
   en claro y oscuro a 360 dp al 100 % y 320 dp al 200 %. Son capturas con
   dobles de la pantalla de enlace pendiente.
+- Repetición final de `flutter test --no-pub` en `main`, 947/947. Se usaron
+  `TMP` y `TEMP` en D: tras constatar espacio insuficiente en C: al copiar
+  los archivos temporales del compilador de pruebas.
 - El primer APK Debug quedó descartado. SHA-256
   `9ec712fbdfe9e3155ae4fa27353d95ed1bfda109de30df83ce4a3855a7ee880c`.
   En `vigia_pixel`, la persona usuaria observó un fallo de `libdartjni.so`
@@ -212,4 +215,24 @@ Commit «Prepara la prueba guiada de Firebase con webcam».
   El `base.apk` instalado coincide por SHA-256 y Android mostró
   «Inicia sesión» y «Crear cuenta».
 - `vigia_pixel` inició Android con `webcam0`, gráficos de host y capa
-  temporal. Está listo para la comprobación interactiva con A y B.
+  temporal. La persona usuaria llegó a Inicio y confirmó «Correo
+  verificado» en Cuenta A. Confirmó la vista previa en directo, calibración
+  aceptada, audición del tono de prueba, aviso durante el monitoreo,
+  pausa, reanudación y resumen final. Encontró la misma sesión y su detalle
+  en Historial y vio «Sin envíos pendientes» en Cuenta.
+- Reinicio comprobado con `am force-stop`. PID anterior `3526`, ausencia
+  del proceso después de detenerlo y arranque frío con PID `4088`.
+  Android aún mostraba un cliente de cámara de Vigía en dos lecturas
+  previas. El servicio registró la desconexión y, después del reinicio,
+  se comprobó que no quedaba ningún cliente de Vigía. Queda por medir
+  el momento de la liberación automática al finalizar.
+- Después del reinicio, la persona usuaria confirmó que A conservaba el
+  mismo resumen. Luego verificó B con otro correo y comprobó que Historial
+  de B no mostraba esa sesión. Al cerrar B y volver a entrar con A,
+  confirmó que reapareció el mismo resumen. El aislamiento quedó comprobado
+  desde la interfaz con ambas cuentas de `vigia-e1680`.
+- La evidencia es validación propia con confirmaciones de la persona
+  usuaria. Se anotaron resultados sin guardar imágenes, video, puntos
+  faciales ni credenciales. Quedan pendientes D1, la prueba directa de
+  las reglas de Firestore entre UID, la lectura desde una instalación
+  nueva y la revisión independiente del bloque.

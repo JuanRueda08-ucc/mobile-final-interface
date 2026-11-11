@@ -110,8 +110,19 @@ SHA-256 `19b96af98ec3d0b2f1d56db0f9bf8157b4e5cb0dddeed0c8dfbde29c0941b0f5`.
 Las bibliotecas nativas están presentes y el mismo APK muestra el acceso
 en `vigia_pixel`, con capa temporal y `webcam0`.
 
-**Siguiente acción.** Completar el guion de webcam y dos cuentas verificadas
-en `vigia-e1680`. D1 y la firma de distribución siguen pendientes.
+**Validación de Codex.** Análisis sin diagnósticos, 947/947 pruebas Flutter
+en la ejecución final y registro 500/500. En Android, la persona usuaria
+confirmó «Correo verificado» en Cuenta A, vista previa, calibración
+aceptada, tono, aviso, pausa/reanudación, resumen e Historial. Cuenta
+mostró «Sin envíos pendientes». La sesión de A siguió en Historial tras
+reiniciar el proceso. B quedó verificada y no vio el resumen de A. El
+mismo resumen reapareció al volver a A. Android confirmó que Vigía quedó
+sin cliente de cámara después del reinicio.
+
+**Siguiente acción.** Revisar el bloque de forma independiente y comprobar
+el momento de la liberación automática de la cámara al finalizar. Siguen
+pendientes D1, la comprobación directa de reglas entre UID, la lectura de
+resúmenes desde una instalación nueva y la firma de distribución.
 
 ## Fases
 
