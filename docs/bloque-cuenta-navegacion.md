@@ -54,6 +54,34 @@ Orden: 1 + 2 → 3 → 4 → 5.
   oscuro (360 dp al 100 %, 320 dp al 200 %). Los goldens que cambien por
   el rediseño se regeneran y se dice cuáles.
 
+## Recorrido guiado en `vigia-e1680`
+
+Usa el APK de prueba de la variante normal, con las definiciones de
+`.dart_tool/vigia-firebase.json`. Para webcam, usa `vigia_pixel` con
+`-read-only -no-snapshot-load -no-snapshot-save -camera-front webcam0
+-camera-back none`. Identifica las cuentas como A y B en el registro. La
+persona usuaria introduce las credenciales en el emulador y abre los enlaces
+en sus correos.
+
+1. Registra A. Comprueba «Verifica tu correo» y el bloqueo de Inicio e
+   Historial mientras el enlace esté pendiente. Abre el enlace y pulsa
+   «Ya verifiqué mi correo». En Cuenta debe aparecer «Correo verificado».
+2. Con la persona sentada frente a la cámara, abre «Preparar sesión».
+   Confirma vista previa en directo, un rostro y calibración aceptada.
+   Pulsa «Probar tono» y confirma «Lo escuché» después de oírlo.
+3. Inicia el monitoreo. Comprueba un aviso con un cierre ocular voluntario,
+   su cese al reabrir, la pausa y la reanudación. Finaliza y compara el
+   resumen con Inicio, Historial y detalle. Comprueba el estado de envío en
+   Cuenta y la conservación del registro tras volver a abrir la app.
+4. Cierra sesión desde Cuenta. Registra y verifica B. Comprueba que B no ve
+   el resumen de A en Inicio, Historial ni por el acceso al detalle. Si hay
+   tiempo para otra sesión, guarda un resumen con B y repite la comprobación
+   al volver a A. Identifica qué resúmenes se observaron desde cada cuenta.
+5. Registra el resultado de cada acción, el dispositivo y el SHA-256 del APK.
+   Distingue la detección del motor de las confirmaciones de la persona
+   usuaria, en particular la audición del tono. La evidencia se anota como
+   texto, sin credenciales, direcciones de correo ni imágenes de la cámara.
+
 ## Registro de Codex
 
 Codex anota aquí cada paso terminado para que Claude retome sin releer el
@@ -63,7 +91,7 @@ compiló, y qué queda pendiente o no se pudo comprobar.
 
 ### Paso 1 · Cuenta y navegación lateral · 2026-11-11
 
-Commit «Añade Cuenta y navegación lateral a la variante normal».
+Commit `0cde331` «Añade Cuenta y navegación lateral a la variante normal».
 
 - `/cuenta` abre `AccountScreen`. Muestra correo y verificación, consulta el
   proveedor de envío del UID activo y permite reintentar si falla. Comparte
@@ -77,10 +105,32 @@ Commit «Añade Cuenta y navegación lateral a la variante normal».
   [Panel claro a 320 dp al 200 %](../test/account/navegacion/cuenta_panel__claro_320_200.png)
   y [panel oscuro a 320 dp al 200 %](../test/account/navegacion/cuenta_panel__oscuro_320_200.png).
 - `flutter analyze` sin diagnósticos. Registro de especificaciones 500/500.
-- 18 PNG nuevos en `test/account/navegacion/`. Goldens regenerados de Inicio
+- 18 PNG nuevos en `test/account/navegacion/` y 34 goldens regenerados de Inicio
   normal (`inicio/` y `experimental_entry/`), Inicio/Historial 5D y Ajustes
   P12 (`fase5e/` y `fase5e_review/`). La comprobación usa dobles del motor y
   Firebase para navegar y observar el estado de Cuenta.
 - Sin APK en este paso. Quedan por comprobar TalkBack en Android, el
   recorrido con cámara y la sincronización alojada con dos cuentas. El
   emulador detectó la cámara «HD User Facing» como `webcam0`.
+
+### Paso 2 · Acceso y registro · 2026-11-11
+
+Commit «Rediseña el acceso y el registro de Vigía».
+
+- `FirebaseAccountScreen` reutiliza `AccountForm`. La portada comparte
+  `ScreenAura` con Inicio y usa un motivo ocular, un título de mayor tamaño
+  y una transición breve respetuosa del movimiento reducido. La acción
+  principal queda fija y los campos y enlaces se alcanzan desplazando el
+  formulario a 320 dp y texto al 200 %.
+- Cambiar de formulario conserva el correo y limpia la contraseña. Los
+  campos indican el error local y la acción muestra el progreso de la
+  solicitud. Las pruebas con dobles comprueban el envío de verificación,
+  la actualización del token y la recuperación por enlace.
+- `flutter analyze --no-pub` sin diagnósticos y registro 500/500. Pruebas
+  dirigidas de acceso 6/6. La suite global se inició en una copia fija de
+  este paso para preservar el estado de los otros pasos.
+- Ocho capturas en `test/account/firebase/`, seis nuevas y dos de acceso a
+  320 dp al 200 % regeneradas. Cubren «Inicia sesión» y «Crea tu cuenta» en
+  360 dp al 100 % y 320 dp al 200 %, en ambos temas.
+- Sin APK en este paso. El recorrido con los correos alojados se comprueba
+  en el paso 4.

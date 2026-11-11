@@ -94,12 +94,14 @@ Decisiones, límites y registro de avance:
 y cierre de sesión. En la variante normal, Inicio, Historial y Ajustes
 comparten con Cuenta la navegación lateral. A 320 dp y texto al 200 %,
 el panel se abre desde el encabezado y deja todo el ancho al contenido.
-Los renderizados están en `test/account/navegacion/`.
+Los renderizados están en `test/account/navegacion/`. Acceso y registro ya
+usan el aura y el motivo ocular de la portada de Vigía, reutilizan
+`AccountForm` y conservan la verificación y recuperación por enlace. Las
+capturas están en `test/account/firebase/`.
 
-**Siguiente acción.** Rediseñar el acceso y el registro. Después, concentrar
-el aviso de prueba en Cuenta y en Acerca de, y validar el recorrido con la
-webcam y dos cuentas verificadas en `vigia-e1680`. D1 y la firma de
-distribución siguen pendientes.
+**Siguiente acción.** Consolidar el aviso de prueba en Cuenta y en Acerca
+de, y validar el recorrido con la webcam y dos cuentas verificadas en
+`vigia-e1680`. D1 y la firma de distribución siguen pendientes.
 
 ## Fases
 

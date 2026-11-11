@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/design_system/theme.dart';
+import '../../core/design_system/tokens.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import 'firebase_account.dart';
@@ -24,6 +26,8 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   _FormMode _mode = _FormMode.signIn;
   bool _busy = false;
   String? _feedback;
+  String? _emailError;
+  String? _passwordError;
 
   @override
   void dispose() {
@@ -73,19 +77,36 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     }
   }
 
-  Future<String?> _submit(FirebaseAuth auth) async {
+  void _submitForm(FirebaseAuth auth) {
+    if (_busy) return;
     final email = _email.text.trim();
     final password = _password.text;
-    if (email.isEmpty) return 'Escribe tu correo.';
-    if (_mode != _FormMode.reset && password.isEmpty) {
-      return 'Escribe tu contraseña.';
-    }
+    setState(() {
+      _feedback = null;
+      _emailError = email.isEmpty ? 'Escribe tu correo.' : null;
+      _passwordError = switch (_mode) {
+        _FormMode.reset => null,
+        _ when password.isEmpty => 'Escribe tu contraseña.',
+        _FormMode.register when password.length < 8 =>
+          'Usa al menos 8 caracteres.',
+        _ => null,
+      };
+    });
+    if (_emailError != null || _passwordError != null) return;
+    FocusScope.of(context).unfocus();
+    _run(() => _submit(auth, email, password));
+  }
+
+  Future<String?> _submit(
+    FirebaseAuth auth,
+    String email,
+    String password,
+  ) async {
     switch (_mode) {
       case _FormMode.signIn:
         await auth.signInWithEmailAndPassword(email: email, password: password);
         break;
       case _FormMode.register:
-        if (password.length < 8) return 'Usa al menos 8 caracteres.';
         final result = await auth.createUserWithEmailAndPassword(
           email: email,
           password: password,
@@ -124,11 +145,35 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     onPressed: _busy ? null : action,
   );
 
-  void _changeMode(_FormMode mode) => setState(() {
-    _mode = mode;
-    _password.clear();
-    _feedback = null;
-  });
+  void _changeMode(_FormMode mode) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _mode = mode;
+      _password.clear();
+      _feedback = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+  }
+
+  Widget _modeLink(String label, _FormMode mode) {
+    final p = VigiaColors.of(context);
+    return TextButton(
+      onPressed: _busy ? null : () => _changeMode(mode),
+      style: TextButton.styleFrom(
+        foregroundColor: p.ink,
+        disabledForegroundColor: p.inkSecondary,
+        alignment: AlignmentDirectional.centerStart,
+        textStyle: VigiaType.button,
+        minimumSize: const Size(VigiaSpace.minTap, VigiaSpace.minTap),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(VigiaRadius.tag),
+        ),
+      ),
+      child: Text(label),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -195,31 +240,32 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       );
     }
 
-    final (title, description, label) = switch (_mode) {
+    final (title, description, label, busyLabel) = switch (_mode) {
       _FormMode.signIn => (
         'Inicia sesión',
-        'Consulta tu historial.',
+        'Accede a tu historial de sesiones.',
         'Iniciar sesión',
+        'Iniciando sesión…',
       ),
       _FormMode.register => (
         'Crea tu cuenta',
-        'Usa al menos 8 caracteres en la contraseña.',
+        'Te enviaremos un enlace para verificar tu correo.',
         'Crear cuenta',
+        'Creando cuenta…',
       ),
       _FormMode.reset => (
         'Recupera tu contraseña',
         'Te enviaremos un enlace para restablecerla.',
         'Enviar enlace',
+        'Enviando enlace…',
       ),
     };
     return AccountForm(
       title: title,
       description: description,
+      accessCover: _mode != _FormMode.reset,
       isBusy: _busy,
-      action: _button(
-        _busy ? 'Un momento…' : label,
-        () => _run(() => _submit(auth)),
-      ),
+      action: _button(_busy ? busyLabel : label, () => _submitForm(auth)),
       children: [
         AutofillGroup(
           child: Column(
@@ -229,14 +275,29 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                 controller: _email,
                 enabled: !_busy,
                 keyboardType: TextInputType.emailAddress,
+                textInputAction: _mode == _FormMode.reset
+                    ? TextInputAction.done
+                    : TextInputAction.next,
+                autocorrect: false,
                 autofillHints: const [AutofillHints.email],
-                decoration: accountFieldDecoration(context, label: 'Correo'),
+                decoration: accountFieldDecoration(
+                  context,
+                  label: 'Correo',
+                  error: _emailError,
+                ),
+                onChanged: (_) {
+                  if (_emailError != null) setState(() => _emailError = null);
+                },
+                onSubmitted: _mode == _FormMode.reset
+                    ? (_) => _submitForm(auth)
+                    : null,
               ),
               if (_mode != _FormMode.reset)
                 TextField(
                   controller: _password,
                   enabled: !_busy,
                   obscureText: true,
+                  textInputAction: TextInputAction.done,
                   autocorrect: false,
                   enableSuggestions: false,
                   autofillHints: [
@@ -247,30 +308,28 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                   decoration: accountFieldDecoration(
                     context,
                     label: 'Contraseña',
+                    error: _passwordError,
                   ),
-                  onSubmitted: (_) => _run(() => _submit(auth)),
+                  onChanged: (_) {
+                    if (_passwordError != null) {
+                      setState(() => _passwordError = null);
+                    }
+                  },
+                  onSubmitted: (_) => _submitForm(auth),
                 ),
             ],
           ),
         ),
         ?message,
-        if (_mode == _FormMode.signIn) ...[
-          _button(
-            'Crear cuenta',
-            () => _changeMode(_FormMode.register),
-            secondary: true,
-          ),
-          _button(
-            'Olvidé mi contraseña',
-            () => _changeMode(_FormMode.reset),
-            secondary: true,
-          ),
-        ] else
-          _button(
-            'Volver al acceso',
-            () => _changeMode(_FormMode.signIn),
-            secondary: true,
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _mode == _FormMode.signIn
+              ? [
+                  _modeLink('Crear cuenta', _FormMode.register),
+                  _modeLink('Olvidé mi contraseña', _FormMode.reset),
+                ]
+              : [_modeLink('Volver al acceso', _FormMode.signIn)],
+        ),
       ],
     );
   }

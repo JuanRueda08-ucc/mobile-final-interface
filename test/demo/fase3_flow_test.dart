@@ -378,7 +378,13 @@ void main() {
         throwsA(anything),
         reason: 'la app normal no abre la base DEMO',
       );
-      await tapLabel(tester, 'Historial');
+      final menu = find.byTooltip('Abrir navegación');
+      if (menu.evaluate().isNotEmpty) {
+        await tester.tap(menu);
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byTooltip('Historial'));
+      await tester.pumpAndSettle();
       expect(find.text(InicioScreen.historialNotice), findsOneWidget);
       expect(find.byType(HistoryScreen), findsNothing);
       // Fase 5E: Ajustes existe en la app normal, con su propia base. Sin

@@ -6,9 +6,9 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import '../../app/app_config.dart';
 import '../../app/router.dart';
 import '../../core/design_system/theme.dart';
-import '../../core/design_system/tokens.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/aura_hero.dart';
+import '../../core/design_system/widgets/screen_aura.dart';
 import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
@@ -126,7 +126,7 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
       accountDestination: ref.watch(firebaseAuthProvider) != null,
       onNavSelected: _nav,
       notice: notice,
-      background: state is InicioMotorNoComprobado ? const _InicioAura() : null,
+      background: state is InicioMotorNoComprobado ? const ScreenAura() : null,
       children: _blocks(state),
     );
   }
@@ -366,42 +366,4 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
     ctaLabel: 'Preparar sesión',
     onCta: () => _act(InicioAction.prepararSesion),
   );
-}
-
-class _InicioAura extends StatelessWidget {
-  const _InicioAura();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = VigiaColors.of(context);
-    final dark = palette.brightness == Brightness.dark;
-    final accent = dark ? VigiaAura.sky : VigiaAura.lime;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: const Alignment(-1.05, -0.84),
-          radius: 1.12,
-          colors: [
-            Color.alphaBlend(
-              VigiaAura.lilac.withValues(alpha: dark ? 0.30 : 0.78),
-              palette.bg,
-            ),
-            palette.bg,
-          ],
-        ),
-      ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(1.06, -0.34),
-            radius: 0.92,
-            colors: [
-              accent.withValues(alpha: dark ? 0.14 : 0.67),
-              accent.withValues(alpha: 0),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
