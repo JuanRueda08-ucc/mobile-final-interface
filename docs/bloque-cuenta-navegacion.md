@@ -258,3 +258,18 @@ registro 500/500. Se actualizaron 34 renderizados y se añadió una muestra
 con la etiqueta visible. Las pruebas cubren cursor, toque con cierre del
 menú compacto, caducidad, toque repetido y contraste de Inicio en claro
 y oscuro.
+
+### Limpieza de Ajustes · 2026-11-11
+
+Ajustes de la variante normal presenta los controles disponibles y el
+aviso «Versión de prueba» en «Acerca de». El alcance futuro de Datos,
+Perfil local y Ayuda se consulta en las guías del proyecto. La decisión
+OI-08 se registra en la documentación de alcance.
+
+Validación propia: 87/87 pruebas dirigidas, análisis sin diagnósticos y
+registro 500/500. Se actualizaron 20 renderizados. El APK normal Release
+con firma Android Debug está en
+`D:/dev/vigia-entrega/vigia-normal-ajustes-actualizados-pruebas.apk`.
+SHA-256 `62adee2afdd0406df5a0836f98360a7997b5cbef8d872bcc77c05c1b586ce5f1`.
+Se verificó el binario instalado y se abrió Ajustes en `vigia_pixel`.
+La compilación Debug completó un hot restart.

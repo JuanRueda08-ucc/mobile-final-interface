@@ -221,6 +221,11 @@ void main() {
         await navigate(tester, 'Ajustes');
         expect(find.text('Tema'), findsOneWidget);
         expect(button('Mi cuenta'), findsNothing);
+        expect(button('Sonido'), findsOneWidget);
+        expect(
+          find.textContaining('No incluido en este prototipo'),
+          findsNothing,
+        );
         await capture('ajustes');
         expect(trialNotice, findsOneWidget);
         await tester.ensureVisible(trialNotice);

@@ -27,9 +27,8 @@ import 'variant_settings.dart';
 ///   preferencias (`vigia_history_real_v1.sqlite`) y el bloqueo de la sesión
 ///   experimental. No lleva el rótulo DEMO: no muestra datos simulados.
 ///
-/// Datos (exportación, borrado y retención), Perfil local y Ayuda no forman
-/// parte de este prototipo; se indica así, sin botones que aparenten
-/// funcionar. Borrar todo depende además de OI-08 (RF27.CA2), abierto.
+/// La DEMO documenta el alcance original de Datos, Perfil local y Ayuda.
+/// Borrar todo depende de la decisión OI-08 (RF27.CA2).
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -159,16 +158,17 @@ class SettingsScreen extends ConsumerWidget {
             height: 56,
             onPressed: lock ? null : () => context.go(VigiaRoutes.sonido),
           ),
-          const StatusCard(
-            tone: StatusTone.neutral,
-            icon: VigiaIcon.info,
-            tag: 'Pendiente',
-            title: 'No incluido en este prototipo',
-            text:
-                'Datos (exportación, borrado y retención), Perfil local y '
-                'Ayuda todavía no están implementados. Borrar todo depende '
-                'además de una decisión abierta (OI-08).',
-          ),
+          if (demo)
+            const StatusCard(
+              tone: StatusTone.neutral,
+              icon: VigiaIcon.info,
+              tag: 'Pendiente',
+              title: 'No incluido en este prototipo',
+              text:
+                  'Datos (exportación, borrado y retención), Perfil local y '
+                  'Ayuda todavía no están implementados. Borrar todo depende '
+                  'además de una decisión abierta (OI-08).',
+            ),
           const VigiaParagraph(
             'La alerta por cierre ocular no se puede desactivar y los '
             'umbrales no se pueden editar.',
