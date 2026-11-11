@@ -9,6 +9,8 @@ enum VigiaIcon {
   home('M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10'),
   history('M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2'),
   settings('M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4'),
+  account('M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 20v-1a8 5 0 0 1 16 0v1'),
+  menu('M4 6h16M4 12h16M4 18h16'),
   warn('M12 3.5L2.5 20h19L12 3.5zM12 10v4.5M12 17.5v.5'),
   eyeOff(
     'M3 3l18 18M10.6 6.2A9.8 9.8 0 0 1 12 6c4 0 7 3 9 6-.8 1.3-1.8 2.5-3 3.5'

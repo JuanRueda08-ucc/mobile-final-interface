@@ -1,13 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:monitoring_engine/monitoring_engine.dart';
 
-import '../../app/router.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
-import '../experimental/experimental_monitoring_controller.dart';
 import 'firebase_account.dart';
 import 'presentation/account_form.dart';
 
@@ -109,26 +105,13 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   }
 
   Future<String?> _signOut(FirebaseAuth auth) async {
-    final state = ref.read(experimentalMonitoringProvider);
-    if (state.sessionVigente || state.pending != null) {
-      return 'Finaliza el monitoreo antes de cerrar sesión.';
-    }
-    final snapshot = await ref
-        .read(experimentalMonitoringProvider.notifier)
-        .queryCurrentSnapshot();
-    if (snapshot.lifecycle == EngineSessionLifecycle.active ||
-        snapshot.lifecycle == EngineSessionLifecycle.paused ||
-        (mounted && ref.read(experimentalMonitoringProvider).pending != null)) {
-      return 'Finaliza el monitoreo antes de cerrar sesión.';
-    }
-    if (!mounted) return null;
-    await auth.signOut();
-    if (mounted) {
+    final feedback = await signOutOfVigia(ref, auth);
+    if (feedback == null && mounted) {
       _mode = _FormMode.signIn;
       _email.clear();
       _password.clear();
     }
-    return null;
+    return feedback;
   }
 
   VigiaButton _button(
@@ -152,7 +135,6 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     final auth = ref.watch(firebaseAuthProvider);
     final authState = ref.watch(firebaseUserProvider);
     final user = authState.asData?.value;
-    final verified = user?.emailVerified == true;
     final feedback = _feedback;
     final Widget? message = feedback == null
         ? null
@@ -177,46 +159,38 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       );
     }
     if (user != null) {
-      void back() => context.go(VigiaRoutes.ajustes);
       return AccountForm(
-        title: verified ? 'Tu cuenta' : 'Verifica tu correo',
-        description: verified
-            ? 'Los resúmenes de las sesiones experimentales se guardan en tu cuenta.'
-            : 'Abre el enlace de verificación en tu correo. Después, vuelve a Vigía.',
+        title: 'Verifica tu correo',
+        description: 'Abre el enlace de verificación en tu correo. Después, vuelve a Vigía.',
         detail: user.email,
-        onBack: verified ? back : null,
         isBusy: _busy,
-        action: verified
-            ? _button('Cerrar sesión', () => _run(() => _signOut(auth)))
-            : _button(
-                'Ya verifiqué mi correo',
-                () => _run(() async {
-                  await user.reload();
-                  final current = auth.currentUser;
-                  if (current?.emailVerified == true) {
-                    await current!.getIdToken(true);
-                    return null;
-                  }
-                  return 'La verificación sigue pendiente.';
-                }),
-              ),
+        action: _button(
+          'Ya verifiqué mi correo',
+          () => _run(() async {
+            await user.reload();
+            final current = auth.currentUser;
+            if (current?.emailVerified == true) {
+              await current!.getIdToken(true);
+              return null;
+            }
+            return 'La verificación sigue pendiente.';
+          }),
+        ),
         children: [
           ?message,
-          if (!verified) ...[
-            _button(
-              'Reenviar correo',
-              () => _run(() async {
-                await user.sendEmailVerification();
-                return 'Enviamos un nuevo enlace.';
-              }),
-              secondary: true,
-            ),
-            _button(
-              'Usar otro correo',
-              () => _run(() => _signOut(auth)),
-              secondary: true,
-            ),
-          ],
+          _button(
+            'Reenviar correo',
+            () => _run(() async {
+              await user.sendEmailVerification();
+              return 'Enviamos un nuevo enlace.';
+            }),
+            secondary: true,
+          ),
+          _button(
+            'Usar otro correo',
+            () => _run(() => _signOut(auth)),
+            secondary: true,
+          ),
         ],
       );
     }

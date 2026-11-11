@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/account/firebase_account.dart';
 import '../features/account/firebase_account_screen.dart';
+import '../features/account/account_screen.dart';
 import '../features/calibration/calibration_screen.dart';
 import '../features/camera/front_camera_screen.dart';
 import '../features/experimental/experimental_monitoring_screen.dart';
@@ -161,18 +162,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       );
     },
     routes: [
-      if (hasAccounts) ...[
-        for (final path in [VigiaRoutes.acceso, VigiaRoutes.cuenta])
-          GoRoute(
-            path: path,
-            pageBuilder: (context, state) =>
-                _page(state, const FirebaseAccountScreen()),
-          ),
-      ],
+      if (hasAccounts)
+        GoRoute(
+          path: VigiaRoutes.acceso,
+          pageBuilder: (context, state) =>
+              _page(state, const FirebaseAccountScreen()),
+        ),
       GoRoute(
         path: VigiaRoutes.inicio,
         pageBuilder: (context, state) => _page(state, const InicioScreen()),
         routes: [
+          if (hasAccounts)
+            GoRoute(
+              path: 'cuenta',
+              pageBuilder: (context, state) => NoTransitionPage(
+                key: state.pageKey,
+                child: const AccountScreen(),
+              ),
+            ),
           GoRoute(
             path: 'preparacion',
             pageBuilder: (context, state) =>

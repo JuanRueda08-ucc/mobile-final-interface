@@ -26,6 +26,12 @@ proyecto alojado. Guía: [Cuentas e historial por cuenta](docs/cuentas-firebase.
   cliente. La validación propia y la revisión independiente se registran
   por separado.
 
+**Bloque autorizado el 2026-11-11 (lo implementa Codex):** apartado de
+Cuenta, barra lateral, rediseño del acceso, rótulo «experimental» reducido
+a un único aviso de «Versión de prueba» y prueba del recorrido completo.
+Guía y registro obligatorio de avance:
+[Cuenta, navegación y acceso](docs/bloque-cuenta-navegacion.md).
+
 ## Plan de referencia y fases anteriores
 
 El 2026-10-06, el usuario sustituyó la secuencia del Área 08 por un plan por fases para la entrega académica.

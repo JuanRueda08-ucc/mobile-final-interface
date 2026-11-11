@@ -79,11 +79,33 @@ void main() {
             }
 
             // Barra principal: los tres destinos completos (B5.2 limitaba al 135 %).
-            final nav = find.byType(VigiaBottomNav);
-            for (final d in ['Inicio', 'Historial', 'Ajustes']) {
-              final t = find.descendant(of: nav, matching: find.text(d));
-              expect(t, findsOneWidget);
-              expect(tester.getRect(t).height, greaterThan(0));
+            const labels = ['Inicio', 'Historial', 'Ajustes'];
+            if (state is InicioMotorNoComprobado) {
+              final menu = find.byTooltip('Abrir navegación');
+              final compact = menu.evaluate().isNotEmpty;
+              if (compact) {
+                await tester.tap(menu);
+                await tester.pumpAndSettle();
+              }
+              for (final label in labels) {
+                final item = find.byTooltip(label);
+                expect(item, findsOneWidget);
+                expect(tester.getSize(item).height, greaterThanOrEqualTo(48));
+              }
+              if (compact) {
+                await tester.tap(find.byTooltip('Inicio'));
+                await tester.pumpAndSettle();
+              }
+            } else {
+              final nav = find.byType(VigiaBottomNav);
+              for (final label in labels) {
+                final item = find.descendant(
+                  of: nav,
+                  matching: find.text(label),
+                );
+                expect(item, findsOneWidget);
+                expect(tester.getSize(item).height, greaterThan(0));
+              }
             }
 
             // Volver al principio: las pautas miden la parte visible de cada nodo,

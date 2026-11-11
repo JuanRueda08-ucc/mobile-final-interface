@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:monitoring_engine/monitoring_engine.dart';
+
+import '../experimental/experimental_monitoring_controller.dart';
 
 const firebaseAccountsEnabled = bool.fromEnvironment('VIGIA_FIREBASE');
 
@@ -36,3 +39,20 @@ final verifiedFirebaseUidProvider = Provider<String?>((ref) {
   final user = ref.watch(firebaseUserProvider).asData?.value;
   return user?.emailVerified == true ? user!.uid : null;
 });
+
+Future<String?> signOutOfVigia(WidgetRef ref, FirebaseAuth auth) async {
+  const blocked = 'Finaliza el monitoreo antes de cerrar sesión.';
+  final state = ref.read(experimentalMonitoringProvider);
+  if (state.sessionVigente || state.pending != null) return blocked;
+  final snapshot = await ref
+      .read(experimentalMonitoringProvider.notifier)
+      .queryCurrentSnapshot();
+  if (!ref.context.mounted) return null;
+  if (snapshot.lifecycle == EngineSessionLifecycle.active ||
+      snapshot.lifecycle == EngineSessionLifecycle.paused ||
+      ref.read(experimentalMonitoringProvider).pending != null) {
+    return blocked;
+  }
+  await auth.signOut();
+  return null;
+}

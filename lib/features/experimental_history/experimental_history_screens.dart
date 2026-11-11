@@ -175,10 +175,13 @@ class _ExperimentalHistoryScreenState
       child: VigiaScaffold(
         title: 'Historial',
         navIndex: 1,
+        sideNavigation: true,
+        accountDestination: ref.watch(firebaseAuthProvider) != null,
         notice: notice,
         onNavSelected: (i) {
           if (i == 0) home();
           if (i == 2) context.go(VigiaRoutes.ajustes);
+          if (i == 3) context.go(VigiaRoutes.cuenta);
         },
         children: children,
       ),

@@ -54,6 +54,8 @@ class VigiaScaffold extends StatelessWidget {
     this.isDemo = false,
     this.navIndex,
     this.onNavSelected,
+    this.sideNavigation = false,
+    this.accountDestination = false,
     this.notice,
     this.onBack,
     this.background,
@@ -69,6 +71,8 @@ class VigiaScaffold extends StatelessWidget {
   /// Índice del destino actual; nulo si la pantalla no muestra barra (P04–P06).
   final int? navIndex;
   final ValueChanged<int>? onNavSelected;
+  final bool sideNavigation;
+  final bool accountDestination;
 
   /// Texto del aviso temporal visible, si lo hay.
   final String? notice;
@@ -129,72 +133,135 @@ class VigiaScaffold extends StatelessWidget {
       ],
     );
     final pinned = pinnedContent;
-    final content = SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: VigiaSpace.headerMinHeight,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: onBack == null
-                  ? Align(alignment: Alignment.centerLeft, child: heading)
-                  : Row(
-                      children: [
-                        VigiaBackButton(onPressed: onBack!),
-                        const SizedBox(width: 10),
-                        Expanded(child: heading),
-                      ],
-                    ),
-            ),
-          ),
-          if (isDemo)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
-              child: Align(alignment: Alignment.centerLeft, child: DemoLabel()),
-            ),
-          Expanded(
-            child: pinned == null
-                ? scroll
-                : LayoutBuilder(
-                    builder: (context, constraints) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        pinned(context, constraints),
-                        Expanded(child: scroll),
-                      ],
-                    ),
-                  ),
-          ),
-          if (footer case final action?)
-            ColoredBox(
-              color: p.bg,
+    final side = sideNavigation && navIndex != null;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            side && (constraints.maxWidth < 360 || isLargeText(context));
+        void select(int index) => onNavSelected?.call(index);
+        final rail = side
+            ? _VigiaSideNav(
+                currentIndex: navIndex!,
+                accountDestination: accountDestination,
+                onSelected: select,
+              )
+            : null;
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: VigiaSpace.headerMinHeight,
+              ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: action,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: compact
+                    ? Row(
+                        children: [
+                          Builder(
+                            builder: (context) => IconButton(
+                              tooltip: 'Abrir navegación',
+                              constraints: const BoxConstraints.tightFor(
+                                width: 48,
+                                height: 48,
+                              ),
+                              onPressed: () =>
+                                  Scaffold.of(context).openDrawer(),
+                              icon: VigiaIconView(VigiaIcon.menu, color: p.ink),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: heading),
+                        ],
+                      )
+                    : onBack == null
+                    ? Align(alignment: Alignment.centerLeft, child: heading)
+                    : Row(
+                        children: [
+                          VigiaBackButton(onPressed: onBack!),
+                          const SizedBox(width: 10),
+                          Expanded(child: heading),
+                        ],
+                      ),
               ),
             ),
-          if (navIndex != null)
-            VigiaBottomNav(
-              currentIndex: navIndex!,
-              onSelected: onNavSelected ?? (_) {},
+            if (isDemo)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: DemoLabel(),
+                ),
+              ),
+            Expanded(
+              child: pinned == null
+                  ? scroll
+                  : LayoutBuilder(
+                      builder: (context, constraints) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          pinned(context, constraints),
+                          Expanded(child: scroll),
+                        ],
+                      ),
+                    ),
             ),
-        ],
-      ),
-    );
-    return Scaffold(
-      backgroundColor: p.bg,
-      body: background == null
-          ? content
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                IgnorePointer(child: background),
-                content,
-              ],
-            ),
+            if (footer case final action?)
+              ColoredBox(
+                color: p.bg,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: action,
+                ),
+              ),
+            if (navIndex != null && !side)
+              VigiaBottomNav(
+                currentIndex: navIndex!,
+                onSelected: onNavSelected ?? (_) {},
+              ),
+          ],
+        );
+        final body = SafeArea(
+          child: side && !compact
+              ? Row(
+                  children: [
+                    rail!,
+                    Expanded(child: content),
+                  ],
+                )
+              : content,
+        );
+        return Scaffold(
+          backgroundColor: p.bg,
+          drawer: compact
+              ? Drawer(
+                  width: 56,
+                  shape: const RoundedRectangleBorder(),
+                  backgroundColor: p.navBg,
+                  semanticLabel: 'Navegación principal',
+                  child: SafeArea(
+                    child: _VigiaSideNav(
+                      currentIndex: navIndex!,
+                      accountDestination: accountDestination,
+                      onSelected: (index) {
+                        Navigator.of(context).pop();
+                        select(index);
+                      },
+                    ),
+                  ),
+                )
+              : null,
+          body: background == null
+              ? body
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    IgnorePointer(child: background),
+                    body,
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -342,12 +409,14 @@ class _NavItem extends StatelessWidget {
     required this.selected,
     required this.vertical,
     required this.onTap,
+    this.iconOnly = false,
   });
 
   final VigiaNavDestination destination;
   final bool selected;
   final bool vertical;
   final VoidCallback onTap;
+  final bool iconOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -370,44 +439,107 @@ class _NavItem extends StatelessWidget {
       label: destination.label,
       onTap: onTap,
       excludeSemantics: true,
-      child: PressScale(
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(VigiaRadius.navItem),
-            highlightColor: Colors.transparent,
-            hoverColor: Colors.transparent,
-            focusColor: p.focus.withValues(alpha: 0.32),
-            child: AnimatedContainer(
-              duration: reduce ? Duration.zero : VigiaMotion.colorDuration,
-              alignment: vertical ? Alignment.centerLeft : Alignment.center,
-              constraints: const BoxConstraints(
-                minHeight: VigiaSpace.navItemMinHeight,
-                minWidth: VigiaSpace.minTap,
+      child: Tooltip(
+        message: iconOnly ? destination.label : '',
+        excludeFromSemantics: true,
+        child: PressScale(
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(VigiaRadius.navItem),
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: p.focus.withValues(alpha: 0.32),
+              child: AnimatedContainer(
+                duration: reduce ? Duration.zero : VigiaMotion.colorDuration,
+                alignment: vertical && !iconOnly
+                    ? Alignment.centerLeft
+                    : Alignment.center,
+                constraints: const BoxConstraints(
+                  minHeight: VigiaSpace.navItemMinHeight,
+                  minWidth: VigiaSpace.minTap,
+                ),
+                padding: vertical && !iconOnly
+                    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
+                    : const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                decoration: BoxDecoration(
+                  color: selected ? p.navSelectedBg : Colors.transparent,
+                  borderRadius: BorderRadius.circular(VigiaRadius.navItem),
+                ),
+                child: iconOnly
+                    ? icon
+                    : vertical
+                    ? Row(
+                        children: [
+                          icon,
+                          const SizedBox(width: 12),
+                          Expanded(child: label),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [icon, const SizedBox(height: 2), label],
+                      ),
               ),
-              padding: vertical
-                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
-                  : const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-              decoration: BoxDecoration(
-                color: selected ? p.navSelectedBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(VigiaRadius.navItem),
-              ),
-              child: vertical
-                  ? Row(
-                      children: [
-                        icon,
-                        const SizedBox(width: 12),
-                        Expanded(child: label),
-                      ],
-                    )
-                  : Column(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [icon, const SizedBox(height: 2), label],
-                    ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VigiaSideNav extends StatelessWidget {
+  const _VigiaSideNav({
+    required this.currentIndex,
+    required this.accountDestination,
+    required this.onSelected,
+  });
+
+  final int currentIndex;
+  final bool accountDestination;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = [
+      ...vigiaNavDestinations,
+      if (accountDestination)
+        const VigiaNavDestination('Cuenta', VigiaIcon.account),
+    ];
+    return SizedBox(
+      key: const Key('vigia-side-nav'),
+      width: 56,
+      height: double.infinity,
+      child: ColoredBox(
+        color: VigiaColors.of(context).navBg,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final items = Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 4,
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    _NavItem(
+                      destination: destinations[i],
+                      selected: i == currentIndex,
+                      vertical: false,
+                      iconOnly: true,
+                      onTap: () => onSelected(i),
+                    ),
+                ],
+              ),
+            );
+            final height =
+                24 + destinations.length * 56 + (destinations.length - 1) * 4;
+            return constraints.maxHeight < height
+                ? SingleChildScrollView(child: items)
+                : Align(alignment: Alignment.topCenter, child: items);
+          },
         ),
       ),
     );

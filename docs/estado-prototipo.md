@@ -79,16 +79,27 @@ Con todo el trabajo de Inicio, preparación, P06 y Cuentas sin commit:
 las bases históricas anotados arriba ya no se reproducen) y
 `python tools/spec_registry.py check` OK. No se recompiló ni se instaló APK.
 
-**Estado de Git.** `main` va 11 commits por delante de `origin/main`
-(`eae1c78`…`06c8b42`, fases 5D y 5E) sin push. Todo el bloque de interfaz y
-de Cuentas Firebase está **sin commit**: no existe aún en ningún commit ni en
-GitHub. Faltan `android/key.properties` (clave de distribución) y la
-revisión independiente del bloque.
+**Estado de Git.** El bloque anterior de Cuentas Firebase, Inicio, preparación
+y P06 está en el commit local `78a0dc0`, con documentación en `431b48f`.
+Faltan `android/key.properties` (clave de distribución) y la revisión
+independiente del bloque.
 
-**Siguiente acción.** Validar el registro, la verificación por correo y el
-aislamiento del historial con dos cuentas en `vigia-e1680`. Tras validarlos,
-firmar el APK para GitHub Releases. D1 y el recorrido real completo con
-cámara siguen pendientes.
+**Bloque autorizado el 2026-11-11 (lo implementa Codex):** apartado de
+Cuenta, barra lateral de iconos, rediseño del acceso, rótulo «experimental»
+reducido a un aviso de «Versión de prueba» y prueba del recorrido completo.
+Decisiones, límites y registro de avance:
+[Cuenta, navegación y acceso](bloque-cuenta-navegacion.md).
+
+**Avance de Codex.** Cuenta reúne correo, verificación, envío del historial
+y cierre de sesión. En la variante normal, Inicio, Historial y Ajustes
+comparten con Cuenta la navegación lateral. A 320 dp y texto al 200 %,
+el panel se abre desde el encabezado y deja todo el ancho al contenido.
+Los renderizados están en `test/account/navegacion/`.
+
+**Siguiente acción.** Rediseñar el acceso y el registro. Después, concentrar
+el aviso de prueba en Cuenta y en Acerca de, y validar el recorrido con la
+webcam y dos cuentas verificadas en `vigia-e1680`. D1 y la firma de
+distribución siguen pendientes.
 
 ## Fases
 

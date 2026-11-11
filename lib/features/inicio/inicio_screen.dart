@@ -17,6 +17,7 @@ import '../../core/design_system/widgets/vigia_text.dart';
 import '../../data/demo_history/history_providers.dart';
 import '../../data/experimental_history/experimental_history_providers.dart';
 import '../experimental_history/experimental_home_section.dart';
+import '../account/firebase_account.dart';
 import '../preparation/preparation_controller.dart';
 import 'inicio_providers.dart';
 import 'inicio_state.dart';
@@ -98,6 +99,8 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
         mode is RealMode &&
         ref.read(experimentalHistoryRepositoryProvider) != null;
     switch (index) {
+      case 3:
+        context.go(VigiaRoutes.cuenta);
       case 1 when mode is DemoMode || realHistory:
         context.go(VigiaRoutes.historial);
       // Fase 5E: Ajustes de la variante normal, con su base abierta.
@@ -119,6 +122,8 @@ class _InicioScreenState extends ConsumerState<InicioScreen> with NoticeHost {
       title: 'Vigía',
       isDemo: state.isDemo,
       navIndex: 0,
+      sideNavigation: ref.watch(appModeProvider) is RealMode,
+      accountDestination: ref.watch(firebaseAuthProvider) != null,
       onNavSelected: _nav,
       notice: notice,
       background: state is InicioMotorNoComprobado ? const _InicioAura() : null,

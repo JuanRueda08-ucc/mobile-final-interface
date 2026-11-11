@@ -56,18 +56,15 @@ class SettingsScreen extends ConsumerWidget {
         title: 'Ajustes',
         isDemo: demo,
         navIndex: 2,
+        sideNavigation: !demo,
+        accountDestination: ref.watch(firebaseAuthProvider) != null,
         onNavSelected: (i) {
           if (i == 0) home();
           if (i == 1) context.go(VigiaRoutes.historial);
+          if (i == 3) context.go(VigiaRoutes.cuenta);
           // Ajustes: ya estamos aquí; no se crea otra copia (UX §2.1).
         },
         children: [
-          if (ref.watch(firebaseAuthProvider) != null)
-            VigiaButton(
-              label: 'Mi cuenta',
-              kind: VigiaButtonKind.secondary,
-              onPressed: lock ? null : () => context.go(VigiaRoutes.cuenta),
-            ),
           if (ref.watch(settingsReadyProvider).hasError)
             const StatusCard(
               tone: StatusTone.alert,
