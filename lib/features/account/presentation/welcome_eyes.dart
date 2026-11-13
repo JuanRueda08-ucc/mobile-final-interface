@@ -4,14 +4,16 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design_system/theme.dart';
 import '../../../core/design_system/tokens.dart';
+import '../../../core/design_system/widgets/vigia_mark.dart';
 
-/// Ilustración de la bienvenida (P01): personajes con ojos en los pasteles
-/// de Vigía. Es decorativa y no representa ninguna medición.
+/// Ilustración de la bienvenida (P01). Es decorativa y no representa
+/// ninguna medición.
 ///
-/// Bucle de 6 s: los personajes flotan, miran juntos y parpadean cada uno a
-/// su ritmo. El pequeño se adormece, los demás lo miran, aparece «¡Ojo!» y
-/// se despierta. Con movimiento reducido se dibuja el instante final de esa
-/// historia (todos atentos y la burbuja visible), sin animación.
+/// Bucle de 7 s con dos protagonistas: el símbolo de Vigía, que parpadea
+/// como un ojo, y un personaje coral. El personaje se adormece; el símbolo
+/// parpadea, le envía una señal y dice «¡Ojo!»; el personaje despierta.
+/// Con movimiento reducido se dibuja el instante final de esa historia
+/// (personaje despierto y burbuja visible), sin animación.
 class WelcomeEyes extends StatefulWidget {
   const WelcomeEyes({super.key});
 
@@ -22,15 +24,48 @@ class WelcomeEyes extends StatefulWidget {
   State<WelcomeEyes> createState() => _WelcomeEyesState();
 }
 
+/// Posiciones en fracciones del área (x del ancho, y del alto).
+const _markAt = Offset(0.66, 0.38);
+const _sleeperAt = Offset(0.27, 0.70);
+
+// Línea de tiempo del bucle (fases 0–1).
+const _markBlinks = [0.10, 0.47, 0.90];
+
+double _smooth(double a, double b, double t) {
+  final x = ((t - a) / (b - a)).clamp(0.0, 1.0);
+  return x * x * (3 - 2 * x);
+}
+
+/// Cierre de un parpadeo (~0,25 s) que empieza en cada fase de [at].
+double _blink(List<double> at, double t) {
+  var k = 0.0;
+  for (final b in at) {
+    final d = (t - b) % 1;
+    if (d < 0.036) k = math.max(k, math.sin(math.pi * d / 0.036));
+  }
+  return k;
+}
+
+/// Sueño del personaje: se adormece y despierta cuando llega la señal.
+double _drowse(double t) =>
+    _smooth(0.16, 0.42, t) * (1 - _smooth(0.62, 0.65, t));
+
+/// Ondas de la señal del símbolo hacia el personaje.
+double _signal(double t) => _smooth(0.50, 0.64, t);
+
+double _bubble(double t) =>
+    Curves.elasticOut.transform(_smooth(0.58, 0.70, t)) *
+    (1 - _smooth(0.88, 0.94, t));
+
 class _WelcomeEyesState extends State<WelcomeEyes>
     with TickerProviderStateMixin {
   late final AnimationController _loop = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 6),
+    duration: const Duration(seconds: 7),
   );
   late final AnimationController _enter = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: const Duration(milliseconds: 900),
   );
   bool _reduce = false;
 
@@ -58,83 +93,79 @@ class _WelcomeEyesState extends State<WelcomeEyes>
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
     final dark = p.brightness == Brightness.dark;
+    final brandInk = dark ? VigiaBrand.wordmarkDark : VigiaBrand.wordmarkLight;
     return ExcludeSemantics(
       child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_loop, _enter]),
-          builder: (context, _) => CustomPaint(
-            size: Size.infinite,
-            painter: _EyesPainter(
-              phase: _reduce ? WelcomeEyes.stillPhase : _loop.value,
-              enter: _enter.value,
-              line: dark ? VigiaBrand.wordmarkDark : VigiaBrand.ink,
-              bubbleFill: dark ? VigiaBrand.wordmarkDark : VigiaBrand.ink,
-              bubbleInk: dark ? VigiaBrand.ink : Colors.white,
-            ),
-          ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final size = constraints.biggest;
+            final unit = math.min(size.width, size.height * 0.9);
+            final markSize = unit * 0.50;
+            return AnimatedBuilder(
+              animation: Listenable.merge([_loop, _enter]),
+              builder: (context, _) {
+                final t = _reduce ? WelcomeEyes.stillPhase : _loop.value;
+                final enter = Curves.easeOutBack.transform(_enter.value);
+                // El símbolo se inclina un poco hacia el personaje al avisar.
+                final lean =
+                    _smooth(0.44, 0.52, t) * (1 - _smooth(0.80, 0.9, t));
+                final squash = 1 - 0.9 * _blink(_markBlinks, t);
+                final float = math.sin(2 * math.pi * t) * unit * 0.012;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _ScenePainter(
+                          phase: t,
+                          enter: enter,
+                          unit: unit,
+                          markRadius: markSize / 2,
+                          line: brandInk,
+                          bubbleFill: dark
+                              ? VigiaBrand.wordmarkDark
+                              : VigiaBrand.ink,
+                          bubbleInk: dark ? VigiaBrand.ink : Colors.white,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: _markAt.dx * size.width - markSize / 2,
+                      top: _markAt.dy * size.height - markSize / 2 + float,
+                      width: markSize,
+                      height: markSize,
+                      child: Opacity(
+                        opacity: _enter.value,
+                        child: Transform.rotate(
+                          angle: -0.12 * lean,
+                          child: Transform.scale(
+                            scale: 0.6 + 0.4 * enter,
+                            child: Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.diagonal3Values(1, squash, 1),
+                              child: VigiaMark(size: markSize, ink: brandInk),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _Blob {
-  const _Blob(
-    this.color,
-    this.x,
-    this.y,
-    this.r, {
-    required this.blinks,
-    this.mouth = _Mouth.smile,
-    this.brow = false,
-  });
-
-  final Color color;
-
-  /// Centro en fracciones del ancho (x) y del alto (y).
-  final double x;
-  final double y;
-
-  /// Radio en fracciones de la dimensión de referencia.
-  final double r;
-
-  /// Fases del bucle en que parpadea.
-  final List<double> blinks;
-  final _Mouth mouth;
-  final bool brow;
-}
-
-enum _Mouth { smile, open, small }
-
-const _sleeper = 4;
-
-const _blobs = [
-  _Blob(
-    VigiaBrand.lavender,
-    0.80,
-    0.24,
-    0.25,
-    blinks: [0.12, 0.47],
-    mouth: _Mouth.open,
-    brow: true,
-  ),
-  _Blob(VigiaBrand.softGreen, 0.10, 0.22, 0.21, blinks: [0.30, 0.90]),
-  _Blob(
-    VigiaBrand.mistBlue,
-    0.20,
-    0.74,
-    0.27,
-    blinks: [0.05, 0.40],
-    brow: true,
-  ),
-  _Blob(VigiaBrand.orange, 0.86, 0.76, 0.22, blinks: [0.22, 0.97]),
-  _Blob(VigiaBrand.coral, 0.52, 0.57, 0.12, blinks: [], mouth: _Mouth.small),
-];
-
-class _EyesPainter extends CustomPainter {
-  _EyesPainter({
+class _ScenePainter extends CustomPainter {
+  _ScenePainter({
     required this.phase,
     required this.enter,
+    required this.unit,
+    required this.markRadius,
     required this.line,
     required this.bubbleFill,
     required this.bubbleInk,
@@ -142,101 +173,79 @@ class _EyesPainter extends CustomPainter {
 
   final double phase;
   final double enter;
+  final double unit;
+  final double markRadius;
   final Color line;
   final Color bubbleFill;
   final Color bubbleInk;
 
-  static double _smooth(double a, double b, double t) {
-    final x = ((t - a) / (b - a)).clamp(0.0, 1.0);
-    return x * x * (3 - 2 * x);
-  }
-
-  /// Cierre del párpado (0 abierto, 1 cerrado) en un parpadeo de ~0,2 s.
-  static double _blink(List<double> at, double t) {
-    var k = 0.0;
-    for (final b in at) {
-      final d = (t - b) % 1;
-      if (d < 0.035) k = math.max(k, math.sin(math.pi * d / 0.035));
-    }
-    return k;
-  }
-
-  /// Sueño del personaje pequeño: se adormece y despierta con «¡Ojo!».
-  double get _drowse =>
-      _smooth(0.22, 0.48, phase) * (1 - _smooth(0.58, 0.62, phase));
-
-  /// Atención de los demás hacia el que se duerme.
-  double get _attention =>
-      _smooth(0.42, 0.52, phase) * (1 - _smooth(0.86, 0.96, phase));
-
-  double get _bubble =>
-      Curves.elasticOut.transform(_smooth(0.54, 0.66, phase)) *
-      (1 - _smooth(0.86, 0.92, phase));
-
   @override
   void paint(Canvas canvas, Size size) {
-    final unit = math.min(size.width, size.height * 0.85);
-    final sleeper = _blobs[_sleeper];
-    final sleeperCenter = Offset(
-      sleeper.x * size.width,
-      sleeper.y * size.height,
+    final mark = Offset(_markAt.dx * size.width, _markAt.dy * size.height);
+    final bob = math.sin(2 * math.pi * (phase + 0.3)) * unit * 0.012;
+    final sleeper = Offset(
+      _sleeperAt.dx * size.width,
+      _sleeperAt.dy * size.height + bob,
     );
+    final r = unit * 0.17 * enter;
 
-    _strokes(canvas, size, unit);
-
-    for (var i = 0; i < _blobs.length; i++) {
-      final b = _blobs[i];
-      final grow = Curves.easeOutBack.transform(
-        ((enter - 0.12 * i) / 0.55).clamp(0.0, 1.0),
-      );
-      if (grow <= 0) continue;
-      final bob = math.sin(2 * math.pi * (phase + i * 0.21)) * 0.012;
-      final c = Offset(b.x * size.width, (b.y + bob) * size.height);
-      final r = b.r * unit * grow;
-      _body(canvas, c, r, b.color);
-
-      // Mirada: un recorrido común y, durante el aviso, hacia el pequeño.
-      var gaze = Offset(
-        math.sin(2 * math.pi * phase) * 0.7,
-        math.cos(4 * math.pi * phase) * 0.25,
-      );
-      if (i != _sleeper) {
-        final to = sleeperCenter - c;
-        final dir = to / (to.distance == 0 ? 1 : to.distance);
-        gaze = Offset.lerp(gaze, dir, _attention)!;
-      }
-      final lid = i == _sleeper
-          ? math.max(_drowse, 0.0)
-          : _blink(b.blinks, phase);
-      _face(canvas, c, r, b, gaze, lid, awake: i == _sleeper);
+    _glow(canvas, mark);
+    _waves(canvas, mark, sleeper, r);
+    if (r > 0) {
+      _body(canvas, sleeper, r);
+      _face(canvas, sleeper, r, mark);
+      _zz(canvas, sleeper, r);
     }
-
-    // «zz» del que se duerme.
-    if (_drowse > 0.55) {
-      final t = (phase * 3) % 1;
-      final z = TextPainter(
-        text: TextSpan(
-          text: 'z',
-          style: TextStyle(
-            fontSize: sleeper.r * unit * 0.9,
-            fontWeight: FontWeight.w700,
-            color: line.withValues(alpha: (_drowse - 0.55) * 2.2 * (1 - t)),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      z.paint(
-        canvas,
-        sleeperCenter +
-            Offset(sleeper.r * unit * 0.9, -sleeper.r * unit * (1.2 + t)),
-      );
-    }
-
-    _speech(canvas, size, unit);
+    _speech(canvas, mark);
   }
 
-  void _body(Canvas canvas, Offset c, double r, Color color) {
-    final rect = Rect.fromCircle(center: c, radius: r);
+  /// Halo suave detrás del símbolo; crece mientras envía la señal.
+  void _glow(Canvas canvas, Offset c) {
+    final pulse = math.sin(math.pi * _signal(phase));
+    final radius = markRadius * (1.05 + 0.25 * pulse) * enter;
+    if (radius <= 0) return;
+    canvas.drawCircle(
+      c,
+      radius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            VigiaBrand.lavender.withValues(alpha: 0.75),
+            VigiaBrand.mistBlue.withValues(alpha: 0.35),
+            VigiaBrand.mistBlue.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.55, 1],
+        ).createShader(Rect.fromCircle(center: c, radius: radius)),
+    );
+  }
+
+  /// Tres ondas que viajan del símbolo al personaje.
+  void _waves(Canvas canvas, Offset from, Offset to, double r) {
+    final s = _signal(phase);
+    if (s <= 0 || s >= 1) return;
+    final dir = to - from;
+    final angle = math.atan2(dir.dy, dir.dx);
+    final reach = dir.distance - r * 0.9;
+    for (var i = 0; i < 3; i++) {
+      final k = (s * 1.6 - i * 0.3).clamp(0.0, 1.0);
+      if (k <= 0 || k >= 1) continue;
+      final radius = markRadius * 0.7 + (reach - markRadius * 0.7) * k;
+      canvas.drawArc(
+        Rect.fromCircle(center: from, radius: radius),
+        angle - 0.42,
+        0.84,
+        false,
+        Paint()
+          ..color = VigiaBrand.coral.withValues(alpha: 0.9 * (1 - k))
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = math.max(2.5, unit * 0.014),
+      );
+    }
+  }
+
+  void _body(Canvas canvas, Offset c, double r) {
+    const color = VigiaBrand.coral;
     canvas.drawCircle(
       c + Offset(0, r * 0.08),
       r,
@@ -257,30 +266,34 @@ class _EyesPainter extends CustomPainter {
             Color.lerp(color, VigiaBrand.ink, 0.10)!,
           ],
           stops: const [0, 0.55, 1],
-        ).createShader(rect),
+        ).createShader(Rect.fromCircle(center: c, radius: r)),
     );
   }
 
-  void _face(
-    Canvas canvas,
-    Offset c,
-    double r,
-    _Blob b,
-    Offset gaze,
-    double lid, {
-    required bool awake,
-  }) {
+  void _face(Canvas canvas, Offset c, double r, Offset mark) {
+    final drowse = _drowse(phase);
+    final woke = _smooth(0.62, 0.66, phase) * (1 - _smooth(0.80, 0.88, phase));
     final ink = Paint()
       ..color = VigiaBrand.ink
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = math.max(2, r * 0.07);
-    final e = r * 0.21;
+
+    // Mirada: pasea antes de dormirse y, al despertar, mira al símbolo.
+    final toMark = mark - c;
+    final markDir = toMark / toMark.distance;
+    final wander = Offset(
+      math.sin(2 * math.pi * phase * 2) * 0.6,
+      math.cos(2 * math.pi * phase) * 0.2,
+    );
+    final gaze = Offset.lerp(wander, markDir, _smooth(0.6, 0.66, phase))!;
+
+    final e = r * (0.21 + 0.05 * woke);
     final eyeY = c.dy - r * 0.12;
+    final lid = math.max(drowse, 0.0);
     for (final side in [-1.0, 1.0]) {
-      final ec = Offset(c.dx + side * r * 0.32 + gaze.dx * r * 0.08, eyeY);
+      final ec = Offset(c.dx + side * r * 0.32, eyeY);
       if (lid > 0.88) {
-        // Ojo cerrado: curva hacia abajo.
         canvas.drawArc(
           Rect.fromCenter(center: ec, width: e * 1.8, height: e * 1.1),
           0.15,
@@ -295,103 +308,65 @@ class _EyesPainter extends CustomPainter {
       canvas.scale(1, 1 - lid);
       canvas.drawCircle(Offset.zero, e, Paint()..color = Colors.white);
       final pupil = e * 0.56;
+      final at = gaze * (e - pupil) * 0.9;
+      canvas.drawCircle(at, pupil, Paint()..color = VigiaBrand.ink);
       canvas.drawCircle(
-        Offset(gaze.dx, gaze.dy) * (e - pupil) * 0.9,
-        pupil,
-        Paint()..color = VigiaBrand.ink,
-      );
-      canvas.drawCircle(
-        Offset(gaze.dx, gaze.dy) * (e - pupil) * 0.9 +
-            Offset(-pupil * 0.35, -pupil * 0.35),
+        at + Offset(-pupil * 0.35, -pupil * 0.35),
         pupil * 0.28,
         Paint()..color = Colors.white,
       );
       canvas.restore();
     }
 
-    if (b.brow) {
-      final lift = _attention * r * 0.08;
+    final mouth = Offset(c.dx, c.dy + r * 0.32);
+    if (drowse > 0.3 || woke > 0.2) {
+      // Boca pequeña: dormido o sorprendido al despertar.
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: mouth,
+          width: r * (0.16 + 0.08 * woke),
+          height: r * (0.14 + 0.16 * woke),
+        ),
+        Paint()..color = VigiaBrand.ink,
+      );
+    } else {
       canvas.drawArc(
         Rect.fromCenter(
-          center: Offset(c.dx - r * 0.32, eyeY - e * 1.5 - lift),
-          width: e * 2.2,
-          height: e * 1.2,
+          center: mouth - Offset(0, r * 0.06),
+          width: r * 0.5,
+          height: r * 0.32,
         ),
-        math.pi + 0.35,
-        math.pi - 0.7,
+        0.25,
+        math.pi - 0.5,
         false,
         ink,
       );
     }
+  }
 
-    final mouthY = c.dy + r * 0.32;
-    switch (awake && _drowse > 0.3 ? _Mouth.small : b.mouth) {
-      case _Mouth.smile:
-        canvas.drawArc(
-          Rect.fromCenter(
-            center: Offset(c.dx, mouthY - r * 0.06),
-            width: r * 0.5,
-            height: r * 0.32,
+  void _zz(Canvas canvas, Offset c, double r) {
+    final drowse = _drowse(phase);
+    if (drowse < 0.55) return;
+    for (var i = 0; i < 2; i++) {
+      final t = (phase * 3 + i * 0.5) % 1;
+      final z = TextPainter(
+        text: TextSpan(
+          text: 'z',
+          style: VigiaType.heroTitle(r * (0.55 + 0.25 * i)).copyWith(
+            color: line.withValues(alpha: (drowse - 0.55) * 2.2 * (1 - t)),
           ),
-          0.25,
-          math.pi - 0.5,
-          false,
-          ink,
-        );
-      case _Mouth.open:
-        final m = Rect.fromCenter(
-          center: Offset(c.dx, mouthY),
-          width: r * 0.42,
-          height: r * (0.18 + 0.12 * _attention),
-        );
-        canvas.drawArc(m, 0, math.pi, true, Paint()..color = VigiaBrand.ink);
-        canvas.drawArc(
-          Rect.fromCenter(
-            center: m.bottomCenter - Offset(0, m.height * 0.25),
-            width: m.width * 0.5,
-            height: m.height * 0.5,
-          ),
-          math.pi,
-          math.pi,
-          true,
-          Paint()..color = VigiaBrand.coral,
-        );
-      case _Mouth.small:
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(c.dx, mouthY),
-            width: r * 0.18,
-            height: r * (0.18 + 0.1 * (1 - _drowse)),
-          ),
-          Paint()..color = VigiaBrand.ink,
-        );
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      z.paint(
+        canvas,
+        c + Offset(r * (0.75 + 0.3 * i + 0.2 * t), -r * (1.1 + 0.6 * t)),
+      );
     }
   }
 
-  /// Trazos a mano: un bucle que une a los personajes.
-  void _strokes(Canvas canvas, Size size, double unit) {
-    final w = size.width;
-    final h = size.height;
-    final reveal = _smooth(0.3, 1, enter);
-    if (reveal <= 0) return;
-    final path = Path()
-      ..moveTo(0.30 * w, 0.40 * h)
-      ..cubicTo(0.36 * w, 0.30 * h, 0.44 * w, 0.24 * h, 0.47 * w, 0.30 * h)
-      ..cubicTo(0.50 * w, 0.36 * h, 0.40 * w, 0.40 * h, 0.42 * w, 0.32 * h)
-      ..cubicTo(0.45 * w, 0.20 * h, 0.58 * w, 0.12 * h, 0.66 * w, 0.16 * h);
-    final metric = path.computeMetrics().first;
-    canvas.drawPath(
-      metric.extractPath(0, metric.length * reveal),
-      Paint()
-        ..color = line
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round
-        ..strokeWidth = math.max(1.5, unit * 0.006),
-    );
-  }
-
-  void _speech(Canvas canvas, Size size, double unit) {
-    final s = _bubble;
+  void _speech(Canvas canvas, Offset mark) {
+    final s = _bubble(phase);
     if (s <= 0.01) return;
     final text = TextPainter(
       text: TextSpan(
@@ -402,10 +377,11 @@ class _EyesPainter extends CustomPainter {
     )..layout();
     final pad = Offset(unit * 0.05, unit * 0.025);
     final box = Size(text.width + pad.dx * 2, text.height + pad.dy * 2);
-    final anchor = Offset(0.56 * size.width, 0.40 * size.height);
+    // A la izquierda del símbolo, con la cola hacia él.
+    final anchor = mark + Offset(-markRadius * 1.25, -markRadius * 0.85);
     canvas.save();
     canvas.translate(anchor.dx, anchor.dy);
-    canvas.rotate(-0.12);
+    canvas.rotate(-0.1);
     canvas.scale(s);
     final rect = Rect.fromCenter(
       center: Offset.zero,
@@ -419,9 +395,9 @@ class _EyesPainter extends CustomPainter {
     );
     canvas.drawPath(
       Path()
-        ..moveTo(rect.left + box.width * 0.22, rect.bottom - 2)
-        ..lineTo(rect.left + box.width * 0.12, rect.bottom + box.height * 0.4)
-        ..lineTo(rect.left + box.width * 0.40, rect.bottom - 2)
+        ..moveTo(rect.right - box.width * 0.42, rect.bottom - 2)
+        ..lineTo(rect.right - box.width * 0.08, rect.bottom + box.height * 0.45)
+        ..lineTo(rect.right - box.width * 0.20, rect.bottom - 2)
         ..close(),
       fill,
     );
@@ -430,9 +406,10 @@ class _EyesPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_EyesPainter old) =>
+  bool shouldRepaint(_ScenePainter old) =>
       old.phase != phase ||
       old.enter != enter ||
+      old.unit != unit ||
       old.line != line ||
       old.bubbleFill != bubbleFill;
 }

@@ -358,3 +358,32 @@ Se usó la skill `frontend-design` para el plan visual.
   seguidas mostraron el adormecimiento, la burbuja con todos mirando y el
   cambio de mirada. El parpadeo es breve y se debe confirmar a simple
   vista. TalkBack sigue pendiente.
+
+### Bienvenida con el símbolo de Vigía como protagonista · 2026-11-13 (Claude)
+
+El usuario pidió conservar solo el personaje coral que se duerme y retirar
+los demás, porque no tenían propósito. El símbolo de Vigía parpadea y le
+envía la señal. También pidió cambiar el texto del panel por uno dirigido
+a la persona.
+
+- `WelcomeEyes` repite un bucle de 7 s. El símbolo (`VigiaMark`, con halo
+  lavanda) flota y parpadea como un ojo. El personaje coral mira alrededor
+  y se adormece con «zz». El símbolo parpadea, se inclina, envía tres ondas
+  coral y dice «¡Ojo!». El personaje despierta sorprendido y mira al
+  símbolo. El símbolo vuelve a parpadear. Instante fijo con movimiento
+  reducido: personaje despierto y burbuja visible.
+- Panel: «¿Listo para comenzar?», «Vigía te acompaña en cada trayecto y te
+  avisa si empiezas a cerrar los ojos» y «Todo ocurre en tu teléfono. Solo
+  se guardan los resúmenes de tus sesiones», más las acciones y la línea de
+  versión de prueba.
+- Validación propia: análisis sin diagnósticos, 951/951 pruebas y registro
+  OK. Se regeneraron los 4 PNG `bienvenida__*`. Las pruebas y la
+  compilación usaron `TMP` y `TEMP` en D:, porque C: tenía 111–127 MB
+  libres y `flutter test` se bloqueó con los temporales en C:.
+- APK: `D:/dev/vigia-entrega/vigia-normal-bienvenida-logo-pruebas.apk`,
+  100 211 239 bytes. SHA-256
+  `aee96f22c26ae04ca541a478e4e4a78e181e53b2edae6c6012ebee17d9098fd6`.
+  En `vigia_pixel`, el `base.apk` instalado coincide. Cuatro capturas
+  seguidas mostraron el personaje despierto, dormido con «zz», «¡Ojo!» con
+  el personaje sorprendido y el símbolo a mitad de parpadeo. El emulador se
+  cerró una vez sin motivo aparente y volvió a arrancar en 211 s.

@@ -54,15 +54,21 @@ class AccountWelcome extends StatelessWidget {
     final side = large ? 16.0 : 24.0;
     final purpose = [
       VigiaText(
-        'Te avisa con un tono si tus ojos se cierran demasiado tiempo '
-        'mientras conduces.',
+        '¿Listo para comenzar?',
         textAlign: TextAlign.center,
-        style: VigiaType.h3.copyWith(color: p.ink),
+        style: VigiaType.h1.copyWith(color: p.ink, fontSize: 26),
       ),
       const SizedBox(height: 8),
       VigiaText(
-        'La cámara se procesa en tu teléfono. Solo se guardan los '
-        'resúmenes de tus sesiones.',
+        'Vigía te acompaña en cada trayecto y te avisa si '
+        'empiezas a cerrar los ojos.',
+        textAlign: TextAlign.center,
+        style: VigiaType.body.copyWith(color: p.ink),
+      ),
+      const SizedBox(height: 8),
+      VigiaText(
+        'Todo ocurre en tu teléfono. Solo se guardan los resúmenes de tus '
+        'sesiones.',
         textAlign: TextAlign.center,
         style: VigiaType.small.copyWith(color: secondary),
       ),
