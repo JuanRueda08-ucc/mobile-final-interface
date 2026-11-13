@@ -95,6 +95,12 @@ void main() {
   )) {
     testWidgets('acceso Firebase en ${configName(config)}', (tester) async {
       configureView(tester, config);
+      // Ilustración en bucle: las capturas usan su instante estático.
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
       await tester.pumpWidget(
         ProviderScope(
           overrides: [firebaseAuthProvider.overrideWithValue(_SignedOutAuth())],
@@ -161,7 +167,7 @@ void main() {
         child: accountApp(const FirebaseAccountScreen()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
     await tester.tap(button('Iniciar sesión'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, testEmail);
@@ -201,7 +207,7 @@ void main() {
         child: accountApp(const FirebaseAccountScreen()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
     await tester.tap(button('Iniciar sesión'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, testEmail);
@@ -226,13 +232,17 @@ void main() {
         child: accountApp(const FirebaseAccountScreen()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    // Los ojos siguen animados mientras la bienvenida está visible.
+    expect(tester.hasRunningAnimations, isTrue);
     await tester.tap(button('Crear cuenta'));
     await tester.pumpAndSettle();
     expect(find.text('Crea tu cuenta'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(2));
     await tester.tap(find.bySemanticsLabel('Volver'));
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
     expect(find.byType(TextField), findsNothing);
     expect(button('Crear cuenta').hitTestable(), findsOneWidget);
   });

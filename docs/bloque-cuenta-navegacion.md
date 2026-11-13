@@ -322,3 +322,39 @@ qué sirve y las opciones de iniciar sesión y registrarse, con animaciones.
   la pantalla completa. Con la resolución del emulador, la línea «Versión
   de prueba» queda junto a las acciones fijas y se lee completa al
   desplazar.
+
+### Bienvenida con personajes y ojos animados · 2026-11-13 (Claude)
+
+Pedido del usuario: mejorar la bienvenida. El logotipo no le gustaba y el
+símbolo no parpadeaba. Referencia: una bienvenida lúdica con un logotipo
+a todo el ancho, personajes con ojos y un panel inferior con dos botones.
+Se usó la skill `frontend-design` para el plan visual.
+
+- «Vigía» ocupa todo el ancho con la fuente de títulos y no escala con el
+  texto del sistema, porque es la marca. Se anuncia como encabezado. Se
+  retiró el círculo con el símbolo.
+- `WelcomeEyes` (`welcome_eyes.dart`, `CustomPainter`, decorativo y sin
+  semántica) dibuja cinco personajes con los pasteles de Vigía: lavanda,
+  verde, azul, naranja y coral. El bucle de 6 s hace que floten, miren
+  juntos y parpadeen cada uno a su ritmo (~0,2 s). El pequeño se adormece
+  con «z», los demás lo miran, aparece «¡Ojo!» y se despierta. Hay un trazo
+  a mano que se dibuja al entrar. Con movimiento reducido se dibuja el
+  instante fijo `stillPhase = 0.72`: todos atentos y la burbuja visible.
+- El panel inferior, en el neutro de la marca, tiene la finalidad, el
+  procesamiento local, los datos guardados, «Crear cuenta», «Iniciar
+  sesión» y la línea de versión de prueba. Se retiraron las tres tarjetas.
+  En pantallas bajas o con texto ampliado, las acciones quedan fijas abajo
+  y el resto se desplaza.
+- Pruebas: las capturas usan el instante fijo. Una prueba comprueba que la
+  animación sigue activa en la bienvenida, y otra que no hay animación con
+  movimiento reducido. Se regeneraron los 4 PNG `bienvenida__*`.
+- Validación propia: `flutter analyze --no-pub` sin diagnósticos,
+  `flutter test` 951/951 y registro OK.
+- APK Release con firma Android Debug y `vigia-e1680`:
+  `D:/dev/vigia-entrega/vigia-normal-bienvenida-ojos-pruebas.apk`,
+  100 211 239 bytes. SHA-256
+  `2aa824d9b48e25c7e2b26093085c7c22aba58c34b893ea3495213bd55f7c1793`.
+  En `vigia_pixel`, el `base.apk` instalado coincide. Tres capturas
+  seguidas mostraron el adormecimiento, la burbuja con todos mirando y el
+  cambio de mirada. El parpadeo es breve y se debe confirmar a simple
+  vista. TalkBack sigue pendiente.
