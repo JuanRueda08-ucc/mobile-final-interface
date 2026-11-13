@@ -25,8 +25,8 @@ class WelcomeEyes extends StatefulWidget {
 }
 
 /// Posiciones en fracciones del área (x del ancho, y del alto).
-const _markAt = Offset(0.66, 0.38);
-const _sleeperAt = Offset(0.27, 0.70);
+const _markAt = Offset(0.29, 0.54);
+const _sleeperAt = Offset(0.73, 0.54);
 
 // Línea de tiempo del bucle (fases 0–1).
 const _markBlinks = [0.10, 0.47, 0.90];
@@ -36,12 +36,12 @@ double _smooth(double a, double b, double t) {
   return x * x * (3 - 2 * x);
 }
 
-/// Cierre de un parpadeo (~0,25 s) que empieza en cada fase de [at].
+/// Cierre de un parpadeo (~0,5 s) que empieza en cada fase de [at].
 double _blink(List<double> at, double t) {
   var k = 0.0;
   for (final b in at) {
     final d = (t - b) % 1;
-    if (d < 0.036) k = math.max(k, math.sin(math.pi * d / 0.036));
+    if (d < 0.07) k = math.max(k, math.sin(math.pi * d / 0.07));
   }
   return k;
 }
@@ -99,8 +99,8 @@ class _WelcomeEyesState extends State<WelcomeEyes>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final size = constraints.biggest;
-            final unit = math.min(size.width, size.height * 0.9);
-            final markSize = unit * 0.50;
+            final unit = math.min(size.width, size.height * 1.1);
+            final markSize = unit * 0.42;
             return AnimatedBuilder(
               animation: Listenable.merge([_loop, _enter]),
               builder: (context, _) {
@@ -137,7 +137,7 @@ class _WelcomeEyesState extends State<WelcomeEyes>
                       child: Opacity(
                         opacity: _enter.value,
                         child: Transform.rotate(
-                          angle: -0.12 * lean,
+                          angle: 0.12 * lean,
                           child: Transform.scale(
                             scale: 0.6 + 0.4 * enter,
                             child: Transform(
@@ -187,7 +187,7 @@ class _ScenePainter extends CustomPainter {
       _sleeperAt.dx * size.width,
       _sleeperAt.dy * size.height + bob,
     );
-    final r = unit * 0.17 * enter;
+    final r = unit * 0.18 * enter;
 
     _glow(canvas, mark);
     _waves(canvas, mark, sleeper, r);
@@ -360,7 +360,7 @@ class _ScenePainter extends CustomPainter {
       )..layout();
       z.paint(
         canvas,
-        c + Offset(r * (0.75 + 0.3 * i + 0.2 * t), -r * (1.1 + 0.6 * t)),
+        c + Offset(r * (0.15 + 0.35 * i + 0.2 * t), -r * (1.2 + 0.6 * t)),
       );
     }
   }
@@ -377,11 +377,11 @@ class _ScenePainter extends CustomPainter {
     )..layout();
     final pad = Offset(unit * 0.05, unit * 0.025);
     final box = Size(text.width + pad.dx * 2, text.height + pad.dy * 2);
-    // A la izquierda del símbolo, con la cola hacia él.
-    final anchor = mark + Offset(-markRadius * 1.25, -markRadius * 0.85);
+    // Encima del símbolo, hacia el personaje, con la cola hacia el símbolo.
+    final anchor = mark + Offset(markRadius * 0.75, -markRadius * 1.2);
     canvas.save();
     canvas.translate(anchor.dx, anchor.dy);
-    canvas.rotate(-0.1);
+    canvas.rotate(0.06);
     canvas.scale(s);
     final rect = Rect.fromCenter(
       center: Offset.zero,
@@ -395,9 +395,9 @@ class _ScenePainter extends CustomPainter {
     );
     canvas.drawPath(
       Path()
-        ..moveTo(rect.right - box.width * 0.42, rect.bottom - 2)
-        ..lineTo(rect.right - box.width * 0.08, rect.bottom + box.height * 0.45)
-        ..lineTo(rect.right - box.width * 0.20, rect.bottom - 2)
+        ..moveTo(rect.left + box.width * 0.20, rect.bottom - 2)
+        ..lineTo(rect.left + box.width * 0.06, rect.bottom + box.height * 0.45)
+        ..lineTo(rect.left + box.width * 0.40, rect.bottom - 2)
         ..close(),
       fill,
     );

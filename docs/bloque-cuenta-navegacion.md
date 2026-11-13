@@ -387,3 +387,25 @@ a la persona.
   seguidas mostraron el personaje despierto, dormido con «zz», «¡Ojo!» con
   el personaje sorprendido y el símbolo a mitad de parpadeo. El emulador se
   cerró una vez sin motivo aparente y volvió a arrancar en 211 s.
+
+### Bienvenida alineada y parpadeo más lento · 2026-11-13 (Claude)
+
+El usuario pidió ordenar las figuras, porque el símbolo arriba y el
+personaje abajo dejaban mucho espacio sin uso, y que el ojo parpadeara más
+despacio.
+
+- El símbolo (izquierda, 0,29) y el personaje coral (derecha, 0,73)
+  comparten la línea central del área. Tienen tamaños parecidos: el
+  símbolo mide 0,42 de la unidad y el personaje tiene 0,36 de diámetro. La
+  unidad aprovecha más alto (`min(ancho, alto × 1,1)`). Las ondas viajan en
+  horizontal. «¡Ojo!» sale encima del símbolo, hacia el personaje, y el
+  símbolo se inclina hacia la derecha.
+- El parpadeo pasa de ~0,25 s a ~0,5 s (7 % del bucle de 7 s).
+- Validación propia: análisis sin diagnósticos, 951/951 pruebas y registro
+  OK. Se regeneraron los 4 PNG `bienvenida__*`.
+- APK: `D:/dev/vigia-entrega/vigia-normal-bienvenida-alineada-pruebas.apk`,
+  100 211 239 bytes. SHA-256
+  `161c7c65e0c19d8bf14749648b080ace1795afd75ab25e0649e43ab2ed916a19`.
+  El binario instalado en `vigia_pixel` coincide. En seis capturas tomadas
+  cada 0,9 s se vieron la alineación, el adormecimiento, «¡Ojo!» y el
+  símbolo a mitad de parpadeo en tres de ellas.
