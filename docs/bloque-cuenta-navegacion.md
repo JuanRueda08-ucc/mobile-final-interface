@@ -279,3 +279,33 @@ un hot restart. El APK normal Release con firma Android Debug está en
 `D:/dev/vigia-entrega/vigia-normal-etiquetas-cursor-pruebas.apk`.
 SHA-256 `b80c46ded51a2624a8fbd88c0236612593016076ae84677dde51b1edfa69eea4`.
 Se verificó el mismo binario instalado y abierto en `vigia_pixel`.
+
+### Bienvenida P01 y animaciones del acceso · 2026-11-13 (Claude)
+
+Pedido del usuario: una pantalla previa al acceso que presente Vigía, para
+qué sirve y las opciones de iniciar sesión y registrarse, con animaciones.
+
+- `AccountWelcome` (`lib/features/account/presentation/account_welcome.dart`)
+  cumple P01 sin cámara ni captura. Contiene el símbolo sobre un halo
+  pastel, «Vigía», la finalidad y tres filas: medición ocular con aviso,
+  procesamiento en el teléfono sin imágenes ni video, y solo resúmenes en la
+  cuenta. Las acciones fijas son «Crear cuenta» e «Iniciar sesión». Una
+  línea breve indica «Versión de prueba. No es una ayuda validada para
+  conducir», porque P01 exige mostrar las condiciones.
+- Animación de entrada única de 1,6 s. Primero aparecen el halo y la marca
+  con escala y brillo. Después el símbolo parpadea una vez y el texto, las
+  filas y las acciones aparecen de forma escalonada. Con movimiento reducido
+  todo se muestra en su estado final. No hay animaciones infinitas.
+- `FirebaseAccountScreen` muestra la bienvenida mientras no hay sesión y
+  vuelve a ella al cerrar sesión. Usa un fundido con desplazamiento entre
+  la bienvenida, los formularios y la verificación. Los formularios tienen
+  «Volver», y el botón Atrás de Android regresa a la bienvenida. Contrato
+  de Firebase sin cambios.
+- Pruebas en `firebase_access_test.dart`: bienvenida, ida y vuelta al
+  registro, y movimiento reducido sin animaciones activas. Hay 4 PNG nuevos
+  `bienvenida__*` y 8 regenerados `acceso__*` y `registro__*`, porque el
+  encabezado ahora incluye «Volver».
+- Validación propia: `flutter analyze --no-pub` sin diagnósticos,
+  `flutter test` completo 951/951 y registro de especificaciones OK. No se
+  compiló APK ni se probó en el emulador. La animación en Android y el
+  recorrido con TalkBack quedan pendientes.

@@ -102,6 +102,17 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // P01: la bienvenida precede al acceso.
+      expect(find.text('Vigía'), findsWidgets);
+      expect(button('Crear cuenta').hitTestable(), findsOneWidget);
+      expect(button('Iniciar sesión').hitTestable(), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('firebase/bienvenida__${configName(config)}.png'),
+      );
+      await tester.tap(button('Iniciar sesión'));
+      await tester.pumpAndSettle();
       final submit = button('Iniciar sesión');
       final password = find.byType(TextField).last;
       final register = find.widgetWithText(TextButton, 'Crear cuenta');
@@ -151,6 +162,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(button('Iniciar sesión'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, testEmail);
     await tester.tap(find.widgetWithText(TextButton, 'Crear cuenta'));
     await tester.pumpAndSettle();
@@ -189,6 +202,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(button('Iniciar sesión'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, testEmail);
     await tester.tap(find.widgetWithText(TextButton, 'Olvidé mi contraseña'));
     await tester.pumpAndSettle();
@@ -200,5 +215,43 @@ void main() {
       find.text('Si el correo tiene una cuenta, recibirás un enlace.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('bienvenida lleva al registro y vuelve con Atrás', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [firebaseAuthProvider.overrideWithValue(_SignedOutAuth())],
+        child: accountApp(const FirebaseAccountScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(button('Crear cuenta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Crea tu cuenta'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
+    await tester.tap(find.bySemanticsLabel('Volver'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+    expect(button('Crear cuenta').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('bienvenida sin animación con movimiento reducido', (
+    tester,
+  ) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [firebaseAuthProvider.overrideWithValue(_SignedOutAuth())],
+        child: accountApp(const FirebaseAccountScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(tester.hasRunningAnimations, isFalse);
+    expect(button('Crear cuenta').hitTestable(), findsOneWidget);
   });
 }

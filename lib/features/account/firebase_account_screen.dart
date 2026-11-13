@@ -8,6 +8,7 @@ import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import 'firebase_account.dart';
 import 'presentation/account_form.dart';
+import 'presentation/account_welcome.dart';
 
 class FirebaseAccountScreen extends ConsumerStatefulWidget {
   const FirebaseAccountScreen({super.key});
@@ -24,6 +25,8 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   final _password = TextEditingController();
   final _feedbackKey = GlobalKey();
   _FormMode _mode = _FormMode.signIn;
+  // P01: sin sesión, la bienvenida precede a los formularios de acceso.
+  bool _welcome = true;
   bool _busy = false;
   String? _feedback;
   String? _emailError;
@@ -129,6 +132,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     final feedback = await signOutOfVigia(ref, auth);
     if (feedback == null && mounted) {
       _mode = _FormMode.signIn;
+      _welcome = true;
       _email.clear();
       _password.clear();
     }
@@ -149,12 +153,46 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     FocusScope.of(context).unfocus();
     setState(() {
       _mode = mode;
+      _welcome = false;
       _password.clear();
       _feedback = null;
       _emailError = null;
       _passwordError = null;
     });
   }
+
+  void _backToWelcome() {
+    if (_busy) return;
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _welcome = true;
+      _password.clear();
+      _feedback = null;
+      _emailError = null;
+      _passwordError = null;
+    });
+  }
+
+  /// Transición entre la bienvenida y los formularios: fundido con un leve
+  /// desplazamiento. Sin animación con movimiento reducido.
+  Widget _switch(Widget child) => AnimatedSwitcher(
+    duration: MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 320),
+    switchInCurve: VigiaMotion.press,
+    switchOutCurve: Curves.easeIn,
+    transitionBuilder: (child, animation) => FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 0.03),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+    ),
+    child: child,
+  );
 
   Widget _modeLink(String label, _FormMode mode) {
     final p = VigiaColors.of(context);
@@ -204,39 +242,52 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       );
     }
     if (user != null) {
-      return AccountForm(
-        title: 'Verifica tu correo',
-        description: 'Abre el enlace de verificación en tu correo. Después, vuelve a Vigía.',
-        detail: user.email,
-        isBusy: _busy,
-        action: _button(
-          'Ya verifiqué mi correo',
-          () => _run(() async {
-            await user.reload();
-            final current = auth.currentUser;
-            if (current?.emailVerified == true) {
-              await current!.getIdToken(true);
-              return null;
-            }
-            return 'La verificación sigue pendiente.';
-          }),
-        ),
-        children: [
-          ?message,
-          _button(
-            'Reenviar correo',
+      return _switch(
+        AccountForm(
+          key: const ValueKey('verify'),
+          title: 'Verifica tu correo',
+          description: 'Abre el enlace de verificación en tu correo. Después, vuelve a Vigía.',
+          detail: user.email,
+          isBusy: _busy,
+          action: _button(
+            'Ya verifiqué mi correo',
             () => _run(() async {
-              await user.sendEmailVerification();
-              return 'Enviamos un nuevo enlace.';
+              await user.reload();
+              final current = auth.currentUser;
+              if (current?.emailVerified == true) {
+                await current!.getIdToken(true);
+                return null;
+              }
+              return 'La verificación sigue pendiente.';
             }),
-            secondary: true,
           ),
-          _button(
-            'Usar otro correo',
-            () => _run(() => _signOut(auth)),
-            secondary: true,
-          ),
-        ],
+          children: [
+            ?message,
+            _button(
+              'Reenviar correo',
+              () => _run(() async {
+                await user.sendEmailVerification();
+                return 'Enviamos un nuevo enlace.';
+              }),
+              secondary: true,
+            ),
+            _button(
+              'Usar otro correo',
+              () => _run(() => _signOut(auth)),
+              secondary: true,
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_welcome) {
+      return _switch(
+        AccountWelcome(
+          key: const ValueKey('welcome'),
+          onRegister: () => _changeMode(_FormMode.register),
+          onSignIn: () => _changeMode(_FormMode.signIn),
+        ),
       );
     }
 
@@ -261,80 +312,92 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       ),
     };
     final fieldSurface = VigiaColors.of(context).surface;
-    return AccountForm(
-      title: title,
-      description: description,
-      accessCover: true,
-      isBusy: _busy,
-      action: _button(_busy ? busyLabel : label, () => _submitForm(auth)),
-      afterAction: Wrap(
-        alignment: WrapAlignment.spaceBetween,
-        spacing: 16,
-        children: _mode == _FormMode.signIn
-            ? [
-                _modeLink('Crear cuenta', _FormMode.register),
-                _modeLink('Olvidé mi contraseña', _FormMode.reset),
-              ]
-            : [_modeLink('Volver al acceso', _FormMode.signIn)],
-      ),
-      children: [
-        AutofillGroup(
-          child: Column(
-            spacing: 12,
-            children: [
-              TextField(
-                controller: _email,
-                enabled: !_busy,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: _mode == _FormMode.reset
-                    ? TextInputAction.done
-                    : TextInputAction.next,
-                autocorrect: false,
-                autofillHints: const [AutofillHints.email],
-                decoration: accountFieldDecoration(
-                  context,
-                  label: 'Correo',
-                  error: _emailError,
-                  fillColor: fieldSurface,
-                ),
-                onChanged: (_) {
-                  if (_emailError != null) setState(() => _emailError = null);
-                },
-                onSubmitted: _mode == _FormMode.reset
-                    ? (_) => _submitForm(auth)
-                    : null,
-              ),
-              if (_mode != _FormMode.reset)
-                TextField(
-                  controller: _password,
-                  enabled: !_busy,
-                  obscureText: true,
-                  textInputAction: TextInputAction.done,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  autofillHints: [
-                    _mode == _FormMode.register
-                        ? AutofillHints.newPassword
-                        : AutofillHints.password,
-                  ],
-                  decoration: accountFieldDecoration(
-                    context,
-                    label: 'Contraseña',
-                    error: _passwordError,
-                    fillColor: fieldSurface,
-                  ),
-                  onChanged: (_) {
-                    if (_passwordError != null) {
-                      setState(() => _passwordError = null);
-                    }
-                  },
-                  onSubmitted: (_) => _submitForm(auth),
-                ),
-            ],
+    return _switch(
+      PopScope(
+        key: const ValueKey('form'),
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _backToWelcome();
+        },
+        child: AccountForm(
+          title: title,
+          onBack: _busy ? null : _backToWelcome,
+          description: description,
+          accessCover: true,
+          isBusy: _busy,
+          action: _button(_busy ? busyLabel : label, () => _submitForm(auth)),
+          afterAction: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 16,
+            children: _mode == _FormMode.signIn
+                ? [
+                    _modeLink('Crear cuenta', _FormMode.register),
+                    _modeLink('Olvidé mi contraseña', _FormMode.reset),
+                  ]
+                : [_modeLink('Volver al acceso', _FormMode.signIn)],
           ),
+          children: [
+            AutofillGroup(
+              child: Column(
+                spacing: 12,
+                children: [
+                  TextField(
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: _mode == _FormMode.reset
+                        ? TextInputAction.done
+                        : TextInputAction.next,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
+                    decoration: accountFieldDecoration(
+                      context,
+                      label: 'Correo',
+                      error: _emailError,
+                      fillColor: fieldSurface,
+                    ),
+                    onChanged: (_) {
+                      if (_emailError != null) {
+                        setState(() => _emailError = null);
+                      }
+                    },
+                    onSubmitted: _mode == _FormMode.reset
+                        ? (_) => _submitForm(auth)
+                        : null,
+                  ),
+                  if (_mode != _FormMode.reset)
+                    TextField(
+                      controller: _password,
+                      enabled: !_busy,
+                      obscureText: true,
+                      textInputAction: TextInputAction.done,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      autofillHints: [
+                        _mode == _FormMode.register
+                            ? AutofillHints.newPassword
+                            : AutofillHints.password,
+                      ],
+                      decoration: accountFieldDecoration(
+                        context,
+                        label: 'Contraseña',
+                        error: _passwordError,
+                        fillColor: fieldSurface,
+                      ),
+                      onChanged: (_) {
+                        if (_passwordError != null) {
+                          setState(() => _passwordError = null);
+                        }
+                      },
+                      onSubmitted: (_) => _submitForm(auth),
+                    ),
+                ],
+              ),
+            ),
+            ?message,
+          ],
         ),
-        ?message,
-      ],
+      ),
     );
   }
 }
