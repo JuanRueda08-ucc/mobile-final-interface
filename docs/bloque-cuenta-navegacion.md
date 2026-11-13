@@ -315,7 +315,7 @@ qué sirve y las opciones de iniciar sesión y registrarse, con animaciones.
   `47d0393bd6bc85f1692cd409c019aa91dfea28ffde545ad72194826321f94708`.
   Incluye `libdartjni.so`, `libmediapipe_tasks_jni.so` y `libsqlite3.so` en
   las tres ABI y `vigia-e1680` en el binario x86_64. Para compilar se
-  usaron `TMP` y `TEMP` en `D:\dev	mp\jtmp`, porque C: tenía 1,4 GB libres.
+  usaron `TMP` y `TEMP` en `D:\dev\tmp\jtmp`, porque C: tenía 1,4 GB libres.
 - En `vigia_pixel`, el `base.apk` instalado coincide por SHA-256. Al abrir
   la app sin sesión apareció la bienvenida. Una captura tomada durante la
   entrada mostró el contenido a medio aparecer, y la captura final mostró
