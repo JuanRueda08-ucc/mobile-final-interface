@@ -307,5 +307,18 @@ qué sirve y las opciones de iniciar sesión y registrarse, con animaciones.
   encabezado ahora incluye «Volver».
 - Validación propia: `flutter analyze --no-pub` sin diagnósticos,
   `flutter test` completo 951/951 y registro de especificaciones OK. No se
-  compiló APK ni se probó en el emulador. La animación en Android y el
-  recorrido con TalkBack quedan pendientes.
+  compiló APK en ese momento. TalkBack queda pendiente.
+- APK normal en modo Release con firma Android Debug, código `1a268a6` y
+  configuración de `vigia-e1680`:
+  `D:/dev/vigia-entrega/vigia-normal-bienvenida-pruebas.apk`, 100 096 551
+  bytes. SHA-256
+  `47d0393bd6bc85f1692cd409c019aa91dfea28ffde545ad72194826321f94708`.
+  Incluye `libdartjni.so`, `libmediapipe_tasks_jni.so` y `libsqlite3.so` en
+  las tres ABI y `vigia-e1680` en el binario x86_64. Para compilar se
+  usaron `TMP` y `TEMP` en `D:\dev	mp\jtmp`, porque C: tenía 1,4 GB libres.
+- En `vigia_pixel`, el `base.apk` instalado coincide por SHA-256. Al abrir
+  la app sin sesión apareció la bienvenida. Una captura tomada durante la
+  entrada mostró el contenido a medio aparecer, y la captura final mostró
+  la pantalla completa. Con la resolución del emulador, la línea «Versión
+  de prueba» queda junto a las acciones fijas y se lee completa al
+  desplazar.
