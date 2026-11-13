@@ -242,10 +242,9 @@ Commit `eae986d` «Prepara la prueba guiada de Firebase con webcam».
 La barra normal muestra solo iconos sobre el fondo de Inicio, Historial,
 Ajustes y Cuenta. El destino activo se distingue con un recuadro teñido
 y los controles ofrecen un área táctil de 48 dp. El cursor revela el
-nombre al lado del icono. El toque abre el destino y mantiene el nombre
-visible hasta 1,4 s o hasta el inicio de otro gesto. En el menú compacto
-se aplica el fondo del tema y se continúa el aura de Inicio cuando
-corresponde.
+nombre al lado del icono. El toque abre el destino directamente. En el
+menú compacto se aplica el fondo del tema y se continúa el aura de
+Inicio cuando corresponde.
 
 APK normal en modo Release con firma Android Debug:
 `D:/dev/vigia-entrega/vigia-normal-barra-lateral-pruebas.apk`.
@@ -253,11 +252,9 @@ SHA-256 `9898bd848ec38bd265e8dd8e338f7047072a9e75b7a99cedcb12314c2054d5ac`.
 Se verificó el mismo binario instalado y en primer plano en `vigia_pixel`.
 La compilación Debug completó un hot restart y un hot reload.
 
-Validación propia: 950/950 pruebas Flutter, análisis sin diagnósticos y
-registro 500/500. Se actualizaron 34 renderizados y se añadió una muestra
-con la etiqueta visible. Las pruebas cubren cursor, toque con cierre del
-menú compacto, caducidad, toque repetido y contraste de Inicio en claro
-y oscuro.
+Validación propia de la primera entrega: 950/950 pruebas Flutter, análisis
+sin diagnósticos y registro 500/500. Se actualizaron 34 renderizados y se
+añadió una muestra con la etiqueta visible.
 
 ### Limpieza de Ajustes · 2026-11-11
 
@@ -273,3 +270,12 @@ con firma Android Debug está en
 SHA-256 `62adee2afdd0406df5a0836f98360a7997b5cbef8d872bcc77c05c1b586ce5f1`.
 Se verificó el binario instalado y se abrió Ajustes en `vigia_pixel`.
 La compilación Debug completó un hot restart.
+
+### Etiquetas de navegación al pasar el cursor · 2026-11-11
+
+Validación propia: 90/90 pruebas dirigidas de Cuenta, navegación e Inicio,
+análisis sin diagnósticos y registro 500/500. La compilación Debug completó
+un hot restart. El APK normal Release con firma Android Debug está en
+`D:/dev/vigia-entrega/vigia-normal-etiquetas-cursor-pruebas.apk`.
+SHA-256 `b80c46ded51a2624a8fbd88c0236612593016076ae84677dde51b1edfa69eea4`.
+Se verificó el mismo binario instalado y abierto en `vigia_pixel`.

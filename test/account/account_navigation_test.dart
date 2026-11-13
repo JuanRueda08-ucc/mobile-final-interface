@@ -63,7 +63,6 @@ void main() {
     expect(tester.getSize(item).height, greaterThanOrEqualTo(48));
     await tester.tap(item);
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 1500));
   }
 
   Future<_Auth> mount(
@@ -121,34 +120,14 @@ void main() {
     expect(label, findsNothing);
   });
 
-  testWidgets('tocar muestra el destino al cerrar el menú y navegar', (
-    tester,
-  ) async {
+  testWidgets('tocar abre el destino sin mostrar una etiqueta', (tester) async {
     await mount(tester, (width: 320.0, scale: 2.0, dark: true));
     await openRail(tester);
     await tester.tap(find.byTooltip('Cuenta'));
     await tester.pumpAndSettle();
     expect(rail, findsNothing);
     expect(find.text(testEmail), findsOneWidget);
-    expect(find.text('Cuenta'), findsNWidgets(2));
-    await tester.pump(const Duration(milliseconds: 1500));
     expect(find.text('Cuenta'), findsOneWidget);
-  });
-
-  testWidgets('un segundo toque renueva la etiqueta que va a caducar', (
-    tester,
-  ) async {
-    await mount(tester, (width: 360.0, scale: 1.0, dark: false));
-    final home = find.byTooltip('Inicio');
-    await tester.tap(home);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1350));
-    await tester.tap(home);
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Inicio'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await tester.pump(const Duration(milliseconds: 1500));
-    expect(find.text('Inicio'), findsNothing);
   });
 
   for (final dark in [false, true]) {
