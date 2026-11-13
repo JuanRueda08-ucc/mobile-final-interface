@@ -201,9 +201,12 @@ class _ScenePainter extends CustomPainter {
         ..color = color.withValues(alpha: 0.30 + 0.30 * glow)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.28),
     );
-    canvas.drawCircle(
-      c,
-      radius,
+    canvas.drawCircle(c, radius, _skin(c, radius, color));
+  }
+
+  /// Relleno con volumen de las esferas; los párpados lo reutilizan para
+  /// confundirse con la piel.
+  Paint _skin(Offset c, double radius, Color color) =>
       Paint()
         ..shader = RadialGradient(
           center: const Alignment(-0.38, -0.5),
@@ -215,9 +218,7 @@ class _ScenePainter extends CustomPainter {
             Color.lerp(color, const Color(0xFFB0004A), 0.22)!,
           ],
           stops: const [0, 0.35, 0.72, 1],
-        ).createShader(Rect.fromCircle(center: c, radius: radius)),
-    );
-  }
+        ).createShader(Rect.fromCircle(center: c, radius: radius));
 
   Paint _stroke(double width, [Color color = _ink]) => Paint()
     ..color = color
@@ -415,7 +416,7 @@ class _ScenePainter extends CustomPainter {
     for (var i = 0; i < 2; i++) {
       final (at, e) = eyes[i];
       final side = i == 0 ? -1.0 : 1.0;
-      _eye(canvas, at, e, gaze, lid);
+      _eye(canvas, at, e, gaze, lid, _skin(Offset.zero, r, VigiaBrand.coral));
       // Cejas: caen con el sueño y saltan con la sorpresa.
       final browAt =
           at + Offset(0, -e * 1.45 - r * 0.22 * surprise + r * 0.06 * drowse);
@@ -471,7 +472,14 @@ class _ScenePainter extends CustomPainter {
     }
   }
 
-  void _eye(Canvas canvas, Offset at, double e, Offset gaze, double lid) {
+  void _eye(
+    Canvas canvas,
+    Offset at,
+    double e,
+    Offset gaze,
+    double lid,
+    Paint skin,
+  ) {
     if (lid > 0.93) {
       canvas.drawArc(
         Rect.fromCenter(center: at, width: e * 1.9, height: e * 1.2),
@@ -501,21 +509,27 @@ class _ScenePainter extends CustomPainter {
       Paint()..color = Colors.white,
     );
     if (lid > 0.02) {
-      // Párpado del color del cuerpo que baja, con su borde en tinta.
+      // Párpado del color del cuerpo que baja. Su borde se curva hacia
+      // abajo, como un párpado real, para que a medio cerrar no parezca
+      // una mirada de reojo.
       final edge = at.dy - e + 2 * e * lid;
+      final sag = e * 0.55 * math.sin(math.pi * lid.clamp(0.0, 1.0));
+      final lidPath = Path()
+        ..moveTo(rect.left - 2, rect.top - 2)
+        ..lineTo(rect.left - 2, edge)
+        ..quadraticBezierTo(at.dx, edge + sag, rect.right + 2, edge)
+        ..lineTo(rect.right + 2, rect.top - 2)
+        ..close();
       canvas.save();
-      canvas.clipPath(Path()..addOval(rect));
-      canvas.drawRect(
-        Rect.fromLTRB(rect.left, rect.top, rect.right, edge),
-        Paint()..color = Color.lerp(VigiaBrand.coral, Colors.white, 0.18)!,
-      );
-      canvas.restore();
-      final half = math.sqrt(math.max(0, e * e - math.pow(edge - at.dy, 2)));
-      canvas.drawLine(
-        Offset(at.dx - half, edge),
-        Offset(at.dx + half, edge),
+      canvas.clipPath(Path()..addOval(rect.inflate(1.5)));
+      canvas.drawPath(lidPath, skin);
+      canvas.drawPath(
+        Path()
+          ..moveTo(rect.left, edge)
+          ..quadraticBezierTo(at.dx, edge + sag, rect.right, edge),
         _stroke(e * 0.22),
       );
+      canvas.restore();
     }
   }
 

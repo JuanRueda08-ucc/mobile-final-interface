@@ -447,3 +447,26 @@ ilustración profesional.
   «¡Ojo!» y el símbolo a mitad de parpadeo. Un fotograma a mitad del
   parpadeo del personaje se lee como mirada de reojo, por el borde recto
   del párpado. Se puede pulir si el usuario lo nota.
+
+### Parpadeo del personaje pulido · 2026-11-13 (Claude)
+
+- El borde del párpado del personaje se curva hacia abajo, con una caída
+  máxima a medio cierre. Antes era una línea recta y a medio parpadear
+  parecía una mirada de reojo. El párpado usa el mismo degradado del
+  cuerpo (`_skin`) y cubre un píxel más allá del ojo, así que no se ven
+  aros ni bordes blancos. Se revisaron fotogramas a mitad de parpadeo y de
+  adormecimiento con capturas temporales, que se borraron después. Las 4
+  capturas `bienvenida__*` no cambian, porque el instante fijo no tiene
+  párpados.
+- Validación propia: análisis sin diagnósticos, 951/951 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-bienvenida-parpado-pruebas.apk`,
+  100 293 159 bytes. SHA-256
+  `e2a9905144ad47ad484fe4748bc8b3216b054e54ed30f371a1f32c3ac3e1a228`.
+  El binario instalado en `vigia_pixel` (`emulator-5554`) coincide.
+  Android mostró «System UI isn't responding» y «Digital Wellbeing isn't
+  responding» al arrancar en frío. Se pulsó «Wait». Seis capturas
+  mostraron la secuencia y el parpadeo con párpados curvos.
+- Incidencia: el mismo APK también se instaló por error en un emulador
+  Wear OS (`sdk_gwear_x86_64`, `emulator-5556`) que estaba abierto como
+  único dispositivo. Sigue instalado hasta que el usuario decida.
