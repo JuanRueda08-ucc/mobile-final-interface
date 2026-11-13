@@ -409,3 +409,41 @@ despacio.
   El binario instalado en `vigia_pixel` coincide. En seis capturas tomadas
   cada 0,9 s se vieron la alineación, el adormecimiento, «¡Ojo!» y el
   símbolo a mitad de parpadeo en tres de ellas.
+
+### Personaje y símbolo con más vida · 2026-11-13 (Claude)
+
+El usuario veía apagados al personaje y al símbolo. Pidió acercarlos a los
+personajes de la referencia: ojos expresivos, trazo grueso, volumen y
+actitud. Aceptó que el dibujo en código no alcanza el acabado de una
+ilustración profesional.
+
+- Ahora todo se dibuja con `CustomPainter` en `welcome_eyes.dart`, sin
+  imagen. Las dos figuras comparten la esfera con volumen: brillo arriba a
+  la izquierda, borde más intenso, halo y sombra en el suelo.
+- Símbolo: ojo almendrado con la forma de la marca sobre una esfera
+  lavanda. El párpado superior baja al parpadear. La pupila pasea y mira
+  al personaje mientras vigila. Los rayos y el párpado inferior con dos
+  cortes son de trazo grueso. Al avisar, los rayos se alargan, se vuelven
+  coral y el halo crece. El símbolo se inclina hacia el personaje.
+- Personaje coral: ojos grandes y algo asimétricos con brillo, cejas
+  gruesas, rulo de trazo suelto que se balancea, mejillas sonrojadas y
+  respiración con estiramiento y aplastamiento. Con el sueño, los
+  párpados del color del cuerpo bajan, las cejas caen, se inclina y salen
+  «zz». Al oír «¡Ojo!», salta estirándose, levanta las cejas, abre la boca
+  con lengua y salen marcas de sorpresa. Después termina con una sonrisa
+  abierta.
+- En el tema oscuro, los trazos fuera de las figuras usan el color claro
+  de la marca, y el rulo lleva un contorno claro.
+- Se revisaron 8 fases del bucle en claro y oscuro con capturas
+  temporales, que se borraron después. Se regeneraron los 4 PNG
+  `bienvenida__*`.
+- Validación propia: análisis sin diagnósticos, 951/951 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-bienvenida-personajes-pruebas.apk`,
+  100 293 159 bytes. SHA-256
+  `7372ad2a22ba2d2f8fb4e690df730de32b2517072270279083037b2a93cac3be`.
+  El binario instalado en `vigia_pixel` coincide. Seis capturas mostraron
+  la sonrisa, el sueño con «zz» y los rayos encendidos, el salto con
+  «¡Ojo!» y el símbolo a mitad de parpadeo. Un fotograma a mitad del
+  parpadeo del personaje se lee como mirada de reojo, por el borde recto
+  del párpado. Se puede pulir si el usuario lo nota.
