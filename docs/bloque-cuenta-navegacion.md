@@ -469,4 +469,5 @@ ilustración profesional.
   mostraron la secuencia y el parpadeo con párpados curvos.
 - Incidencia: el mismo APK también se instaló por error en un emulador
   Wear OS (`sdk_gwear_x86_64`, `emulator-5556`) que estaba abierto como
-  único dispositivo. Sigue instalado hasta que el usuario decida.
+  único dispositivo. El 2026-11-14 se desinstaló a petición del usuario.
+  `pm list packages` ya no lo muestra.
