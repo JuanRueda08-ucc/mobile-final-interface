@@ -145,6 +145,15 @@ class FakeExperimentalBridge implements ExperimentalMonitoringBridge {
 
   Future<void> release() async => hold?.complete();
 
+  /// Simula que el motor sigue observando: la última observación vuelve a
+  /// ser reciente sin cambiar el estado (el motor real emite sin parar; la
+  /// entrada animada de las pantallas alarga las esperas de las pruebas).
+  void keepFresh() {
+    current.observationId = null;
+    _stamp(current);
+    _age = clock.stopwatch()..start();
+  }
+
   Future<MonitoringCommandResult> _cmd(String name) async {
     calls.add(name);
     final h = hold;

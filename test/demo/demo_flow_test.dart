@@ -528,6 +528,8 @@ void main() {
         await tester.pump(demoConfirm);
         await tester.pump(const Duration(seconds: 1));
         expect(find.byType(SummaryScreen), findsOneWidget);
+        // La entrada escalonada de la pantalla dura menos de 1 s y termina.
+        await tester.pump(const Duration(seconds: 1));
         expect(tester.hasRunningAnimations, isFalse);
       },
     );

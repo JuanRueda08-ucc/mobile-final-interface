@@ -4,7 +4,7 @@ El usuario instaló el APK publicado en `9ae65af`, con firma Debug y
 `vigia-e1680`, en un teléfono Android físico y lo probó en persona. Los
 hallazgos son observaciones suyas. El dispositivo y la versión de Android
 aún no están registrados. El usuario adjuntará un GIF de referencia para
-el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); faltan el rediseño de P06 con el GIF y las animaciones.
+el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); se añadieron animaciones base. Falta el rediseño de P06 con el GIF.
 
 ## 1. Pantalla de monitoreo (P06)
 
@@ -72,6 +72,34 @@ el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); 
 - El usuario ve la aplicación «muy plana» fuera de la bienvenida. Pide
   animaciones en todo el recorrido, como cambios de estado, tarjetas,
   aviso y transiciones, respetando siempre el movimiento reducido.
+
+### Animaciones aplicadas (2026-11-15, Claude)
+
+- `lib/core/design_system/widgets/motion.dart` contiene `EntranceItem`,
+  `PulseOnce` y `PopSwitcher`. Son finitas y se anulan con movimiento
+  reducido.
+- Entrada de pantallas: `VigiaScaffold` envuelve cada bloque en
+  `EntranceItem`, con fundido y 14 px de subida. El escalonado es de 25 ms
+  por bloque, hasta 6, más 260 ms de animación; se ejecuta una vez. Al
+  terminar se retiran los envoltorios y una `GlobalKey` conserva el estado
+  del contenido (foco, texto, desplazamiento). Así las capturas no cambian
+  por ruido de subpíxel.
+- `StatusCard`: el color y el borde cambian con `AnimatedContainer`, y el
+  icono entra con escala (`PopSwitcher`). En el aviso de cierre prolongado
+  el icono late 3 veces al aparecer (`PulseOnce`).
+- `CheckRow`: la marca ✓/✗ cambia de color y entra con un rebote de escala.
+- Pruebas: en el motor simulado, `keepFresh()` y una observación nueva tras
+  confirmar el sonido. La entrada alarga las esperas de las pruebas y la
+  validez de una misma observación caducaba, algo que no ocurre con el
+  motor real, que emite sin parar. En `experimental_lifecycle_test.dart` se
+  emite un estado nuevo tras abrir. La prueba del resumen DEMO espera a que
+  termine la entrada antes de comprobar que no hay animaciones.
+- Validación propia: análisis sin diagnósticos, 953/953 pruebas y registro
+  OK. No cambió ninguna captura.
+- APK: `D:/dev/vigia-entrega/vigia-normal-animaciones-pruebas.apk`,
+  100 309 575 bytes. SHA-256
+  `15e81106a4626763ecfac33bb9e5f4d9c99f67d36eaeeda87a8d703c8a466ab8`. No se
+  probó en el teléfono.
 
 ## 3. Barra lateral
 

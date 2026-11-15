@@ -178,7 +178,16 @@ void main() {
       ),
     );
     await open(tester, camera, engine);
+    // El motor sigue observando: un estado nuevo mantiene vigentes los ojos
+    // tras la entrada animada de la pantalla.
+    engine.emit(
+      MonitoringSnapshot.decode(engine.current.encode())
+        ..sequence = engine.current.sequence + 1
+        ..observationId = null,
+    );
+    await tester.pump(const Duration(milliseconds: 150));
     engine.hold = Completer<void>();
+    // ignore: avoid_print
     await tester.tap(find.byKey(const Key('start')));
     await tester.pump();
     await tester.tap(find.bySemanticsLabel('Volver').first);

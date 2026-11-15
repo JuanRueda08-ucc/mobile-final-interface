@@ -6,6 +6,7 @@ import '../vigia_icons.dart';
 import 'vigia_button.dart';
 import 'vigia_scaffold.dart';
 import 'vigia_text.dart';
+import 'motion.dart';
 
 /// Grupo de filas de comprobación (`groupRows` de B5.2): fondo `sfs`, radio
 /// 24 y relleno horizontal 18.
@@ -63,7 +64,10 @@ class CheckRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
-    final mark = Container(
+    final mark = AnimatedContainer(
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : VigiaMotion.colorDuration,
       width: 28,
       height: 28,
       decoration: BoxDecoration(
@@ -74,10 +78,13 @@ class CheckRow extends StatelessWidget {
             : Border.all(color: p.closeInk.withValues(alpha: 0.4)),
       ),
       alignment: Alignment.center,
-      child: VigiaIconView(
-        ok ? VigiaIcon.check : VigiaIcon.close,
-        size: 18,
-        color: ok ? p.bg : p.closeInk,
+      child: PopSwitcher(
+        child: VigiaIconView(
+          ok ? VigiaIcon.check : VigiaIcon.close,
+          key: ValueKey(ok),
+          size: 18,
+          color: ok ? p.bg : p.closeInk,
+        ),
       ),
     );
     return Padding(

@@ -158,7 +158,8 @@ void main() {
       await tester.tap(find.byKey(const Key('open-experimental')));
       await tester.pumpAndSettle();
       camera.emitFace(FaceAnalysisStatus.oneFace);
-      await tester.pump();
+      engine.keepFresh();
+      await tester.pump(const Duration(milliseconds: 150));
       await tester.pump();
     }
 
@@ -262,8 +263,10 @@ void main() {
         isFalse,
         reason: 'sin «Lo escuché»',
       );
+      // Observación nueva, como la del motor real tras la confirmación.
       engine.next = MonitoringSnapshot.decode(ready.encode())
-        ..soundHeard = true;
+        ..soundHeard = true
+        ..observationId = null;
       await tester.tap(find.text('Lo escuché'));
       await tester.pump();
       await tester.pump();
@@ -398,7 +401,6 @@ void main() {
         expect(shown(), 'Sin señales persistentes');
         // Primer cambio: se muestra enseguida.
         await hold(EngineSignal.notEvaluable, 100);
-        // ignore: avoid_print
         expect(shown(), 'No evaluable');
         // Vuelve a cambiar dentro del segundo: la pantalla no titila.
         await hold(EngineSignal.noPersistentSignals, 500);

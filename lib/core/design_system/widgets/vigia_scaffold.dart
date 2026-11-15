@@ -8,6 +8,7 @@ import 'vigia_button.dart';
 import 'vigia_mark.dart';
 import 'vigia_side_nav_item.dart';
 import 'vigia_text.dart';
+import 'motion.dart';
 
 /// Rótulo visible de simulación (RF32): «DEMO — datos simulados».
 class DemoLabel extends StatelessWidget {
@@ -139,7 +140,15 @@ class VigiaScaffold extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: VigiaSpace.gap,
-              children: children,
+              // Entrada escalonada de los bloques al abrir la pantalla.
+              children: [
+                for (final (i, child) in children.indexed)
+                  EntranceItem(
+                    key: child.key == null ? null : ValueKey(child.key),
+                    index: i,
+                    child: child,
+                  ),
+              ],
             ),
           ),
         ),

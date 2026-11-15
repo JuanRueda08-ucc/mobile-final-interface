@@ -5,6 +5,7 @@ import '../tokens.dart';
 import '../vigia_icons.dart';
 import 'vigia_button.dart';
 import 'vigia_text.dart';
+import 'motion.dart';
 
 /// Tonos de tarjeta de estado de B5.2 (`TNX`). Cada tono tiene texto e icono
 /// propios, además del color (RF29.CA1: los avisos no dependen solo del color).
@@ -53,7 +54,11 @@ class StatusCard extends StatelessWidget {
     return Semantics(
       container: true,
       liveRegion: true,
-      child: Container(
+      child: AnimatedContainer(
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : VigiaMotion.colorDuration,
+        curve: VigiaMotion.press,
         padding: EdgeInsets.all(
           isLargeText(context) ? 16 : VigiaSpace.cardPadding,
         ),
@@ -64,7 +69,10 @@ class StatusCard extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, box) {
-            final iconBox = Container(
+            final glyph = PopSwitcher(
+              child: VigiaIconView(icon, key: ValueKey(icon), color: fg),
+            );
+            Widget iconBox = Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
@@ -72,8 +80,12 @@ class StatusCard extends StatelessWidget {
                 color: fg.withValues(alpha: 0.12),
               ),
               alignment: Alignment.center,
-              child: VigiaIconView(icon, color: fg),
+              child: glyph,
             );
+            // El aviso de cierre prolongado late tres veces al aparecer.
+            if (tone == StatusTone.close) {
+              iconBox = PulseOnce(trigger: title, child: iconBox);
+            }
             final texts = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
