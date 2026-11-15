@@ -79,10 +79,15 @@ Con todo el trabajo de Inicio, preparación, P06 y Cuentas sin commit:
 las bases históricas anotados arriba ya no se reproducen) y
 `python tools/spec_registry.py check` OK. No se recompiló ni se instaló APK.
 
-**Estado de Git.** El bloque anterior de Cuentas Firebase, Inicio, preparación
-y P06 está en el commit local `78a0dc0`, con documentación en `431b48f`.
-Faltan `android/key.properties` (clave de distribución) y la revisión
-independiente del bloque.
+**Estado de Git (2026-11-15).** A petición expresa del usuario se publicaron
+en `origin/main` los 32 commits locales: `7e31975..839d0ee`. Incluyen 5D,
+5E, Cuentas Firebase, Inicio, preparación, P06, Cuenta, navegación, acceso
+y la bienvenida animada. Se publicaron **sin revisión independiente**: las
+validaciones registradas son propias de Claude y de Codex. Antes del push se
+comprobó que no había archivos de claves ni configuración privada de
+Firebase. Para GitHub Releases faltan `android/key.properties` (clave de
+distribución), la prueba directa de las reglas de Firestore y la revisión
+independiente.
 
 **Bloque autorizado el 2026-11-11 (lo implementa Codex):** apartado de
 Cuenta, barra lateral de iconos, rediseño del acceso, rótulo «experimental»
