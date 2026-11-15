@@ -96,6 +96,10 @@ void main() {
 
   testWidgets('la barra revela el destino al pasar el cursor', (tester) async {
     await mount(tester, (width: 360.0, scale: 1.0, dark: false));
+    // La barra está cerrada: solo se ve el botón de menú.
+    expect(rail, findsNothing);
+    expect(menu, findsOneWidget);
+    await openRail(tester);
     final history = find.byTooltip('Historial');
     expect(find.text('Historial'), findsNothing);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -186,7 +190,7 @@ void main() {
         } finally {
           semantics.dispose();
         }
-        if (scale == 2) {
+        {
           await capture('cuenta_panel');
           await tester.tap(find.byTooltip('Cuenta'));
           await tester.pumpAndSettle();

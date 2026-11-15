@@ -156,16 +156,11 @@ class VigiaScaffold extends StatelessWidget {
     final side = sideNavigation && navIndex != null;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact =
-            side && (constraints.maxWidth < 360 || isLargeText(context));
+        // Prueba física (2026-11-15): la barra lateral es desplegable en
+        // todos los tamaños. Cerrada, solo se ve el botón de menú; abierta,
+        // entra deslizando la columna de iconos sobre la pantalla.
+        final compact = side;
         void select(int index) => onNavSelected?.call(index);
-        final rail = side
-            ? _VigiaSideNav(
-                currentIndex: navIndex!,
-                accountDestination: accountDestination,
-                onSelected: select,
-              )
-            : null;
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -241,22 +236,18 @@ class VigiaScaffold extends StatelessWidget {
               ),
           ],
         );
-        final body = SafeArea(
-          child: side && !compact
-              ? Row(
-                  children: [
-                    rail!,
-                    Expanded(child: content),
-                  ],
-                )
-              : content,
-        );
+        final body = SafeArea(child: content);
         return Scaffold(
           backgroundColor: p.bg,
           drawer: compact
               ? Drawer(
                   width: _VigiaSideNav.width,
-                  shape: const RoundedRectangleBorder(),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.horizontal(
+                      right: Radius.circular(28),
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
                   backgroundColor: p.bg,
                   surfaceTintColor: Colors.transparent,
                   semanticLabel: 'Navegación principal',

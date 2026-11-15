@@ -908,6 +908,9 @@ void main() {
     testWidgets('Inicio → Ajustes: sin rótulo DEMO; el tema se aplica y se '
         'guarda en la base real', (tester) async {
       await pumpReal(tester);
+      // La barra lateral es desplegable (prueba física, 2026-11-15).
+      await tester.tap(find.byTooltip('Abrir navegación'));
+      await settle(tester);
       await tester.tap(find.bySemanticsLabel('Ajustes').first);
       await settle(tester);
       expect(find.byType(SettingsScreen), findsOneWidget);

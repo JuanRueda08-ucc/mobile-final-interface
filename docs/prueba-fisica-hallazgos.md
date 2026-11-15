@@ -4,7 +4,7 @@ El usuario instaló el APK publicado en `9ae65af`, con firma Debug y
 `vigia-e1680`, en un teléfono Android físico y lo probó en persona. Los
 hallazgos son observaciones suyas. El dispositivo y la versión de Android
 aún no están registrados. El usuario adjuntará un GIF de referencia para
-el monitoreo. Están aplicados el punto 1 (estabilidad) y el 4 (voz); el resto sigue pendiente.
+el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); faltan el rediseño de P06 con el GIF y las animaciones.
 
 ## 1. Pantalla de monitoreo (P06)
 
@@ -80,6 +80,27 @@ el monitoreo. Están aplicados el punto 1 (estabilidad) y el 4 (voz); el resto s
   deslizando una columna de iconos (solo iconos). Hoy la barra es fija a
   partir de 360 dp sin texto ampliado, y solo usa cajón en pantallas
   estrechas o con texto ampliado (`VigiaScaffold`).
+
+### Barra desplegable aplicada (2026-11-15, Claude)
+
+- `VigiaScaffold` usa el cajón en todos los tamaños (`compact = side`). Se
+  retira la columna fija de 360 dp. Cerrada, solo se ve el botón de menú
+  («Abrir navegación») junto a la marca, y el contenido ocupa todo el
+  ancho. Abierta, la columna de iconos entra deslizando desde la izquierda,
+  con el borde derecho redondeado (28) y la pantalla oscurecida. Al elegir
+  un destino se cierra. Se conservan las áreas de 48 dp, la semántica
+  seleccionada y la etiqueta al pasar el cursor.
+- Pruebas adaptadas: en `account_navigation_test.dart`, la barra cerrada
+  por defecto y la etiqueta con la barra abierta; en
+  `real_preferences_test.dart`, se abre el menú antes de ir a Ajustes. Se
+  regeneraron 37 capturas de Inicio, Historial, Ajustes, Cuenta y
+  navegación a 360 dp. Hay capturas nuevas `cuenta_panel__*_360_100`.
+- Validación propia: análisis sin diagnósticos, 953/953 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-barra-desplegable-pruebas.apk`,
+  100 309 575 bytes. SHA-256
+  `a5ebdeb01f88b0bbcf69b891bfab29030af5bcad634e458f065e5c993b1d2be2`. No
+  se probó en el teléfono.
 
 ## 4. Calibración con voz
 
