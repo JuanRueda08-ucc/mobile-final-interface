@@ -4,7 +4,7 @@ El usuario instaló el APK publicado en `9ae65af`, con firma Debug y
 `vigia-e1680`, en un teléfono Android físico y lo probó en persona. Los
 hallazgos son observaciones suyas. El dispositivo y la versión de Android
 aún no están registrados. El usuario adjuntará un GIF de referencia para
-el monitoreo. El punto 1 (estabilidad) está corregido; el resto sigue pendiente.
+el monitoreo. Están aplicados el punto 1 (estabilidad) y el 4 (voz); el resto sigue pendiente.
 
 ## 1. Pantalla de monitoreo (P06)
 
@@ -92,6 +92,41 @@ el monitoreo. El punto 1 (estabilidad) está corregido; el resto sigue pendiente
   red. Depende de que el teléfono tenga una voz en español; si no la tiene,
   se mantienen el tono y el texto. Se puede activar o desactivar en
   Ajustes › Sonido. El texto en pantalla también debe ganar jerarquía.
+
+### Voz guía aplicada (2026-11-15, Claude)
+
+- Canal nativo `vigia/voice` en `MainActivity.kt` con `TextToSpeech`. Usa
+  la voz `es` del sistema y audio de accesibilidad, sin micrófono ni red.
+  El motor se inicia la primera vez que se pide una frase. Si no hay motor
+  o voz en español, devuelve la causa. El manifiesto declara la consulta
+  `TTS_SERVICE`, que Android 11+ exige.
+- `lib/core/audio/voice_guide.dart` contiene `VoiceGuide`,
+  `AndroidVoiceGuide` y el interruptor `calibrationVoiceEnabledProvider`.
+  El interruptor vive solo durante la ejecución y está activado por
+  defecto. Sin canal nativo, como en las pruebas, no muestra aviso.
+- Narración en P04 › Calibración (`calibrationVoice`): «Mira al frente con
+  los ojos abiertos.», «Cierra los ojos. Mantenlos cerrados hasta oír el
+  pitido.», «Abre los ojos y mira al frente.», «Calibración aceptada.» y
+  «Calibración no aceptada. Puedes intentarlo de nuevo.». Solo se narran
+  los cambios ocurridos con la pantalla abierta. «Aceptada» o «rechazada»
+  solo se dicen tras una calibración vista en curso. La voz se detiene al
+  salir, al ir a segundo plano o al desactivarla.
+- El botón «Voz guía activada/desactivada» va bajo la instrucción. Si
+  Android no puede hablar, aparece «Sin voz: <causa>. Sigue el texto y el
+  tono.». Los títulos de las instrucciones de calibración pasan de 22 a
+  28.
+- Prueba nueva con voz simulada: comprueba las frases en orden, que no se
+  narra al abrir con una calibración aceptada y que el interruptor detiene
+  y silencia. Se regeneraron 6 capturas `F5C_calibracion_*`.
+- Validación propia: análisis sin diagnósticos, 953/953 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-voz-calibracion-pruebas.apk`,
+  100 309 575 bytes. SHA-256
+  `e5c77120df0200ae90cfe1f17e68199a28d69bcf4c2cf2aa26f580993a28ea43`.
+- Sin comprobar: la voz real en el teléfono, la voz en español instalada y
+  el solapamiento con el pitido de la calibración. El interruptor aún no se
+  guarda en Ajustes › Sonido, porque requiere migrar la tabla de
+  preferencias.
 
 ## 5. Otros
 

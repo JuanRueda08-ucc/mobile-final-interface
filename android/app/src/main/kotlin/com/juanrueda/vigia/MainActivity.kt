@@ -1,9 +1,12 @@
 package com.juanrueda.vigia
 
+import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Handler
 import android.os.Looper
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,6 +22,11 @@ import io.flutter.plugin.common.MethodChannel
  * Fase 3: el canal `vigia/app` informa el applicationId real del proceso para
  * que Dart compruebe, antes de abrir el historial, que el recorrido DEMO corre
  * en com.juanrueda.vigia.demo y no en la app normal.
+ *
+ * Prueba física (2026-11-15): el canal `vigia/voice` narra las instrucciones
+ * de la calibración con la síntesis de voz del sistema (TextToSpeech), en
+ * español si el teléfono tiene esa voz. No usa micrófono ni red; si no hay
+ * voz disponible se informa la causa y la app sigue con texto y tono.
  */
 class MainActivity : FlutterActivity() {
     private val handler = Handler(Looper.getMainLooper())
@@ -43,6 +51,80 @@ class MainActivity : FlutterActivity() {
                     ),
                 )
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "vigia/voice")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "speak" -> result.success(speak(call.argument<String>("text") ?: ""))
+                    "stop" -> {
+                        pendingSpeech = null
+                        tts?.stop()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private var tts: TextToSpeech? = null
+
+    /** null: el motor de voz aún se inicia; true/false: listo o sin voz. */
+    private var ttsReady: Boolean? = null
+    private var ttsCause: String? = null
+    private var pendingSpeech: String? = null
+
+    private fun ensureTts() {
+        if (tts != null) return
+        tts = TextToSpeech(this) { status ->
+            handler.post {
+                val engine = tts
+                if (status != TextToSpeech.SUCCESS || engine == null) {
+                    ttsReady = false
+                    ttsCause = "El teléfono no tiene un motor de voz disponible."
+                } else {
+                    val lang = engine.setLanguage(Locale.forLanguageTag("es"))
+                    val ok = lang != TextToSpeech.LANG_MISSING_DATA &&
+                        lang != TextToSpeech.LANG_NOT_SUPPORTED
+                    ttsReady = ok
+                    if (!ok) ttsCause = "No hay una voz en español instalada."
+                    engine.setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build(),
+                    )
+                }
+                val text = pendingSpeech
+                pendingSpeech = null
+                if (ttsReady == true && text != null) speakNow(text)
+            }
+        }
+    }
+
+    private fun speakNow(text: String) {
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "vigia-calibracion")
+    }
+
+    private fun speak(text: String): Map<String, Any?> {
+        if (text.isBlank()) return mapOf("spoken" to false, "cause" to "Texto vacío.")
+        ensureTts()
+        return when (ttsReady) {
+            true -> {
+                speakNow(text)
+                mapOf("spoken" to true)
+            }
+            false -> mapOf("spoken" to false, "cause" to ttsCause)
+            null -> {
+                // Se dirá en cuanto el motor de voz esté listo.
+                pendingSpeech = text
+                mapOf("spoken" to true, "queued" to true)
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        tts?.shutdown()
+        tts = null
+        super.onDestroy()
     }
 
     /**

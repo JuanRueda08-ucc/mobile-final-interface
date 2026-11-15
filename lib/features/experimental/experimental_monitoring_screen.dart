@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
 
 import '../../app/router.dart';
+import '../../core/audio/voice_guide.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/notice_host.dart';
 import '../../core/design_system/widgets/steady_height.dart';
@@ -37,6 +38,19 @@ class ExperimentalMonitoringScreen extends ConsumerStatefulWidget {
   static const leaveBlockedNotice = 'Finaliza la sesión antes de salir.';
 
   /// Texto del motivo técnico por el que los ojos no son medibles.
+  /// Voz guía de la calibración (prueba física, 2026-11-15). Se dice al
+  /// entrar en cada paso; null: el paso no se narra.
+  static String? calibrationVoice(CalibrationStep step) => switch (step) {
+    CalibrationStep.openReference => 'Mira al frente con los ojos abiertos.',
+    CalibrationStep.closeLeadIn =>
+      'Cierra los ojos. Mantenlos cerrados hasta oír el pitido.',
+    CalibrationStep.reopen => 'Abre los ojos y mira al frente.',
+    CalibrationStep.accepted => 'Calibración aceptada.',
+    CalibrationStep.rejected =>
+      'Calibración no aceptada. Puedes intentarlo de nuevo.',
+    _ => null,
+  };
+
   static String eyeIssueText(String? code) => switch (code) {
     'noFace' => 'Rostro no detectado.',
     'ambiguousFace' => 'Varios rostros: no se sabe cuál es el tuyo.',
@@ -110,6 +124,7 @@ class _ExperimentalMonitoringScreenState
 
   late final FrontCameraController _camera;
   late final ExperimentalMonitoringController _exp;
+  late final VoiceGuide _voice;
   late final AppLifecycleListener _lifecycle;
   late final ProviderSubscription<ExperimentalState> _subscription;
   bool _observedSession = false;
@@ -138,6 +153,41 @@ class _ExperimentalMonitoringScreenState
     if (mounted) setState(() {});
   }
 
+  /// Último paso de calibración observado y su sondeo, para narrar solo
+  /// los cambios ocurridos con la pantalla abierta.
+  (CalibrationStep, int?)? _lastCalibration;
+  String? _voiceIssue;
+
+  void _narrate(ExperimentalState s) {
+    final snap = s.snapshot;
+    if (snap == null) return;
+    final now = (snap.calibrationStep, snap.calibrationProbe);
+    final before = _lastCalibration;
+    _lastCalibration = now;
+    if (before == null || before == now) return;
+    // «Aceptada» o «rechazada» solo tras una calibración vista en curso.
+    final finished =
+        now.$1 == CalibrationStep.accepted ||
+        now.$1 == CalibrationStep.rejected;
+    if (finished && !_inProgress(before.$1)) return;
+    final text = ExperimentalMonitoringScreen.calibrationVoice(now.$1);
+    if (text == null || !ref.read(calibrationVoiceEnabledProvider)) return;
+    _voice.speak(text).then((r) {
+      final issue = r.spoken ? null : r.cause;
+      if (mounted && issue != _voiceIssue) {
+        setState(() => _voiceIssue = issue);
+      }
+    });
+  }
+
+  static bool _inProgress(CalibrationStep step) => switch (step) {
+    CalibrationStep.openReference ||
+    CalibrationStep.closeLeadIn ||
+    CalibrationStep.closedProbe ||
+    CalibrationStep.reopen => true,
+    _ => false,
+  };
+
   void _feedHeld(ExperimentalState s) {
     if (s.sessionVigente) return;
     _signalShown.reset();
@@ -149,9 +199,11 @@ class _ExperimentalMonitoringScreenState
     super.initState();
     _camera = ref.read(frontCameraProvider.notifier);
     _exp = ref.read(experimentalMonitoringProvider.notifier);
+    _voice = ref.read(voiceGuideProvider);
     _subscription = ref.listenManual(experimentalMonitoringProvider, (_, s) {
       if (!mounted) return;
       _feedHeld(s);
+      _narrate(s);
       if (!s.available) return;
       if (s.sessionVigente) _observedSession = true;
       if (_observedSession &&
@@ -166,6 +218,7 @@ class _ExperimentalMonitoringScreenState
     // la sesión queda no evaluable hasta volver.
     _lifecycle = AppLifecycleListener(
       onHide: () {
+        _voice.stop();
         _exp.leave();
         _camera.suspend();
       },
@@ -180,6 +233,7 @@ class _ExperimentalMonitoringScreenState
   void dispose() {
     _signalShown.reset();
     _eyesShown.reset();
+    _voice.stop();
     _lifecycle.dispose();
     _subscription.close();
     _exp.leave();
@@ -419,6 +473,7 @@ class _ExperimentalMonitoringScreenState
           const VigiaParagraph('Esperando confirmación del motor…')
         else
           ..._calibrationStatus(s),
+        _voiceToggle(),
         if (!s.calibrating && !s.eyesValid)
           CheckGroup(
             rows: [_eyeRows(s, cam, compact: true, eyesFirst: true).first],
@@ -427,6 +482,32 @@ class _ExperimentalMonitoringScreenState
       ],
       _PreparationStep.sound => _soundPreparation(s, cam),
     };
+  }
+
+  /// Interruptor de la voz guía y, si Android no pudo hablar, la causa.
+  Widget _voiceToggle() {
+    final on = ref.watch(calibrationVoiceEnabledProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        VigiaButton(
+          key: const Key('calibration-voice'),
+          label: on ? 'Voz guía activada' : 'Voz guía desactivada',
+          kind: VigiaButtonKind.secondary,
+          icon: VigiaIcon.speaker,
+          onPressed: () {
+            if (on) _voice.stop();
+            ref.read(calibrationVoiceEnabledProvider.notifier).toggle();
+          },
+        ),
+        if (on && _voiceIssue != null)
+          VigiaParagraph(
+            'Sin voz: $_voiceIssue Sigue el texto y el tono.',
+            secondary: true,
+          ),
+      ],
+    );
   }
 
   List<Widget> _cameraRecovery(FrontCameraState cam) => switch (cam.phase) {
@@ -626,6 +707,7 @@ class _ExperimentalMonitoringScreenState
       CalibrationStep.openReference => [
         StatusCard(
           key: const Key('calibration-step'),
+          titleSize: isLargeText(context) ? 22 : 28,
           tone: StatusTone.pending,
           icon: VigiaIcon.target,
           tag: 'Calibración · referencia',
@@ -638,6 +720,7 @@ class _ExperimentalMonitoringScreenState
       CalibrationStep.closeLeadIn => [
         StatusCard(
           key: const Key('calibration-step'),
+          titleSize: isLargeText(context) ? 22 : 28,
           tone: StatusTone.pending,
           icon: VigiaIcon.eyeClosed,
           tag: 'Calibración · cierre $probe',
@@ -648,6 +731,7 @@ class _ExperimentalMonitoringScreenState
       CalibrationStep.closedProbe => [
         StatusCard(
           key: const Key('calibration-step'),
+          titleSize: isLargeText(context) ? 22 : 28,
           tone: StatusTone.pending,
           icon: VigiaIcon.eyeClosed,
           tag: 'Calibración · cierre $probe',
@@ -658,6 +742,7 @@ class _ExperimentalMonitoringScreenState
       CalibrationStep.reopen => [
         StatusCard(
           key: const Key('calibration-step'),
+          titleSize: isLargeText(context) ? 22 : 28,
           tone: StatusTone.pending,
           icon: VigiaIcon.target,
           tag: 'Calibración · reapertura $probe',

@@ -8,6 +8,7 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/router.dart';
 import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/core/audio/voice_guide.dart';
 import 'package:vigia/core/design_system/widgets/vigia_blocks.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/features/camera/front_camera_controller.dart';
@@ -130,11 +131,14 @@ void main() {
     late FakeFrontCameraBridge camera;
     late FakeExperimentalBridge engine;
 
+    late _FakeVoice voice;
+
     Future<void> open(WidgetTester tester, MonitoringSnapshot initial) async {
       camera = FakeFrontCameraBridge(
         permission: CameraPermissionStatus.granted,
       );
       engine = FakeExperimentalBridge(initial);
+      voice = _FakeVoice();
       tester.view.devicePixelRatio = 2;
       tester.view.physicalSize = const Size(360, 2400) * 2;
       addTearDown(tester.view.reset);
@@ -145,6 +149,7 @@ void main() {
           overrides: [
             frontCameraBridgeProvider.overrideWithValue(camera),
             experimentalBridgeProvider.overrideWithValue(engine),
+            voiceGuideProvider.overrideWithValue(voice),
           ],
         ),
       );
@@ -411,6 +416,53 @@ void main() {
       },
     );
 
+    testWidgets(
+      'prueba física: la voz guía narra cada paso de la calibración',
+      (tester) async {
+        var seq = 10;
+        MonitoringSnapshot cal(CalibrationStep step, {int probe = 0}) =>
+            fakeSnapshot(
+              sequence: seq++,
+              eyesValid: true,
+              eyeIssue: null,
+              step: step,
+              probe: probe,
+            );
+        // Al abrir con una calibración ya aceptada no se narra nada.
+        await open(tester, cal(CalibrationStep.accepted));
+        await emit(tester, cal(CalibrationStep.accepted));
+        expect(voice.texts, isEmpty);
+        for (final (step, probe) in [
+          (CalibrationStep.openReference, 0),
+          (CalibrationStep.closeLeadIn, 1),
+          (CalibrationStep.closedProbe, 1),
+          (CalibrationStep.reopen, 1),
+          (CalibrationStep.accepted, 1),
+        ]) {
+          await emit(tester, cal(step, probe: probe));
+        }
+        expect(voice.texts, [
+          'Mira al frente con los ojos abiertos.',
+          'Cierra los ojos. Mantenlos cerrados hasta oír el pitido.',
+          'Abre los ojos y mira al frente.',
+          'Calibración aceptada.',
+        ]);
+        // Desactivada durante otra calibración: se detiene y no se narra más.
+        await emit(tester, cal(CalibrationStep.openReference));
+        expect(voice.texts, hasLength(5));
+        final toggle = find.byKey(const Key('calibration-voice'));
+        expect(toggle, findsOneWidget);
+        await tester.ensureVisible(toggle);
+        await tester.tap(toggle);
+        await tester.pump();
+        expect(voice.stops, greaterThan(0));
+        expect(find.text('Voz guía desactivada'), findsOneWidget);
+        await emit(tester, cal(CalibrationStep.closeLeadIn, probe: 1));
+        expect(voice.texts, hasLength(5));
+        await close(tester);
+      },
+    );
+
     test('la ruta experimental solo existe en la variante normal', () {
       for (final mode in <AppMode>[const DemoMode(), const RealMode()]) {
         final r = vigiaRedirect(
@@ -423,4 +475,18 @@ void main() {
       }
     });
   });
+}
+
+class _FakeVoice implements VoiceGuide {
+  final texts = <String>[];
+  var stops = 0;
+
+  @override
+  Future<VoiceResult> speak(String text) async {
+    texts.add(text);
+    return const VoiceResult.spoken();
+  }
+
+  @override
+  Future<void> stop() async => stops++;
 }
