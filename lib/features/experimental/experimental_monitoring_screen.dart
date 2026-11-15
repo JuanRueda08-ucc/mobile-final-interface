@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,7 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import '../../app/router.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/notice_host.dart';
+import '../../core/design_system/widgets/steady_height.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
 import '../../core/design_system/widgets/vigia_flow_blocks.dart';
@@ -117,13 +120,39 @@ class _ExperimentalMonitoringScreenState
   /// se prepara otra sesión.
   bool _showSummary = false;
 
+  /// Prueba física (2026-11-15): en un teléfono lento la señal alternaba
+  /// entre «Sin señales persistentes» y «No evaluable» varias veces por
+  /// segundo y la pantalla titilaba. Durante la sesión, la señal y «Ojos
+  /// medibles» cambian como mucho una vez por segundo: un cambio se muestra
+  /// al instante y los siguientes esperan a que pase el segundo (se muestra
+  /// entonces el valor vigente). El aviso de cierre prolongado entra y sale
+  /// siempre al instante. Es solo presentación: el motor y el registro no
+  /// cambian.
+  late final _signalShown = _Paced<EngineSignal>(
+    _repaint,
+    immediate: (v) => v == EngineSignal.prolongedEyeClosure,
+  );
+  late final _eyesShown = _Paced<bool>(_repaint);
+
+  void _repaint() {
+    if (mounted) setState(() {});
+  }
+
+  void _feedHeld(ExperimentalState s) {
+    if (s.sessionVigente) return;
+    _signalShown.reset();
+    _eyesShown.reset();
+  }
+
   @override
   void initState() {
     super.initState();
     _camera = ref.read(frontCameraProvider.notifier);
     _exp = ref.read(experimentalMonitoringProvider.notifier);
     _subscription = ref.listenManual(experimentalMonitoringProvider, (_, s) {
-      if (!mounted || !s.available) return;
+      if (!mounted) return;
+      _feedHeld(s);
+      if (!s.available) return;
       if (s.sessionVigente) _observedSession = true;
       if (_observedSession &&
           s.lifecycle == EngineSessionLifecycle.finalized &&
@@ -149,6 +178,8 @@ class _ExperimentalMonitoringScreenState
 
   @override
   void dispose() {
+    _signalShown.reset();
+    _eyesShown.reset();
     _lifecycle.dispose();
     _subscription.close();
     _exp.leave();
@@ -520,9 +551,10 @@ class _ExperimentalMonitoringScreenState
     FrontCameraState cam, {
     bool compact = false,
     bool eyesFirst = false,
+    bool? eyesOk,
   }) {
     final snap = s.snapshot;
-    final eyesOk = s.eyesValid;
+    eyesOk ??= s.eyesValid;
     final calibrated = snap?.ratioRight != null;
     final rows = [
       CheckRow(
@@ -673,7 +705,11 @@ class _ExperimentalMonitoringScreenState
 
   // ------------------------------------------------------------ sesión
 
-  StatusCard _sessionStatus(ExperimentalState s, MonitoringSnapshot snap) {
+  StatusCard _sessionStatus(
+    ExperimentalState s,
+    MonitoringSnapshot snap,
+    EngineSignal shownSignal,
+  ) {
     final paused = s.lifecycle == EngineSessionLifecycle.paused;
     const key = Key('signal');
     if (!s.available) {
@@ -708,7 +744,7 @@ class _ExperimentalMonitoringScreenState
         text: 'Esperando medición ocular.',
       );
     }
-    return switch (s.signal) {
+    return switch (shownSignal) {
       EngineSignal.prolongedEyeClosure => StatusCard(
         key: key,
         tone: StatusTone.close,
@@ -752,13 +788,52 @@ class _ExperimentalMonitoringScreenState
       'stop' => 'Finalizando…',
       _ => null,
     };
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    // La señal caduca con el tiempo sin notificar: se lee en cada dibujo.
+    final shownSignal = s.sessionVigente
+        ? _signalShown.resolve(s.signal)
+        : s.signal;
+    final shownEyes = s.sessionVigente
+        ? _eyesShown.resolve(s.eyesValid)
+        : s.eyesValid;
+    final status = _sessionStatus(s, snap, shownSignal);
     return [
-      _sessionStatus(s, snap),
+      // Alto estable: el estado no encoge al cambiar de frase, así la vista
+      // previa no salta. El cambio de tarjeta se funde.
+      SteadyHeight(
+        resetKey: paused,
+        child: AnimatedSwitcher(
+          // El aviso entra al instante; el resto de cambios se funde.
+          duration: reduce || shownSignal == EngineSignal.prolongedEyeClosure
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          // La tarjeta ocupa todo el alto reservado por SteadyHeight.
+          layoutBuilder: (current, previous) => Stack(
+            fit: StackFit.passthrough,
+            alignment: Alignment.topCenter,
+            children: [...previous, ?current],
+          ),
+          child: KeyedSubtree(
+            key: ValueKey('${status.tone}|${status.title}'),
+            child: status,
+          ),
+        ),
+      ),
       if (operation != null)
         Semantics(liveRegion: true, child: VigiaParagraph(operation)),
       if (showPreview) ...[
         FrontCameraStage(state: cam, compact: true, maxHeight: 240),
-        CheckGroup(rows: _eyeRows(s, cam, compact: true, eyesFirst: true)),
+        SteadyHeight(
+          child: CheckGroup(
+            rows: _eyeRows(
+              s,
+              cam,
+              compact: true,
+              eyesFirst: true,
+              eyesOk: shownEyes,
+            ),
+          ),
+        ),
       ],
       AxesRow(
         session: !s.available
@@ -774,7 +849,7 @@ class _ExperimentalMonitoringScreenState
         },
         signal: !s.available || paused
             ? 'Sin datos'
-            : switch (s.signal) {
+            : switch (shownSignal) {
                 EngineSignal.notEvaluable => 'No evaluable',
                 EngineSignal.noPersistentSignals => 'Sin señales',
                 EngineSignal.prolongedEyeClosure => 'Cierre prolongado',
@@ -880,5 +955,47 @@ class _ExperimentalMonitoringScreenState
         },
       ),
     ];
+  }
+}
+
+/// Valor mostrado que cambia como mucho una vez cada [interval].
+///
+/// [resolve] se llama al dibujar con el valor vigente. El primer valor y los
+/// que cumplen [immediate] (o salen de uno inmediato) se muestran enseguida.
+/// Tras cada cambio se espera [interval] y se pide redibujar ([onChange]);
+/// entonces, si el vigente difiere, se muestra y se vuelve a esperar.
+class _Paced<T> {
+  _Paced(this.onChange, {this.immediate});
+
+  final VoidCallback onChange;
+  final bool Function(T value)? immediate;
+  static const interval = Duration(seconds: 1);
+
+  T? _value;
+  Timer? _cooling;
+
+  T resolve(T live) {
+    final shown = _value;
+    if (shown == live) return live;
+    final urgent =
+        shown == null ||
+        (immediate?.call(live) ?? false) ||
+        (immediate?.call(shown) ?? false);
+    if (_cooling == null || urgent) {
+      _value = live;
+      _cooling?.cancel();
+      _cooling = Timer(interval, () {
+        _cooling = null;
+        onChange();
+      });
+      return live;
+    }
+    return shown;
+  }
+
+  void reset() {
+    _cooling?.cancel();
+    _cooling = null;
+    _value = null;
   }
 }

@@ -198,6 +198,24 @@ void main() {
         await tester.pump();
         await tester.pump();
         if (isMonitoring) {
+          // Como en el teléfono, el motor sigue emitiendo: la señal mostrada
+          // cambia como mucho una vez por segundo y la tarjeta se funde
+          // (prueba física, 2026-11-15).
+          for (var i = 2; i <= 16; i++) {
+            if (tester.any(find.byType(Texture))) {
+              camera.emitFace(face, resultId: 1000 + i, resultAgeMs: 0);
+            }
+            engine.emit(
+              MonitoringSnapshot.decode(snap.encode())
+                ..sequence = snap.sequence + i
+                ..observationId = null,
+            );
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+          if (tester.any(find.byType(Texture))) {
+            camera.emitFace(face, resultId: 1100, resultAgeMs: 0);
+          }
+          await tester.pump();
           final status = find.byKey(const Key('signal'));
           final controls = find.byKey(const Key('session-controls'));
           final preview = find.byKey(const Key('camera-preview'));

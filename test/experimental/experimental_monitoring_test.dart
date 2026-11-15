@@ -8,6 +8,7 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/router.dart';
 import 'package:vigia/app/vigia_app.dart';
+import 'package:vigia/core/design_system/widgets/vigia_blocks.dart';
 import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/features/camera/front_camera_controller.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_controller.dart';
@@ -353,10 +354,62 @@ void main() {
       );
       expect(find.text('Cierre ocular prolongado'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 3100));
+      // La tarjeta anterior se funde en 220 ms (prueba física, 2026-11-15).
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Cierre ocular prolongado'), findsNothing);
       expect(find.text('Estado del motor no disponible'), findsWidgets);
       await close(tester);
     });
+
+    testWidgets(
+      'prueba física: la señal mostrada cambia como mucho una vez por segundo '
+      'y el aviso entra y sale al instante',
+      (tester) async {
+        var seq = 10;
+        MonitoringSnapshot snap(EngineSignal signal) => fakeSnapshot(
+          sequence: seq++,
+          lifecycle: EngineSessionLifecycle.active,
+          sessionId: 'S1',
+          eyesValid: signal != EngineSignal.notEvaluable,
+          eyeIssue: signal == EngineSignal.notEvaluable ? 'gap' : null,
+          measurement: EngineMeasurement.usable,
+          signal: signal,
+        );
+        String shown() => tester
+            .widgetList<StatusCard>(find.byKey(const Key('signal')))
+            .last
+            .title;
+        Future<void> hold(EngineSignal signal, int ms) async {
+          for (var t = 0; t < ms; t += 100) {
+            engine.emit(snap(signal));
+            await tester.pump(const Duration(milliseconds: 100));
+          }
+        }
+
+        await open(tester, snap(EngineSignal.noPersistentSignals));
+        // Antes del primer dato fresco se muestra «No evaluable»; el paso a
+        // «Sin señales» inicia un intervalo. Se parte de un estado estable.
+        await hold(EngineSignal.noPersistentSignals, 2200);
+        expect(shown(), 'Sin señales persistentes');
+        // Primer cambio: se muestra enseguida.
+        await hold(EngineSignal.notEvaluable, 100);
+        // ignore: avoid_print
+        expect(shown(), 'No evaluable');
+        // Vuelve a cambiar dentro del segundo: la pantalla no titila.
+        await hold(EngineSignal.noPersistentSignals, 500);
+        expect(shown(), 'No evaluable');
+        // Pasado el segundo se muestra el valor vigente.
+        await hold(EngineSignal.noPersistentSignals, 700);
+        expect(shown(), 'Sin señales persistentes');
+        // El aviso no espera, ni al entrar ni al salir.
+        await hold(EngineSignal.prolongedEyeClosure, 100);
+        expect(shown(), 'Cierre ocular prolongado');
+        await hold(EngineSignal.notEvaluable, 100);
+        expect(shown(), 'No evaluable');
+        await hold(EngineSignal.notEvaluable, 1200);
+        await close(tester);
+      },
+    );
 
     test('la ruta experimental solo existe en la variante normal', () {
       for (final mode in <AppMode>[const DemoMode(), const RealMode()]) {
