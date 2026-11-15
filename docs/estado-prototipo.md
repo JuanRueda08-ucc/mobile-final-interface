@@ -89,6 +89,12 @@ Firebase. Para GitHub Releases faltan `android/key.properties` (clave de
 distribución), la prueba directa de las reglas de Firestore y la revisión
 independiente.
 
+**Prueba en teléfono físico (2026-11-15).** El usuario probó el APK en un
+Android físico y pidió estabilizar y rediseñar el monitoreo, hacer
+desplegable la barra lateral, añadir voz a la calibración y más animaciones.
+Hallazgos, diagnóstico y orden sugerido:
+[Hallazgos de la prueba física](prueba-fisica-hallazgos.md).
+
 **Bloque autorizado el 2026-11-11 (lo implementa Codex):** apartado de
 Cuenta, barra lateral de iconos, rediseño del acceso, rótulo «experimental»
 reducido a un aviso de «Versión de prueba» y prueba del recorrido completo.
