@@ -355,3 +355,59 @@ con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
   100 637 255 bytes. SHA-256
   `2776c770c4921a31c11b94a09719db2a659322db7fe4133d4e5d2e4027f3c2bd`. No
   se probó con una cara real.
+
+## 7. Barra fija, acceso limpio, requisitos de contraseña y titileo (2026-11-16)
+
+Comentarios del usuario: no quería la barra como un menú que se abre
+encima; el acceso le parecía «muy hostigado»; pidió contraseñas con
+mayúscula, número y símbolo; y al encender la cámara la vista titilaba.
+Eligió la barra que «se encoge y se expande» y el acceso «menos cargado».
+
+### Aplicado (Claude)
+
+- **Barra lateral fija** (`VigiaScaffold`, `_SideRail`):
+  - siempre visible a la izquierda; cerrada es una franja de iconos de
+    64 dp con ☰ arriba;
+  - al abrirla se ensancha a 160–220 dp con los nombres, y la pantalla se
+    desplaza a la derecha sin reacomodarse ni oscurecerse;
+  - al elegir un destino se cierra;
+  - se retira el cajón (`Drawer`);
+  - cerrada, el nombre aparece al pasar el cursor; abierta, no;
+  - áreas de 48 dp y semántica «Navegación principal».
+- **Acceso limpio**:
+  - sin fondo de colores, sin tarjeta y sin texto bajo el título (salvo en
+    la recuperación de contraseña);
+  - título, Correo, Contraseña, botón y «Olvidé mi contraseña»;
+  - abajo del todo, «¿No tienes cuenta?» y debajo «Crear cuenta» (en el
+    registro, «¿Ya tienes cuenta?» e «Inicia sesión»);
+  - con texto ampliado ese enlace se desplaza con el resto.
+- **Requisitos de contraseña al crear la cuenta** (`password_rules.dart`):
+  - al menos 8 caracteres, una mayúscula, un número y un símbolo;
+  - bajo el campo, una lista que marca cada requisito al escribir;
+  - no se envía hasta cumplirlos todos;
+  - se traduce el error `password-does-not-meet-requirements` de Firebase;
+  - el inicio de sesión no aplica reglas, para no bloquear cuentas
+    anteriores.
+- **Firebase**: el cliente valida, pero el servidor no lo exige hasta
+  activar la política de contraseñas del proyecto `vigia-e1680`
+  (Authentication › Configuración › Política de contraseñas). Es una
+  acción del usuario en la consola y no cambia las reglas de Firestore.
+- **Titileo de la cámara**:
+  - el recuadro se mantiene 0,7 s si el rostro se pierde un instante;
+  - los chips Rostro y Ojos cambian como mucho una vez por segundo, también
+    en la preparación;
+  - solo cambia la presentación.
+- Pruebas:
+  - `password_rules_test.dart`, nuevo;
+  - navegación: barra fija, apertura sin capa y contenido desplazado;
+  - la regresión del recuadro mantenido;
+  - adaptación de los buscadores de texto, que ahora puede partirse en
+    líneas con la barra fija;
+  - 85 capturas regeneradas.
+- Validación propia: análisis sin diagnósticos, 968/968 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-barra-fija-pruebas.apk`,
+  100 801 095 bytes. SHA-256
+  `6779eb780e9afa959e9696427c376b939d56ef95b6f99895497e928ac9c94fed`. No
+  se probó en el teléfono. El titileo no se reprodujo aquí, porque hace
+  falta una sesión iniciada en el emulador.

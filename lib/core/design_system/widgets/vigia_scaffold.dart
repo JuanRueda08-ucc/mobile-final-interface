@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../tokens.dart';
 import '../vigia_icons.dart';
-import 'screen_aura.dart';
 import 'vigia_button.dart';
 import 'vigia_mark.dart';
 import 'vigia_side_nav_item.dart';
@@ -165,10 +164,9 @@ class VigiaScaffold extends StatelessWidget {
     final side = sideNavigation && navIndex != null;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Prueba física (2026-11-15): la barra lateral es desplegable en
-        // todos los tamaños. Cerrada, solo se ve el botón de menú; abierta,
-        // entra deslizando la columna de iconos sobre la pantalla.
-        final compact = side;
+        // Barra lateral fija (usuario, 2026-11-16): siempre visible a la
+        // izquierda. Cerrada es una franja de iconos; con ≡ se ensancha y
+        // muestra los nombres, empujando el contenido sin taparlo.
         void select(int index) => onNavSelected?.call(index);
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -179,26 +177,7 @@ class VigiaScaffold extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: compact
-                    ? Row(
-                        children: [
-                          Builder(
-                            builder: (context) => IconButton(
-                              tooltip: 'Abrir navegación',
-                              constraints: const BoxConstraints.tightFor(
-                                width: 48,
-                                height: 48,
-                              ),
-                              onPressed: () =>
-                                  Scaffold.of(context).openDrawer(),
-                              icon: VigiaIconView(VigiaIcon.menu, color: p.ink),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(child: heading),
-                        ],
-                      )
-                    : onBack == null
+                child: onBack == null
                     ? Align(alignment: Alignment.centerLeft, child: heading)
                     : Row(
                         children: [
@@ -245,47 +224,19 @@ class VigiaScaffold extends StatelessWidget {
               ),
           ],
         );
-        final body = SafeArea(child: content);
+        final body = SafeArea(
+          child: side
+              ? _SideRail(
+                  currentIndex: navIndex!,
+                  accountDestination: accountDestination,
+                  maxWidth: constraints.maxWidth,
+                  onSelected: select,
+                  content: content,
+                )
+              : content,
+        );
         return Scaffold(
           backgroundColor: p.bg,
-          drawer: compact
-              ? Drawer(
-                  width: _VigiaSideNav.width,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.horizontal(
-                      right: Radius.circular(28),
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  backgroundColor: p.bg,
-                  surfaceTintColor: Colors.transparent,
-                  semanticLabel: 'Navegación principal',
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (background is ScreenAura)
-                        ClipRect(
-                          child: OverflowBox(
-                            alignment: AlignmentDirectional.centerStart,
-                            minWidth: constraints.maxWidth,
-                            maxWidth: constraints.maxWidth,
-                            child: const ScreenAura(),
-                          ),
-                        ),
-                      SafeArea(
-                        child: _VigiaSideNav(
-                          currentIndex: navIndex!,
-                          accountDestination: accountDestination,
-                          onSelected: (index) {
-                            Navigator.of(context).pop();
-                            select(index);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : null,
           body: background == null
               ? body
               : Stack(
@@ -516,59 +467,125 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _VigiaSideNav extends StatelessWidget {
-  const _VigiaSideNav({
+/// Barra lateral fija: ≡ arriba y los destinos debajo. Al elegir un destino
+/// vuelve a cerrarse.
+class _SideRail extends StatefulWidget {
+  const _SideRail({
     required this.currentIndex,
     required this.accountDestination,
+    required this.maxWidth,
     required this.onSelected,
+    required this.content,
   });
+
+  /// Pantalla junto a la barra. Abierta la barra, conserva su ancho y se
+  /// desplaza a la derecha (lo que sobra queda fuera), sin reacomodarse.
+  final Widget content;
 
   final int currentIndex;
   final bool accountDestination;
+  final double maxWidth;
   final ValueChanged<int> onSelected;
 
-  static const width = 56.0;
+  static const collapsedWidth = 64.0;
+
+  @override
+  State<_SideRail> createState() => _SideRailState();
+}
+
+class _SideRailState extends State<_SideRail> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
+    final p = VigiaColors.of(context);
+    final reduce = MediaQuery.disableAnimationsOf(context);
     final destinations = [
       ...vigiaNavDestinations,
-      if (accountDestination)
+      if (widget.accountDestination)
         const VigiaNavDestination('Cuenta', VigiaIcon.account),
     ];
-    return SizedBox(
-      key: const Key('vigia-side-nav'),
-      width: width,
-      height: double.infinity,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = 6.0;
-          const padding = EdgeInsets.fromLTRB(4, 10, 4, 10);
-          final items = Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: gap,
-            children: [
-              for (var i = 0; i < destinations.length; i++)
-                VigiaSideNavItem(
-                  label: destinations[i].label,
-                  icon: destinations[i].icon,
-                  selected: i == currentIndex,
-                  onTap: () => onSelected(i),
+    final open = (widget.maxWidth * 0.6).clamp(160.0, 220.0);
+    final width = _expanded ? open : _SideRail.collapsedWidth;
+    final duration = reduce ? Duration.zero : const Duration(milliseconds: 220);
+    final rail = Semantics(
+      container: true,
+      label: 'Navegación principal',
+      explicitChildNodes: true,
+      child: AnimatedContainer(
+        key: const Key('vigia-side-nav'),
+        duration: duration,
+        curve: VigiaMotion.press,
+        width: width,
+        decoration: BoxDecoration(
+          color: p.surface.withValues(alpha: 0.72),
+          border: Border(right: BorderSide(color: p.line)),
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            // Los nombres solo caben cuando la barra ya se abrió.
+            final labels = _expanded && box.maxWidth > 120;
+            final items = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 6,
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: IconButton(
+                    tooltip: _expanded
+                        ? 'Cerrar navegación'
+                        : 'Abrir navegación',
+                    constraints: const BoxConstraints.tightFor(
+                      width: 48,
+                      height: 48,
+                    ),
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    icon: VigiaIconView(
+                      _expanded ? VigiaIcon.close : VigiaIcon.menu,
+                      color: p.ink,
+                    ),
+                  ),
                 ),
-            ],
-          );
-          final height =
-              padding.vertical +
-              destinations.length * VigiaSpace.minTap +
-              (destinations.length - 1) * gap;
-          return constraints.maxHeight < height
-              ? SingleChildScrollView(padding: padding, child: items)
-              : Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(padding: padding, child: items),
-                );
-        },
+                const SizedBox(height: 4),
+                for (var i = 0; i < destinations.length; i++)
+                  VigiaSideNavItem(
+                    key: ValueKey('nav-${destinations[i].label}'),
+                    label: destinations[i].label,
+                    icon: destinations[i].icon,
+                    selected: i == widget.currentIndex,
+                    expanded: labels,
+                    onTap: () {
+                      setState(() => _expanded = false);
+                      widget.onSelected(i);
+                    },
+                  ),
+              ],
+            );
+            // Lista propia: el único SingleChildScrollView es el contenido.
+            return ListView(
+              // 7 + 48 + 7 + 1 de borde = 63 < 64: área táctil completa.
+              padding: const EdgeInsets.fromLTRB(7, 8, 7, 12),
+              children: [items],
+            );
+          },
+        ),
       ),
+    );
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        AnimatedPositioned(
+          duration: duration,
+          curve: VigiaMotion.press,
+          left: width,
+          top: 0,
+          bottom: 0,
+          width: widget.maxWidth - _SideRail.collapsedWidth,
+          child: widget.content,
+        ),
+        Positioned(left: 0, top: 0, bottom: 0, child: rail),
+      ],
     );
   }
 }

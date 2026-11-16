@@ -14,12 +14,17 @@ class VigiaSideNavItem extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
+    this.expanded = false,
   });
 
   final String label;
   final VigiaIcon icon;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Barra abierta: el nombre se ve junto al icono y no hace falta la
+  /// etiqueta flotante (2026-11-16).
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -29,47 +34,70 @@ class VigiaSideNavItem extends StatelessWidget {
       p.focus.withValues(alpha: dark ? 0.14 : 0.08),
       p.surface,
     );
-    return Tooltip(
-      message: label,
-      excludeFromSemantics: true,
-      ignorePointer: true,
-      triggerMode: TooltipTriggerMode.manual,
-      waitDuration: const Duration(milliseconds: 250),
-      constraints: const BoxConstraints(maxWidth: _labelMaxWidth),
-      padding: _labelPadding,
-      textStyle: _labelTextStyle(p),
-      decoration: _labelDecoration(p),
-      positionDelegate: _labelPosition,
-      child: Semantics(
-        button: true,
-        selected: selected,
-        label: label,
-        onTap: onTap,
-        excludeSemantics: true,
-        child: PressScale(
-          child: Material(
-            color: selected ? fill : Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(VigiaRadius.tag),
-              side: selected
-                  ? BorderSide(color: p.focus.withValues(alpha: 0.46))
-                  : BorderSide.none,
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              hoverColor: p.focus.withValues(alpha: 0.10),
-              focusColor: p.focus.withValues(alpha: 0.26),
-              highlightColor: p.focus.withValues(alpha: 0.14),
-              child: SizedBox.square(
-                dimension: VigiaSpace.minTap,
-                child: Center(
-                  child: VigiaIconView(
-                    icon,
-                    size: 22,
-                    color: selected ? p.focus : p.ink,
-                  ),
-                ),
+    final fg = selected ? p.focus : p.ink;
+    final iconView = SizedBox.square(
+      dimension: VigiaSpace.minTap,
+      child: Center(child: VigiaIconView(icon, size: 22, color: fg)),
+    );
+    return TooltipVisibility(
+      visible: !expanded,
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        ignorePointer: true,
+        triggerMode: TooltipTriggerMode.manual,
+        waitDuration: const Duration(milliseconds: 250),
+        constraints: const BoxConstraints(maxWidth: _labelMaxWidth),
+        padding: _labelPadding,
+        textStyle: _labelTextStyle(p),
+        decoration: _labelDecoration(p),
+        positionDelegate: _labelPosition,
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: label,
+          onTap: onTap,
+          excludeSemantics: true,
+          child: PressScale(
+            child: Material(
+              color: selected ? fill : Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(VigiaRadius.tag),
+                side: selected
+                    ? BorderSide(color: p.focus.withValues(alpha: 0.46))
+                    : BorderSide.none,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                hoverColor: p.focus.withValues(alpha: 0.10),
+                focusColor: p.focus.withValues(alpha: 0.26),
+                highlightColor: p.focus.withValues(alpha: 0.14),
+                child: expanded
+                    ? ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: VigiaSpace.minTap,
+                        ),
+                        child: Row(
+                          children: [
+                            iconView,
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsetsDirectional.only(
+                                  end: 12,
+                                ),
+                                child: Text(
+                                  label,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: VigiaType.navLabel.copyWith(color: fg),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : iconView,
               ),
             ),
           ),

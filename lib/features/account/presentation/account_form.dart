@@ -4,7 +4,6 @@ import 'package:flutter/scheduler.dart';
 import '../../../core/design_system/theme.dart';
 import '../../../core/design_system/tokens.dart';
 import '../../../core/design_system/vigia_icons.dart';
-import '../../../core/design_system/widgets/screen_aura.dart';
 import '../../../core/design_system/widgets/vigia_blocks.dart';
 import '../../../core/design_system/widgets/vigia_button.dart';
 import '../../../core/design_system/widgets/vigia_flow_blocks.dart';
@@ -19,6 +18,7 @@ class AccountForm extends StatelessWidget {
     required this.action,
     required this.children,
     this.afterAction,
+    this.bottom,
     this.detail,
     this.isBusy = false,
     this.onBack,
@@ -31,6 +31,9 @@ class AccountForm extends StatelessWidget {
   final VigiaButton action;
   final List<Widget> children;
   final Widget? afterAction;
+
+  /// Enlace fijo abajo del todo (acceso, 2026-11-16).
+  final Widget? bottom;
   final bool isBusy;
   final VoidCallback? onBack;
   final bool accessCover;
@@ -47,9 +50,12 @@ class AccountForm extends StatelessWidget {
       title: 'Vigía',
       showBrandMark: true,
       onBack: onBack,
-      background: accessCover ? const ScreenAura() : null,
+      // Acceso limpio (usuario, 2026-11-16): sin fondo de colores ni
+      // tarjeta; título, campos, botón y enlaces con aire.
       contentKey: accessCover ? ValueKey(title) : null,
-      footer: accessCover ? null : submit,
+      // Con texto ampliado el enlace de abajo se desplaza con el resto
+      // para dejar sitio al formulario.
+      footer: accessCover ? (isLargeText(context) ? null : bottom) : submit,
       children: [
         if (accessCover)
           _AccessCover(title: title, description: description)
@@ -64,17 +70,12 @@ class AccountForm extends StatelessWidget {
                 Text(text, style: VigiaType.kvValue.copyWith(color: p.ink)),
             ],
           ),
-        if (accessCover)
-          AccountCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [...children, submit],
-            ),
-          )
-        else
-          ...children,
-        if (accessCover) ?afterAction,
+        ...children,
+        if (accessCover) ...[
+          submit,
+          ?afterAction,
+          if (isLargeText(context)) ?bottom,
+        ],
       ],
     );
   }
@@ -127,17 +128,18 @@ class _AccessCover extends StatelessWidget {
           header: true,
           child: VigiaText(
             title,
-            style: VigiaType.heroTitle(isLargeText(context) ? 30 : 40)
+            style: VigiaType.heroTitle(isLargeText(context) ? 28 : 34)
                 .copyWith(color: p.ink),
           ),
         ),
-        const SizedBox(height: 10),
-        VigiaText(
-          description,
-          style: VigiaType.body.copyWith(
-            color: VigiaAura.screenSecondary(p.brightness),
+        if (description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          VigiaText(
+            description,
+            style: VigiaType.body.copyWith(color: p.inkSecondary),
           ),
-        ),
+        ],
+        const SizedBox(height: 8),
       ],
     );
     if (MediaQuery.disableAnimationsOf(context)) return intro;

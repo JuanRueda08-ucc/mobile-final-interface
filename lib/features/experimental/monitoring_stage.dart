@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -294,6 +295,12 @@ class _AnimatedBoxesState extends State<_AnimatedBoxes>
   /// Últimos recuadros dibujados, para desvanecerlos al perder el rostro.
   List<Rect>? _last;
 
+  /// Usuario (2026-11-16): «al prender la cámara titila». Si el rostro se
+  /// pierde un instante, el recuadro se mantiene [hold] antes de
+  /// desvanecerse; si vuelve antes, no parpadea.
+  static const hold = Duration(milliseconds: 700);
+  Timer? _holdTimer;
+
   @override
   void initState() {
     super.initState();
@@ -305,6 +312,20 @@ class _AnimatedBoxesState extends State<_AnimatedBoxes>
   void didUpdateWidget(_AnimatedBoxes old) {
     super.didUpdateWidget(old);
     final next = widget.boxes;
+    if (next == null && _to != null) {
+      _holdTimer ??= Timer(hold, () {
+        _holdTimer = null;
+        if (!mounted || widget.boxes != null) return;
+        setState(() {
+          _from = null;
+          _to = null;
+          _c.value = 1;
+        });
+      });
+      return;
+    }
+    _holdTimer?.cancel();
+    _holdTimer = null;
     if (_same(next, _to)) return;
     _from = _current();
     _to = next;
@@ -335,6 +356,7 @@ class _AnimatedBoxesState extends State<_AnimatedBoxes>
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     _c.dispose();
     super.dispose();
   }

@@ -144,6 +144,10 @@ void main() {
       await tester.tap(register);
       await tester.pumpAndSettle();
       expect(find.text('Crea tu cuenta'), findsOneWidget);
+      // Requisitos de la contraseña a la vista (usuario, 2026-11-16).
+      expect(find.byKey(const Key('password-checklist')), findsOneWidget);
+      await tester.ensureVisible(button('Crear cuenta'));
+      await tester.pumpAndSettle();
       expect(button('Crear cuenta').hitTestable(), findsOneWidget);
       await expectLater(
         find.byType(MaterialApp),
@@ -178,7 +182,7 @@ void main() {
       tester.widget<TextField>(find.byType(TextField).first).controller!.text,
       testEmail,
     );
-    await tester.enterText(find.byType(TextField).last, 'prueba-vigia-8');
+    await tester.enterText(find.byType(TextField).last, 'Prueba-vigia-8');
     await tester.tap(button('Crear cuenta'));
     await tester.pump();
     expect(button('Creando cuenta…'), findsOneWidget);

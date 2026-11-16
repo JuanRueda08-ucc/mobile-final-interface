@@ -69,7 +69,9 @@ void main() {
             for (final b in tester.widgetList<VigiaButton>(
               find.byType(VigiaButton),
             )) {
-              final f = find.widgetWithText(VigiaButton, b.label).first;
+              // Con la barra fija el texto puede partirse en líneas: se busca el
+              // botón mismo, no su texto.
+              final f = find.byWidget(b);
               await tester.ensureVisible(f);
               await tester.pumpAndSettle();
               final r = tester.getRect(f);

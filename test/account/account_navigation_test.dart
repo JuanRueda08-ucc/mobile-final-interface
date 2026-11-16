@@ -45,6 +45,12 @@ void main() {
   const railKey = Key('vigia-side-nav');
   final rail = find.byKey(railKey);
   final menu = find.byTooltip('Abrir navegación');
+  // Con texto ampliado y la barra fija, el correo puede partirse en líneas;
+  // su etiqueta semántica conserva el texto completo.
+  Finder whole(String text) => find.byWidgetPredicate(
+    (w) => w is Text && (w.data == text || w.semanticsLabel == text),
+  );
+  final email = whole(testEmail);
 
   Future<void> openRail(WidgetTester tester) async {
     if (menu.evaluate().isNotEmpty) {
@@ -96,10 +102,10 @@ void main() {
 
   testWidgets('la barra revela el destino al pasar el cursor', (tester) async {
     await mount(tester, (width: 360.0, scale: 1.0, dark: false));
-    // La barra está cerrada: solo se ve el botón de menú.
-    expect(rail, findsNothing);
+    // Barra fija (usuario, 2026-11-16): cerrada es una franja de iconos;
+    // al pasar el cursor se ve el nombre del destino.
+    expect(rail, findsOneWidget);
     expect(menu, findsOneWidget);
-    await openRail(tester);
     final history = find.byTooltip('Historial');
     expect(find.text('Historial'), findsNothing);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -124,13 +130,37 @@ void main() {
     expect(label, findsNothing);
   });
 
+  testWidgets('abrir la barra muestra los nombres y empuja el contenido', (
+    tester,
+  ) async {
+    await mount(tester, (width: 360.0, scale: 1.0, dark: false));
+    final body = find.byType(SingleChildScrollView);
+    final before = tester.getRect(body).left;
+    expect(tester.getSize(rail).width, 64);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    expect(tester.getSize(rail).width, greaterThan(150));
+    expect(
+      find.descendant(of: rail, matching: find.text('Historial')),
+      findsOneWidget,
+    );
+    // Sin capa encima: el contenido se corre a la derecha.
+    expect(find.byType(Drawer), findsNothing);
+    expect(tester.getRect(body).left, greaterThan(before));
+    await tester.tap(find.byTooltip('Cerrar navegación'));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(rail).width, 64);
+  });
+
   testWidgets('tocar abre el destino sin mostrar una etiqueta', (tester) async {
     await mount(tester, (width: 320.0, scale: 2.0, dark: true));
     await openRail(tester);
     await tester.tap(find.byTooltip('Cuenta'));
     await tester.pumpAndSettle();
-    expect(rail, findsNothing);
-    expect(find.text(testEmail), findsOneWidget);
+    // La barra sigue a la vista y vuelve a cerrarse.
+    expect(rail, findsOneWidget);
+    expect(tester.getSize(rail).width, 64);
+    expect(email, findsOneWidget);
     expect(find.text('Cuenta'), findsOneWidget);
   });
 
@@ -146,9 +176,9 @@ void main() {
 
         await capture('inicio');
         await navigate(tester, 'Cuenta');
-        expect(find.text(testEmail), findsOneWidget);
-        expect(find.text('Correo verificado'), findsOneWidget);
-        expect(find.text('Sin envíos pendientes'), findsOneWidget);
+        expect(email, findsOneWidget);
+        expect(whole('Correo verificado'), findsOneWidget);
+        expect(whole('Sin envíos pendientes'), findsOneWidget);
         await tester.ensureVisible(button('Cerrar sesión'));
         expect(button('Cerrar sesión').hitTestable(), findsOneWidget);
         await tester.drag(
@@ -194,8 +224,8 @@ void main() {
           await capture('cuenta_panel');
           await tester.tap(find.byTooltip('Cuenta'));
           await tester.pumpAndSettle();
-          expect(rail, findsNothing);
-          expect(find.text(testEmail), findsOneWidget);
+          expect(tester.getSize(rail).width, 64);
+          expect(email, findsOneWidget);
         }
 
         await navigate(tester, 'Historial');

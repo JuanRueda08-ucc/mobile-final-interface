@@ -150,6 +150,12 @@ class _ExperimentalMonitoringScreenState
   );
   late final _eyesShown = _Paced<bool>(_repaint);
 
+  /// Chips de la cámara (usuario, 2026-11-16: titilaban al encender la
+  /// cámara): Rostro y Ojos cambian como mucho una vez por segundo también
+  /// en la preparación. Solo presentación.
+  late final _faceChip = _Paced<bool>(_repaint);
+  late final _eyesChip = _Paced<bool>(_repaint);
+
   void _repaint() {
     if (mounted) setState(() {});
   }
@@ -234,6 +240,8 @@ class _ExperimentalMonitoringScreenState
   void dispose() {
     _signalShown.reset();
     _eyesShown.reset();
+    _faceChip.reset();
+    _eyesChip.reset();
     _voice.stop();
     _lifecycle.dispose();
     _subscription.close();
@@ -363,7 +371,11 @@ class _ExperimentalMonitoringScreenState
                   key: const Key('preparation-preview'),
                   cam: cam,
                   height: _stageHeight(context, constraints),
-                  chips: _stageChips(s, cam, eyesOk: s.eyesValid),
+                  chips: _stageChips(
+                    s,
+                    cam,
+                    eyesOk: _eyesChip.resolve(s.eyesValid),
+                  ),
                 ),
               )
             : !preparing && !finalized && snap != null
@@ -417,7 +429,7 @@ class _ExperimentalMonitoringScreenState
       StageChip(
         VigiaIcon.account,
         'Rostro',
-        tone(cam.facePhase == FacePresencePhase.oneFace),
+        tone(_faceChip.resolve(cam.facePhase == FacePresencePhase.oneFace)),
       ),
       StageChip(VigiaIcon.eye, 'Ojos', tone(s.available && eyesOk)),
       if (signal != null)

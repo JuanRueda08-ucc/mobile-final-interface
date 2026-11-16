@@ -10,6 +10,7 @@ import '../../core/design_system/widgets/vigia_button.dart';
 import 'firebase_account.dart';
 import 'presentation/account_form.dart';
 import 'presentation/account_verification.dart';
+import 'presentation/password_rules.dart';
 import 'presentation/account_welcome.dart';
 
 class FirebaseAccountScreen extends ConsumerStatefulWidget {
@@ -59,7 +60,8 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     } on FirebaseAuthException catch (error) {
       feedback = switch (error.code) {
         'invalid-email' => 'Escribe un correo válido.',
-        'weak-password' => 'Elige una contraseña más larga.',
+        'weak-password' || 'password-does-not-meet-requirements' =>
+          'La contraseña no cumple todos los requisitos.',
         'invalid-credential' ||
         'user-not-found' ||
         'wrong-password' => 'Comprueba tu correo y contraseña.',
@@ -99,8 +101,8 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       _passwordError = switch (_mode) {
         _FormMode.reset => null,
         _ when password.isEmpty => 'Escribe tu contraseña.',
-        _FormMode.register when password.length < 8 =>
-          'Usa al menos 8 caracteres.',
+        _FormMode.register when !PasswordRules.allMet(password) =>
+          'La contraseña no cumple todos los requisitos.',
         _ => null,
       };
     });
@@ -229,11 +231,12 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     );
   }
 
-  /// Enlaces bajo la tarjeta: cambiar entre acceso, registro y recuperación.
-  Widget _links() {
+  /// Enlace fijo abajo: cambiar entre acceso y registro (usuario,
+  /// 2026-11-16: la pregunta encima y el enlace debajo).
+  Widget _bottomLink() {
     final p = VigiaColors.of(context);
-    // La pregunta encima y el enlace debajo, centrados.
     Widget prompt(String text, Widget link) => Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           text,
@@ -243,33 +246,19 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
         link,
       ],
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: switch (_mode) {
-        _FormMode.signIn => [
-          prompt(
-            '¿No tienes cuenta?',
-            _modeLink('Crear cuenta', _FormMode.register),
-          ),
-          Center(
-            child: _modeLink(
-              'Olvidé mi contraseña',
-              _FormMode.reset,
-              quiet: true,
-            ),
-          ),
-        ],
-        _FormMode.register => [
-          prompt(
-            '¿Ya tienes cuenta?',
-            _modeLink('Inicia sesión', _FormMode.signIn),
-          ),
-        ],
-        _FormMode.reset => [
-          Center(child: _modeLink('Volver al acceso', _FormMode.signIn)),
-        ],
-      },
-    );
+    return switch (_mode) {
+      _FormMode.signIn => prompt(
+        '¿No tienes cuenta?',
+        _modeLink('Crear cuenta', _FormMode.register),
+      ),
+      _FormMode.register => prompt(
+        '¿Ya tienes cuenta?',
+        _modeLink('Inicia sesión', _FormMode.signIn),
+      ),
+      _FormMode.reset => Center(
+        child: _modeLink('Volver al acceso', _FormMode.signIn),
+      ),
+    };
   }
 
   @override
@@ -351,13 +340,13 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     final (title, description, label, busyLabel) = switch (_mode) {
       _FormMode.signIn => (
         'Inicia sesión',
-        'Accede a tu historial de sesiones.',
+        '',
         'Iniciar sesión',
         'Iniciando sesión…',
       ),
       _FormMode.register => (
         'Crea tu cuenta',
-        'Te enviaremos un enlace para verificar tu correo.',
+        '',
         'Crear cuenta',
         'Creando cuenta…',
       ),
@@ -390,7 +379,16 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
             id: 'submit',
             () => _submitForm(auth),
           ),
-          afterAction: _links(),
+          afterAction: _mode == _FormMode.signIn
+              ? Center(
+                  child: _modeLink(
+                    'Olvidé mi contraseña',
+                    _FormMode.reset,
+                    quiet: true,
+                  ),
+                )
+              : null,
+          bottom: _bottomLink(),
           children: [
             AutofillGroup(
               child: Column(
@@ -444,7 +442,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                           context,
                           label: 'Contraseña',
                           hint: _mode == _FormMode.register
-                              ? 'Mínimo 8 caracteres'
+                              ? 'Crea una contraseña'
                               : 'Tu contraseña',
                           error: _passwordError,
                           fillColor: fieldSurface,
@@ -462,14 +460,13 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                             ),
                           ),
                         ),
-                        onChanged: (_) {
-                          if (_passwordError != null) {
-                            setState(() => _passwordError = null);
-                          }
-                        },
+                        // La lista de requisitos se actualiza al escribir.
+                        onChanged: (_) => setState(() => _passwordError = null),
                         onSubmitted: (_) => _submitForm(auth),
                       ),
                     ),
+                  if (_mode == _FormMode.register)
+                    PasswordChecklist(password: _password.text),
                 ],
               ),
             ),

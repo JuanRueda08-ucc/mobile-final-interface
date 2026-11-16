@@ -113,6 +113,13 @@ void main() {
       expect(find.byKey(const Key('face-boxes')), findsOneWidget);
       expect(stageFaceBoxes(cam(FaceAnalysisStatus.oneFace)), hasLength(3));
       await pump(tester, cam(FaceAnalysisStatus.noFace));
+      // Un rostro perdido un instante no hace parpadear el recuadro: se
+      // mantiene 0,7 s antes de desvanecerse (usuario, 2026-11-16).
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('face-boxes')), findsOneWidget);
+      await pump(tester, cam(FaceAnalysisStatus.oneFace));
+      await pump(tester, cam(FaceAnalysisStatus.noFace));
+      await tester.pump(const Duration(milliseconds: 800));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('face-boxes')), findsNothing);
       expect(stageFaceBoxes(cam(FaceAnalysisStatus.noFace)), isNull);
