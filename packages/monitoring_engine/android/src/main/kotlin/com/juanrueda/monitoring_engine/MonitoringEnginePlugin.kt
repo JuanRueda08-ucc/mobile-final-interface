@@ -199,4 +199,5 @@ internal fun FacePresence.toPigeon() = FaceAnalysisSnapshot(
     frameHeight = frameHeight?.toLong(),
     frameRotationDegrees = frameRotationDegrees?.toLong(),
     errorCode = errorCode,
+    faceBoxes = faceBoxes,
 )

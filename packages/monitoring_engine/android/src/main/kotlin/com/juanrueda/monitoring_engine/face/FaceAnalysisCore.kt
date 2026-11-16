@@ -24,7 +24,10 @@ internal enum class FacePresenceStatus {
     val isDetection: Boolean get() = this == NO_FACE || this == ONE_FACE || this == MULTIPLE_FACES
 }
 
-/** Resultado compacto que sale del motor: sin imágenes ni puntos faciales. */
+/**
+ * Resultado compacto que sale del motor: sin imágenes ni puntos faciales;
+ * como mucho, los recuadros de [FaceBoxes].
+ */
 internal data class FacePresence(
     val token: Long,
     /** Orden de publicación dentro de la apertura: estrictamente creciente. */
@@ -54,6 +57,11 @@ internal data class FacePresence(
     val frameHeight: Int?,
     val frameRotationDegrees: Int?,
     val errorCode: String?,
+    /**
+     * Recuadros de la cara y de los ojos del resultado vigente con un rostro
+     * (ver [FaceBoxes]); nulo en otro caso. No son puntos faciales.
+     */
+    val faceBoxes: List<Double>? = null,
 )
 
 /**
@@ -201,6 +209,7 @@ internal class FaceAnalysisCore<F>(
     private var frameWidth: Int? = null
     private var frameHeight: Int? = null
     private var frameRotation: Int? = null
+    private var faceBoxes: List<Double>? = null
 
     /** Carga el modelo (generación nueva) y crea el detector. */
     fun start() {
@@ -399,6 +408,7 @@ internal class FaceAnalysisCore<F>(
             else -> FacePresenceStatus.MULTIPLE_FACES
         }
         current = next
+        faceBoxes = FaceBoxes.of(count, points)
         observe(EyeObservation.of(token, entryNs, now, count, measureEyes(count, points)))
         // Publica también cuando no cambia el estado: es un resultado nuevo
         // (otra identidad), no un latido.
@@ -437,6 +447,7 @@ internal class FaceAnalysisCore<F>(
     private fun clearResult() {
         faceCount = null
         resultId = null
+        faceBoxes = null
         expired = false
     }
 
@@ -483,5 +494,6 @@ internal class FaceAnalysisCore<F>(
                 frameHeight = frameHeight,
                 frameRotationDegrees = frameRotation,
                 errorCode = errorCode,
+                faceBoxes = if (current == FacePresenceStatus.ONE_FACE) faceBoxes else null,
             )
 }

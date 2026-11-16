@@ -4,7 +4,8 @@ El usuario instaló el APK publicado en `9ae65af`, con firma Debug y
 `vigia-e1680`, en un teléfono Android físico y lo probó en persona. Los
 hallazgos son observaciones suyas. El dispositivo y la versión de Android
 aún no están registrados. El usuario adjuntará un GIF de referencia para
-el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); se añadieron animaciones base. Falta el rediseño de P06 con el GIF.
+el monitoreo. Están aplicados todos los puntos: estabilidad, rediseño de P06
+con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
 
 ## 1. Pantalla de monitoreo (P06)
 
@@ -66,6 +67,54 @@ el monitoreo. Están aplicados los puntos 1 (estabilidad), 3 (barra) y 4 (voz); 
   `f5e01327e6b319a4518001363f1a672576b3eac06c6e498eba63ecf234507808`. No se
   probó en el teléfono físico. El usuario debe confirmar que ya no titila.
   La intermitencia del motor sigue y se ve, como mucho, una vez por segundo.
+
+### Rediseño con el GIF aplicado (2026-11-15, Claude)
+
+- Referencia: GIF de un sistema de monitoreo del conductor. Muestra la
+  imagen de la cámara, chips de estado arriba, un recuadro sobre la cara y
+  los ojos y lecturas en azul. Se adaptó sin las funciones que Vigía no
+  tiene: cinturón, teléfono o cigarrillo.
+- `MonitoringStage` (`lib/features/experimental/monitoring_stage.dart`). En
+  la preparación (encuadre y calibración) y en la sesión, la cámara queda
+  **fija arriba**, a lo ancho y recortada para cubrir. El resto se desplaza
+  debajo sin moverla. Encima lleva:
+  - los chips Cámara, Rostro, Ojos y Señal; el de Señal pasa a «Cierre»
+    en coral durante el aviso;
+  - el recuadro de la cara con esquinas y los recuadros de los ojos, en
+    naranja, o en coral durante el aviso. Se deslizan entre resultados
+    (180 ms) y se desvanecen sin rostro;
+  - las lecturas «EAR der. · izq.» y «Activo»;
+  - durante el aviso, el borde y la franja «Cierre ocular prolongado».
+
+  En pausa se ve un panel oscuro con el estado. Los chips y la señal usan
+  los mismos valores suavizados que la tarjeta. La tarjeta de estado,
+  ahora debajo de la cámara, conserva el alto estable. La lista de
+  comprobaciones de la sesión se sustituye por los chips; la causa de «No
+  evaluable» sigue en la tarjeta.
+- Motor (autorizado por el usuario): `FaceBoxes.kt` calcula, con un solo
+  rostro vigente, 12 números a partir de los puntos faciales: la caja de la
+  cara y la de cada ojo, normalizadas al cuadro analizado sin girar. Los
+  puntos no salen del motor. Las cajas viajan en
+  `FaceAnalysisSnapshot.faceBoxes` (Pigeon) y no se guardan, no se
+  registran ni salen del teléfono. Al caducar el resultado o con 0 o 2
+  rostros son nulas. Flutter aplica el giro del cuadro y el espejo de la
+  vista previa (`displayBox`).
+- Pruebas:
+  - `FaceBoxesTest` y un caso nuevo en `FaceAnalysisCoreTest` (JVM);
+  - `monitoring_stage_test.dart`, que cubre giros, espejo, caducidad,
+    recuadros, aviso y panel sin vista previa;
+  - pruebas de sesión adaptadas.
+
+  Se regeneraron 36 capturas de P06, F5C y encuadre.
+- Validación propia: análisis sin diagnósticos, 961/961 pruebas Flutter,
+  pruebas JVM del análisis facial y registro OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-monitoreo-gif-pruebas.apk`,
+  100 342 343 bytes. SHA-256
+  `1370a359e617daac43db298c9a9c8c0f56dd4b3c009ff70161505bbbc19ea34a`.
+- Sin comprobar con una cara real:
+  - que el recuadro coincida con la cara, porque el giro y el recorte entre
+    la vista previa y el análisis solo se probaron con datos sintéticos;
+  - el aspecto en el teléfono.
 
 ## 2. Animaciones y aspecto general
 

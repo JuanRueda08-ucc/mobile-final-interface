@@ -35,6 +35,15 @@ enum VigiaIcon {
   ),
   target(
     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  ),
+
+  // Rediseño de P06 (2026-11-15): chips de estado sobre la cámara.
+  camera(
+    'M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
+  ),
+  eye(
+    'M2.5 12c2-4 5.5-6 9.5-6c4 0 7.5 2 9.5 6c-2 4-5.5 6-9.5 6c-4 0-7.5-2-9.5-6z'
+    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   );
 
   const VigiaIcon(this.svgPath);

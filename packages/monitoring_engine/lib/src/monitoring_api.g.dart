@@ -331,7 +331,8 @@ class PreviewOpenResult {
 }
 
 /// Resultado compacto del análisis facial. No contiene imágenes ni puntos
-/// faciales: solo el estado, el número de rostros y contadores técnicos.
+/// faciales: solo el estado, el número de rostros, contadores técnicos y,
+/// con un rostro, sus recuadros ([faceBoxes]).
 class FaceAnalysisSnapshot {
   FaceAnalysisSnapshot({
     required this.token,
@@ -352,6 +353,7 @@ class FaceAnalysisSnapshot {
     this.frameHeight,
     this.frameRotationDegrees,
     this.errorCode,
+    this.faceBoxes,
   });
 
   /// Apertura de vista previa a la que pertenece.
@@ -411,6 +413,14 @@ class FaceAnalysisSnapshot {
   /// Código técnico del error, para diagnóstico. No es un texto de interfaz.
   String? errorCode;
 
+  /// Rediseño de P06 (2026-11-15): con exactamente un rostro vigente, 12
+  /// valores `[cara, ojo derecho, ojo izquierdo]`, cada uno izquierda,
+  /// arriba, derecha y abajo, normalizados al cuadro analizado **sin girar
+  /// ni espejar** (aplica [frameRotationDegrees] y el espejo de la vista
+  /// previa para dibujarlos). Nulo en otro caso. Solo se dibujan: no se
+  /// guardan ni salen del teléfono.
+  List<double>? faceBoxes;
+
   List<Object?> _toList() {
     return <Object?>[
       token,
@@ -431,6 +441,7 @@ class FaceAnalysisSnapshot {
       frameHeight,
       frameRotationDegrees,
       errorCode,
+      faceBoxes,
     ];
   }
 
@@ -459,6 +470,7 @@ class FaceAnalysisSnapshot {
       frameHeight: result[15] as int?,
       frameRotationDegrees: result[16] as int?,
       errorCode: result[17] as String?,
+      faceBoxes: (result[18] as List<Object?>?)?.cast<double>(),
     );
   }
 
@@ -488,7 +500,8 @@ class FaceAnalysisSnapshot {
         _deepEquals(frameWidth, other.frameWidth) &&
         _deepEquals(frameHeight, other.frameHeight) &&
         _deepEquals(frameRotationDegrees, other.frameRotationDegrees) &&
-        _deepEquals(errorCode, other.errorCode);
+        _deepEquals(errorCode, other.errorCode) &&
+        _deepEquals(faceBoxes, other.faceBoxes);
   }
 
   @override
@@ -497,7 +510,7 @@ class FaceAnalysisSnapshot {
 
   @override
   String toString() {
-    return 'FaceAnalysisSnapshot(token: $token, sequence: $sequence, generation: $generation, status: $status, faceCount: $faceCount, resultId: $resultId, resultAgeMs: $resultAgeMs, maxFaces: $maxFaces, staleAfterMs: $staleAfterMs, framesSubmitted: $framesSubmitted, resultsAccepted: $resultsAccepted, framesDropped: $framesDropped, resultsDiscarded: $resultsDiscarded, expired: $expired, frameWidth: $frameWidth, frameHeight: $frameHeight, frameRotationDegrees: $frameRotationDegrees, errorCode: $errorCode)';
+    return 'FaceAnalysisSnapshot(token: $token, sequence: $sequence, generation: $generation, status: $status, faceCount: $faceCount, resultId: $resultId, resultAgeMs: $resultAgeMs, maxFaces: $maxFaces, staleAfterMs: $staleAfterMs, framesSubmitted: $framesSubmitted, resultsAccepted: $resultsAccepted, framesDropped: $framesDropped, resultsDiscarded: $resultsDiscarded, expired: $expired, frameWidth: $frameWidth, frameHeight: $frameHeight, frameRotationDegrees: $frameRotationDegrees, errorCode: $errorCode, faceBoxes: $faceBoxes)';
   }
 }
 

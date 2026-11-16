@@ -134,7 +134,8 @@ enum FaceAnalysisStatus {
 }
 
 /// Resultado compacto del análisis facial. No contiene imágenes ni puntos
-/// faciales: solo el estado, el número de rostros y contadores técnicos.
+/// faciales: solo el estado, el número de rostros, contadores técnicos y,
+/// con un rostro, sus recuadros ([faceBoxes]).
 class FaceAnalysisSnapshot {
   FaceAnalysisSnapshot({
     required this.token,
@@ -202,6 +203,14 @@ class FaceAnalysisSnapshot {
 
   /// Código técnico del error, para diagnóstico. No es un texto de interfaz.
   String? errorCode;
+
+  /// Rediseño de P06 (2026-11-15): con exactamente un rostro vigente, 12
+  /// valores `[cara, ojo derecho, ojo izquierdo]`, cada uno izquierda,
+  /// arriba, derecha y abajo, normalizados al cuadro analizado **sin girar
+  /// ni espejar** (aplica [frameRotationDegrees] y el espejo de la vista
+  /// previa para dibujarlos). Nulo en otro caso. Solo se dibujan: no se
+  /// guardan ni salen del teléfono.
+  List<double>? faceBoxes;
 }
 
 class PreviewClosedEvent {

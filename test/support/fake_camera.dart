@@ -302,7 +302,16 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
     resultsDiscarded: 0,
     expired: expired,
     errorCode: errorCode,
+    // Recuadros de un rostro centrado (rediseño de P06, 2026-11-15).
+    faceBoxes: status == FaceAnalysisStatus.oneFace ? sampleBoxes : null,
   );
+
+  /// Cara, ojo derecho e izquierdo, normalizados al cuadro sin girar.
+  static const sampleBoxes = <double>[
+    0.30, 0.26, 0.70, 0.74, //
+    0.56, 0.40, 0.64, 0.46, //
+    0.36, 0.40, 0.44, 0.46,
+  ];
 
   int get restarts => calls.where((c) => c.startsWith('restartFace:')).length;
 

@@ -450,7 +450,8 @@ data class PreviewOpenResult (
 
 /**
  * Resultado compacto del análisis facial. No contiene imágenes ni puntos
- * faciales: solo el estado, el número de rostros y contadores técnicos.
+ * faciales: solo el estado, el número de rostros, contadores técnicos y,
+ * con un rostro, sus recuadros ([faceBoxes]).
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
@@ -501,7 +502,16 @@ data class FaceAnalysisSnapshot (
   val frameHeight: Long? = null,
   val frameRotationDegrees: Long? = null,
   /** Código técnico del error, para diagnóstico. No es un texto de interfaz. */
-  val errorCode: String? = null
+  val errorCode: String? = null,
+  /**
+   * Rediseño de P06 (2026-11-15): con exactamente un rostro vigente, 12
+   * valores `[cara, ojo derecho, ojo izquierdo]`, cada uno izquierda,
+   * arriba, derecha y abajo, normalizados al cuadro analizado **sin girar
+   * ni espejar** (aplica [frameRotationDegrees] y el espejo de la vista
+   * previa para dibujarlos). Nulo en otro caso. Solo se dibujan: no se
+   * guardan ni salen del teléfono.
+   */
+  val faceBoxes: List<Double>? = null
 )
  {
   companion object {
@@ -524,7 +534,8 @@ data class FaceAnalysisSnapshot (
       val frameHeight = pigeonVar_list[15] as Long?
       val frameRotationDegrees = pigeonVar_list[16] as Long?
       val errorCode = pigeonVar_list[17] as String?
-      return FaceAnalysisSnapshot(token, sequence, generation, status, faceCount, resultId, resultAgeMs, maxFaces, staleAfterMs, framesSubmitted, resultsAccepted, framesDropped, resultsDiscarded, expired, frameWidth, frameHeight, frameRotationDegrees, errorCode)
+      val faceBoxes = pigeonVar_list[18] as List<Double>?
+      return FaceAnalysisSnapshot(token, sequence, generation, status, faceCount, resultId, resultAgeMs, maxFaces, staleAfterMs, framesSubmitted, resultsAccepted, framesDropped, resultsDiscarded, expired, frameWidth, frameHeight, frameRotationDegrees, errorCode, faceBoxes)
     }
   }
   fun toList(): List<Any?> {
@@ -547,6 +558,7 @@ data class FaceAnalysisSnapshot (
       frameHeight,
       frameRotationDegrees,
       errorCode,
+      faceBoxes,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -557,7 +569,7 @@ data class FaceAnalysisSnapshot (
       return true
     }
     val other = other as FaceAnalysisSnapshot
-    return MonitoringApiPigeonUtils.deepEquals(this.token, other.token) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.generation, other.generation) && MonitoringApiPigeonUtils.deepEquals(this.status, other.status) && MonitoringApiPigeonUtils.deepEquals(this.faceCount, other.faceCount) && MonitoringApiPigeonUtils.deepEquals(this.resultId, other.resultId) && MonitoringApiPigeonUtils.deepEquals(this.resultAgeMs, other.resultAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.maxFaces, other.maxFaces) && MonitoringApiPigeonUtils.deepEquals(this.staleAfterMs, other.staleAfterMs) && MonitoringApiPigeonUtils.deepEquals(this.framesSubmitted, other.framesSubmitted) && MonitoringApiPigeonUtils.deepEquals(this.resultsAccepted, other.resultsAccepted) && MonitoringApiPigeonUtils.deepEquals(this.framesDropped, other.framesDropped) && MonitoringApiPigeonUtils.deepEquals(this.resultsDiscarded, other.resultsDiscarded) && MonitoringApiPigeonUtils.deepEquals(this.expired, other.expired) && MonitoringApiPigeonUtils.deepEquals(this.frameWidth, other.frameWidth) && MonitoringApiPigeonUtils.deepEquals(this.frameHeight, other.frameHeight) && MonitoringApiPigeonUtils.deepEquals(this.frameRotationDegrees, other.frameRotationDegrees) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode)
+    return MonitoringApiPigeonUtils.deepEquals(this.token, other.token) && MonitoringApiPigeonUtils.deepEquals(this.sequence, other.sequence) && MonitoringApiPigeonUtils.deepEquals(this.generation, other.generation) && MonitoringApiPigeonUtils.deepEquals(this.status, other.status) && MonitoringApiPigeonUtils.deepEquals(this.faceCount, other.faceCount) && MonitoringApiPigeonUtils.deepEquals(this.resultId, other.resultId) && MonitoringApiPigeonUtils.deepEquals(this.resultAgeMs, other.resultAgeMs) && MonitoringApiPigeonUtils.deepEquals(this.maxFaces, other.maxFaces) && MonitoringApiPigeonUtils.deepEquals(this.staleAfterMs, other.staleAfterMs) && MonitoringApiPigeonUtils.deepEquals(this.framesSubmitted, other.framesSubmitted) && MonitoringApiPigeonUtils.deepEquals(this.resultsAccepted, other.resultsAccepted) && MonitoringApiPigeonUtils.deepEquals(this.framesDropped, other.framesDropped) && MonitoringApiPigeonUtils.deepEquals(this.resultsDiscarded, other.resultsDiscarded) && MonitoringApiPigeonUtils.deepEquals(this.expired, other.expired) && MonitoringApiPigeonUtils.deepEquals(this.frameWidth, other.frameWidth) && MonitoringApiPigeonUtils.deepEquals(this.frameHeight, other.frameHeight) && MonitoringApiPigeonUtils.deepEquals(this.frameRotationDegrees, other.frameRotationDegrees) && MonitoringApiPigeonUtils.deepEquals(this.errorCode, other.errorCode) && MonitoringApiPigeonUtils.deepEquals(this.faceBoxes, other.faceBoxes)
   }
 
   override fun hashCode(): Int {
@@ -580,10 +592,11 @@ data class FaceAnalysisSnapshot (
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.frameHeight)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.frameRotationDegrees)
     result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.errorCode)
+    result = 31 * result + MonitoringApiPigeonUtils.deepHash(this.faceBoxes)
     return result
   }
   override fun toString(): String {
-    return "FaceAnalysisSnapshot(token=$token, sequence=$sequence, generation=$generation, status=$status, faceCount=$faceCount, resultId=$resultId, resultAgeMs=$resultAgeMs, maxFaces=$maxFaces, staleAfterMs=$staleAfterMs, framesSubmitted=$framesSubmitted, resultsAccepted=$resultsAccepted, framesDropped=$framesDropped, resultsDiscarded=$resultsDiscarded, expired=$expired, frameWidth=$frameWidth, frameHeight=$frameHeight, frameRotationDegrees=$frameRotationDegrees, errorCode=$errorCode)"
+    return "FaceAnalysisSnapshot(token=$token, sequence=$sequence, generation=$generation, status=$status, faceCount=$faceCount, resultId=$resultId, resultAgeMs=$resultAgeMs, maxFaces=$maxFaces, staleAfterMs=$staleAfterMs, framesSubmitted=$framesSubmitted, resultsAccepted=$resultsAccepted, framesDropped=$framesDropped, resultsDiscarded=$resultsDiscarded, expired=$expired, frameWidth=$frameWidth, frameHeight=$frameHeight, frameRotationDegrees=$frameRotationDegrees, errorCode=$errorCode, faceBoxes=$faceBoxes)"
   }
 }
 
@@ -1443,7 +1456,7 @@ class FrontCameraFlutterApi(private val binaryMessenger: BinaryMessenger, privat
           }
         } else {
           continuation.resumeWithException(MonitoringApiPigeonUtils.createConnectionError(channelName))
-        }
+        } 
       }
     }
   }
@@ -1467,7 +1480,7 @@ class FrontCameraFlutterApi(private val binaryMessenger: BinaryMessenger, privat
           }
         } else {
           continuation.resumeWithException(MonitoringApiPigeonUtils.createConnectionError(channelName))
-        }
+        } 
       }
     }
   }
@@ -1790,7 +1803,7 @@ class ExperimentalMonitoringFlutterApi(private val binaryMessenger: BinaryMessen
           }
         } else {
           continuation.resumeWithException(MonitoringApiPigeonUtils.createConnectionError(channelName))
-        }
+        } 
       }
     }
   }

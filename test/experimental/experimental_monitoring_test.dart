@@ -169,6 +169,11 @@ void main() {
       await tester.pump();
     }
 
+    Finder card(String text) => find.descendant(
+      of: find.byKey(const Key('signal')),
+      matching: find.text(text),
+    );
+
     bool enabled(WidgetTester tester, Key key) =>
         tester.widget<VigiaButton>(find.byKey(key)).onPressed != null;
 
@@ -294,7 +299,9 @@ void main() {
           tonesPlayed: 1,
         ),
       );
-      expect(find.text('Cierre ocular prolongado'), findsOneWidget);
+      expect(card('Cierre ocular prolongado'), findsOneWidget);
+      // Rediseño de P06: la cámara también muestra el aviso.
+      expect(find.byKey(const Key('stage-alert')), findsOneWidget);
       expect(find.text('1 iniciados · 0 fallidos'), findsOneWidget);
       // Salir con sesión vigente no está permitido.
       await tester.tap(find.bySemanticsLabel('Volver').first);
@@ -360,11 +367,12 @@ void main() {
           signal: EngineSignal.prolongedEyeClosure,
         ),
       );
-      expect(find.text('Cierre ocular prolongado'), findsOneWidget);
+      expect(card('Cierre ocular prolongado'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 3100));
       // La tarjeta anterior se funde en 220 ms (prueba física, 2026-11-15).
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('Cierre ocular prolongado'), findsNothing);
+      expect(find.byKey(const Key('stage-alert')), findsNothing);
       expect(find.text('Estado del motor no disponible'), findsWidgets);
       await close(tester);
     });

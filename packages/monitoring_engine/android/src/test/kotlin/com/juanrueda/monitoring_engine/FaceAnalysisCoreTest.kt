@@ -149,6 +149,38 @@ internal class FaceAnalysisCoreTest {
         }
     }
 
+    /** Rediseño de P06: los recuadros solo acompañan un rostro vigente. */
+    @Test
+    fun faceBoxes_onlyWithOneCurrentFace() {
+        val h = Harness()
+        h.core.start()
+        val points = FloatArray(2 * 478) { 0.5f }.also {
+            it[0] = 0.3f; it[1] = 0.2f; it[2] = 0.7f; it[3] = 0.8f
+            for (i in com.juanrueda.monitoring_engine.monitoring.EyeGeometry.RIGHT) it[2 * i] = 0.4f + 0.001f * i % 0.05f
+            for (i in com.juanrueda.monitoring_engine.monitoring.EyeGeometry.LEFT) it[2 * i] = 0.6f + 0.001f * i % 0.05f
+            for (i in com.juanrueda.monitoring_engine.monitoring.EyeGeometry.RIGHT + com.juanrueda.monitoring_engine.monitoring.EyeGeometry.LEFT) {
+                it[2 * i + 1] = 0.42f + 0.0001f * i
+            }
+        }
+        val ts = h.frame()
+        h.engine.listener.onResult(ts, 1, points)
+        h.drain()
+        val one = h.core.snapshotNow()
+        assertEquals(FacePresenceStatus.ONE_FACE, one.status)
+        assertEquals(12, one.faceBoxes?.size)
+        // Caducado: sin recuadros.
+        h.nowMs += 800
+        h.core.tick()
+        assertEquals(FacePresenceStatus.WAITING_RESULTS, h.last.status)
+        assertNull(h.last.faceBoxes)
+        // Dos rostros: sin recuadros.
+        val ts2 = h.frame()
+        h.engine.listener.onResult(ts2, 2, null)
+        h.drain()
+        assertEquals(FacePresenceStatus.MULTIPLE_FACES, h.core.snapshotNow().status)
+        assertNull(h.core.snapshotNow().faceBoxes)
+    }
+
     @Test
     fun engineFailureImmediatelyInvalidatesOcularObservationAndOldErrorsAreIgnored() {
         val h = Harness()

@@ -21,6 +21,7 @@ import '../../data/experimental_history/experimental_history_providers.dart';
 import '../experimental_history/experimental_history_blocks.dart';
 import '../settings/preferences_controller.dart';
 import 'experimental_monitoring_controller.dart';
+import 'monitoring_stage.dart';
 
 /// Monitoreo experimental (fase 5C, variante normal).
 ///
@@ -352,17 +353,23 @@ class _ExperimentalMonitoringScreenState
         onBack: _back,
         notice: notice,
         contentKey: preparing ? ValueKey(step) : null,
+        // Rediseño de P06 (GIF del usuario, 2026-11-15): la cámara queda
+        // fija arriba, a lo ancho, con el estado encima; lo demás se desplaza
+        // debajo y no la mueve.
         pinnedContent: preparing && step != _PreparationStep.sound
             ? (context, constraints) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: FrontCameraStage(
+                child: MonitoringStage(
                   key: const Key('preparation-preview'),
-                  state: cam,
-                  compact: true,
-                  maxHeight: isLargeText(context)
-                      ? (constraints.maxHeight * 0.32).clamp(0.0, 205.0)
-                      : (constraints.maxHeight * 0.42).clamp(0.0, 280.0),
+                  cam: cam,
+                  height: _stageHeight(context, constraints),
+                  chips: _stageChips(s, cam, eyesOk: s.eyesValid),
                 ),
+              )
+            : !preparing && !finalized && snap != null
+            ? (context, constraints) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _sessionStage(s, snap, cam, constraints),
               )
             : null,
         footer: preparing
@@ -379,6 +386,100 @@ class _ExperimentalMonitoringScreenState
             ..._session(s, snap, cam),
         ],
       ),
+    );
+  }
+
+  // ---------------------------------------------------------- cámara
+
+  /// Alto de la cámara fija. En la sesión deja ver entera la tarjeta de
+  /// estado sobre los controles.
+  double _stageHeight(
+    BuildContext context,
+    BoxConstraints constraints, {
+    bool session = false,
+  }) => isLargeText(context)
+      ? (constraints.maxHeight * (session ? 0.24 : 0.34)).clamp(120.0, 220.0)
+      : (constraints.maxHeight * (session ? 0.42 : 0.46)).clamp(180.0, 340.0);
+
+  List<StageChip> _stageChips(
+    ExperimentalState s,
+    FrontCameraState cam, {
+    required bool eyesOk,
+    EngineSignal? signal,
+  }) {
+    StageChipTone tone(bool ok) => ok ? StageChipTone.ok : StageChipTone.off;
+    return [
+      StageChip(
+        VigiaIcon.camera,
+        'Cámara',
+        tone(cam.phase == CameraCheckPhase.available),
+      ),
+      StageChip(
+        VigiaIcon.account,
+        'Rostro',
+        tone(cam.facePhase == FacePresencePhase.oneFace),
+      ),
+      StageChip(VigiaIcon.eye, 'Ojos', tone(s.available && eyesOk)),
+      if (signal != null)
+        switch (signal) {
+          EngineSignal.prolongedEyeClosure => const StageChip(
+            VigiaIcon.eyeClosed,
+            'Cierre',
+            StageChipTone.alert,
+          ),
+          EngineSignal.noPersistentSignals => const StageChip(
+            VigiaIcon.activity,
+            'Señal',
+            StageChipTone.ok,
+          ),
+          EngineSignal.notEvaluable => const StageChip(
+            VigiaIcon.eyeOff,
+            'Señal',
+            StageChipTone.off,
+          ),
+        },
+    ];
+  }
+
+  Widget _sessionStage(
+    ExperimentalState s,
+    MonitoringSnapshot snap,
+    FrontCameraState cam,
+    BoxConstraints constraints,
+  ) {
+    final paused = s.lifecycle == EngineSessionLifecycle.paused;
+    final shownSignal = s.sessionVigente
+        ? _signalShown.resolve(s.signal)
+        : s.signal;
+    final shownEyes = s.sessionVigente
+        ? _eyesShown.resolve(s.eyesValid)
+        : s.eyesValid;
+    final alert =
+        s.available &&
+        !paused &&
+        shownSignal == EngineSignal.prolongedEyeClosure;
+    final d = ExperimentalMonitoringScreen.decimal;
+    return MonitoringStage(
+      key: const Key('session-stage'),
+      cam: cam,
+      height: _stageHeight(context, constraints, session: true),
+      alert: alert,
+      idleTitle: paused && !snap.resumePending
+          ? 'Monitoreo en pausa. La cámara está cerrada.'
+          : null,
+      idleIcon: VigiaIcon.pause,
+      chips: _stageChips(
+        s,
+        cam,
+        eyesOk: shownEyes && !paused,
+        signal: s.available && !paused ? shownSignal : null,
+      ),
+      readouts: [
+        shownEyes && !paused
+            ? 'EAR der. ${d(snap.earRight)} · izq. ${d(snap.earLeft)}'
+            : 'EAR sin medición',
+        'Activo ${ExperimentalMonitoringScreen.duration(snap.activeMs)}',
+      ],
     );
   }
 
@@ -866,7 +967,6 @@ class _ExperimentalMonitoringScreenState
     FrontCameraState cam,
   ) {
     final paused = s.lifecycle == EngineSessionLifecycle.paused;
-    final showPreview = !paused || snap.resumePending;
     final operation = switch (s.pending) {
       'pause' => 'Pausando…',
       'resume' => 'Solicitando reanudación…',
@@ -878,9 +978,6 @@ class _ExperimentalMonitoringScreenState
     final shownSignal = s.sessionVigente
         ? _signalShown.resolve(s.signal)
         : s.signal;
-    final shownEyes = s.sessionVigente
-        ? _eyesShown.resolve(s.eyesValid)
-        : s.eyesValid;
     final status = _sessionStatus(s, snap, shownSignal);
     return [
       // Alto estable: el estado no encoge al cambiar de frase, así la vista
@@ -906,20 +1003,6 @@ class _ExperimentalMonitoringScreenState
       ),
       if (operation != null)
         Semantics(liveRegion: true, child: VigiaParagraph(operation)),
-      if (showPreview) ...[
-        FrontCameraStage(state: cam, compact: true, maxHeight: 240),
-        SteadyHeight(
-          child: CheckGroup(
-            rows: _eyeRows(
-              s,
-              cam,
-              compact: true,
-              eyesFirst: true,
-              eyesOk: shownEyes,
-            ),
-          ),
-        ),
-      ],
       AxesRow(
         session: !s.available
             ? 'Sin confirmar'

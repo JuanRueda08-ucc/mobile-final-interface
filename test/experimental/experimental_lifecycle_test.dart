@@ -6,7 +6,6 @@ import 'package:monitoring_engine/monitoring_engine.dart';
 import 'package:vigia/app/app_config.dart';
 import 'package:vigia/app/vigia_app.dart';
 import 'package:vigia/features/camera/front_camera_controller.dart';
-import 'package:vigia/features/camera/front_camera_screen.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_controller.dart';
 import 'package:vigia/features/experimental/experimental_monitoring_screen.dart';
 
@@ -61,7 +60,7 @@ void main() {
         ),
       );
       await open(tester, camera, engine);
-      expect(find.byType(FrontCameraStage), findsNothing);
+      expect(find.byKey(const Key('camera-preview')), findsNothing);
       expect(camera.calls.where((x) => x.startsWith('open:')), isEmpty);
       engine.next = fakeSnapshot(
         lifecycle: EngineSessionLifecycle.paused,
@@ -71,7 +70,7 @@ void main() {
       await tester.tap(find.text('Reanudar'));
       await tester.pumpAndSettle();
       expect(camera.calls.where((x) => x.startsWith('open:')), hasLength(1));
-      expect(find.byType(FrontCameraStage), findsOneWidget);
+      expect(find.byKey(const Key('camera-preview')), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 4));
     },

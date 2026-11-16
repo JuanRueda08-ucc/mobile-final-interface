@@ -238,12 +238,14 @@ void main() {
             preview,
             paused && !snap.resumePending ? findsNothing : findsOneWidget,
           );
-          if (tester.any(preview)) {
-            expect(
-              tester.getTopLeft(preview).dy,
-              greaterThan(tester.getBottomRight(status).dy),
-            );
-          }
+          // Rediseño de P06 (2026-11-15): la cámara queda fija arriba y el
+          // estado va debajo, sin solaparse.
+          final stage = find.byKey(const Key('session-stage'));
+          expect(stage, findsOneWidget);
+          expect(
+            tester.getTopLeft(status).dy,
+            greaterThanOrEqualTo(tester.getBottomRight(stage).dy),
+          );
           expect(tester.takeException(), isNull);
         }
         await expectLater(
