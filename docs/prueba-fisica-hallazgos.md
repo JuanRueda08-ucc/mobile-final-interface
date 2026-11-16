@@ -296,3 +296,34 @@ con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
   100 653 639 bytes. SHA-256
   `376966ce3cf0fe1c7b25dd36320cc67d400db51dd063cfb50d46cc47f783aded`. No
   se probó en el teléfono.
+
+### Acceso ordenado (2026-11-15, Claude)
+
+- Comentarios del usuario sobre el rediseño: sobraban las insignias (el
+  candado, la persona y el sobre bajo la marca), y los iconos y las
+  etiquetas de los campos estaban desalineados. Pidió la pregunta encima
+  del enlace, «Olvidé mi contraseña» debajo de «Crear cuenta» y una
+  verificación solo de texto, alineada y sin necesidad de desplazarse.
+- Se retiraron las insignias del acceso, el registro, la recuperación y la
+  verificación.
+- `AccountField`: la etiqueta («Correo», «Contraseña») va encima del campo.
+  El icono está centrado y hay un texto de ejemplo: «tu@correo.com», «Tu
+  contraseña» y, en el registro, «Mínimo 8 caracteres». Con texto ampliado
+  la etiqueta vuelve dentro del borde para que el formulario quepa.
+- Enlaces centrados en este orden: «¿No tienes cuenta?», luego **Crear
+  cuenta** y debajo «Olvidé mi contraseña», subrayado y en gris. En el
+  registro: «¿Ya tienes cuenta?» e **Inicia sesión**.
+- Verificación compacta:
+  - el título y el correo en negrita;
+  - una tarjeta con tres pasos y sus números centrados en la línea, una
+    línea divisoria y el consejo sobre spam;
+  - «Reenviar correo» y «Usar otro correo» uno debajo del otro;
+  - «Ya verifiqué mi correo» fijo abajo.
+
+  Cabe sin desplazarse a 360 dp.
+- Validación propia: análisis sin diagnósticos, 961/961 pruebas y registro
+  OK. Se regeneraron 12 capturas.
+- APK: `D:/dev/vigia-entrega/vigia-normal-acceso-ordenado-pruebas.apk`,
+  100 571 719 bytes. SHA-256
+  `59c92836021064829d30c73a67642f580658f1d2eb145ecc91b6b4a4217cff36`. No
+  se probó en el teléfono.

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/design_system/theme.dart';
 import '../../../core/design_system/tokens.dart';
-import '../../../core/design_system/vigia_icons.dart';
-import '../../../core/design_system/widgets/motion.dart';
 import '../../../core/design_system/widgets/screen_aura.dart';
 import '../../../core/design_system/widgets/vigia_button.dart';
 import '../../../core/design_system/widgets/vigia_scaffold.dart';
@@ -12,9 +10,9 @@ import 'account_form.dart';
 
 /// Verificación del correo tras el registro (rediseño, 2026-11-15).
 ///
-/// Insignia de correo, el correo destacado, tres pasos y las acciones:
-/// «Ya verifiqué mi correo» abajo y, en la tarjeta, reenviar o cambiar de
-/// correo.
+/// Solo texto: título, el correo destacado y una tarjeta compacta con tres
+/// pasos y las acciones de reenviar o cambiar de correo. «Ya verifiqué mi
+/// correo» queda fijo abajo. Cabe sin desplazarse en un teléfono normal.
 class AccountVerification extends StatelessWidget {
   const AccountVerification({
     super.key,
@@ -45,52 +43,27 @@ class AccountVerification extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: PulseOnce(
-                trigger: email,
-                times: 2,
-                child: AccountBadge(
-                  icon: VigiaIcon.mail,
-                  size: large ? 52 : 64,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             Semantics(
               header: true,
               child: VigiaText(
                 'Verifica tu correo',
-                style: VigiaType.heroTitle(large ? 30 : 40)
+                style: VigiaType.heroTitle(large ? 30 : 36)
                     .copyWith(color: p.ink),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             VigiaText(
               'Te enviamos un enlace de verificación a:',
               style: VigiaType.body.copyWith(color: secondary),
             ),
             if (email case final email?) ...[
-              const SizedBox(height: 10),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Container(
-                  key: const Key('verification-email'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: p.brightness == Brightness.dark
-                        ? p.surfaceStrong
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(VigiaRadius.tag),
-                    border: Border.all(color: p.line),
-                  ),
-                  child: VigiaText(
-                    email,
-                    style: VigiaType.kvValue.copyWith(color: p.ink),
-                  ),
+              const SizedBox(height: 4),
+              VigiaText(
+                email,
+                key: const Key('verification-email'),
+                style: VigiaType.indicator.copyWith(
+                  color: p.ink,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -99,13 +72,14 @@ class AccountVerification extends StatelessWidget {
         AccountCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 14,
+            spacing: 12,
             children: [
               const _Step(1, 'Abre el correo de Vigía.'),
               const _Step(2, 'Toca el enlace de verificación.'),
               const _Step(3, 'Vuelve y pulsa «Ya verifiqué».'),
+              Divider(height: 8, color: p.line),
               VigiaText(
-                '¿No llega? Revisa la carpeta de spam o reenvíalo.',
+                '¿No llega? Revisa la carpeta de spam.',
                 style: VigiaType.small.copyWith(color: p.inkSecondary),
               ),
               ?message,
@@ -128,8 +102,8 @@ class _Step extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
+    // Número y texto centrados en la misma línea.
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 28,
@@ -144,18 +118,13 @@ class _Step extends StatelessWidget {
             textScaler: TextScaler.noScaling,
             style: VigiaType.smallIndicator.copyWith(
               color: VigiaBrand.wordmarkLight,
+              height: 1,
             ),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 3),
-            child: VigiaText(
-              text,
-              style: VigiaType.body.copyWith(color: p.ink),
-            ),
-          ),
+          child: VigiaText(text, style: VigiaType.body.copyWith(color: p.ink)),
         ),
       ],
     );

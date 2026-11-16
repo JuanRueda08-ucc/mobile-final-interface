@@ -7,7 +7,6 @@ import '../../core/design_system/tokens.dart';
 import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
-import '../../core/design_system/widgets/vigia_text.dart';
 import 'firebase_account.dart';
 import 'presentation/account_form.dart';
 import 'presentation/account_verification.dart';
@@ -209,15 +208,16 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     child: child,
   );
 
-  Widget _modeLink(String label, _FormMode mode) {
+  Widget _modeLink(String label, _FormMode mode, {bool quiet = false}) {
     final p = VigiaColors.of(context);
     return TextButton(
       onPressed: _busy ? null : () => _changeMode(mode),
       style: TextButton.styleFrom(
-        foregroundColor: p.ink,
+        foregroundColor: quiet ? p.inkSecondary : p.ink,
         disabledForegroundColor: p.inkSecondary,
         textStyle: VigiaType.secondaryButton.copyWith(
-          fontWeight: FontWeight.w700,
+          fontWeight: quiet ? FontWeight.w500 : FontWeight.w700,
+          decoration: quiet ? TextDecoration.underline : null,
         ),
         minimumSize: const Size(VigiaSpace.minTap, VigiaSpace.minTap),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
@@ -232,12 +232,14 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   /// Enlaces bajo la tarjeta: cambiar entre acceso, registro y recuperación.
   Widget _links() {
     final p = VigiaColors.of(context);
-    Widget prompt(String text, Widget link) => Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 4,
+    // La pregunta encima y el enlace debajo, centrados.
+    Widget prompt(String text, Widget link) => Column(
       children: [
-        Text(text, style: VigiaType.body.copyWith(color: p.inkSecondary)),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: VigiaType.body.copyWith(color: p.inkSecondary),
+        ),
         link,
       ],
     );
@@ -249,7 +251,13 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
             '¿No tienes cuenta?',
             _modeLink('Crear cuenta', _FormMode.register),
           ),
-          Center(child: _modeLink('Olvidé mi contraseña', _FormMode.reset)),
+          Center(
+            child: _modeLink(
+              'Olvidé mi contraseña',
+              _FormMode.reset,
+              quiet: true,
+            ),
+          ),
         ],
         _FormMode.register => [
           prompt(
@@ -340,11 +348,6 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       );
     }
 
-    final icon = switch (_mode) {
-      _FormMode.signIn => VigiaIcon.lock,
-      _FormMode.register => VigiaIcon.account,
-      _FormMode.reset => VigiaIcon.mail,
-    };
     final (title, description, label, busyLabel) = switch (_mode) {
       _FormMode.signIn => (
         'Inicia sesión',
@@ -381,7 +384,6 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
           onBack: _busy ? null : _backToWelcome,
           description: description,
           accessCover: true,
-          icon: icon,
           isBusy: _busy,
           action: _button(
             _busy ? busyLabel : label,
@@ -392,76 +394,81 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
           children: [
             AutofillGroup(
               child: Column(
-                spacing: 12,
+                spacing: 14,
                 children: [
-                  TextField(
-                    controller: _email,
-                    enabled: !_busy,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: _mode == _FormMode.reset
-                        ? TextInputAction.done
-                        : TextInputAction.next,
-                    autocorrect: false,
-                    autofillHints: const [AutofillHints.email],
-                    decoration: accountFieldDecoration(
-                      context,
-                      label: 'Correo',
-                      error: _emailError,
-                      fillColor: fieldSurface,
-                      icon: VigiaIcon.mail,
-                    ),
-                    onChanged: (_) {
-                      if (_emailError != null) {
-                        setState(() => _emailError = null);
-                      }
-                    },
-                    onSubmitted: _mode == _FormMode.reset
-                        ? (_) => _submitForm(auth)
-                        : null,
-                  ),
-                  if (_mode != _FormMode.reset)
-                    TextField(
-                      controller: _password,
+                  AccountField(
+                    label: 'Correo',
+                    field: TextField(
+                      controller: _email,
                       enabled: !_busy,
-                      obscureText: _obscure,
-                      textInputAction: TextInputAction.done,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: _mode == _FormMode.reset
+                          ? TextInputAction.done
+                          : TextInputAction.next,
                       autocorrect: false,
-                      enableSuggestions: false,
-                      autofillHints: [
-                        _mode == _FormMode.register
-                            ? AutofillHints.newPassword
-                            : AutofillHints.password,
-                      ],
+                      autofillHints: const [AutofillHints.email],
                       decoration: accountFieldDecoration(
                         context,
-                        label: 'Contraseña',
-                        error: _passwordError,
+                        label: 'Correo',
+                        hint: 'tu@correo.com',
+                        error: _emailError,
                         fillColor: fieldSurface,
-                        icon: VigiaIcon.lock,
-                        // Con texto ampliado, la regla aparece al validar.
-                        helper:
-                            _mode == _FormMode.register &&
-                                !isLargeText(context)
-                            ? 'Usa al menos 8 caracteres.'
-                            : null,
-                        suffix: IconButton(
-                          tooltip: _obscure
-                              ? 'Mostrar contraseña'
-                              : 'Ocultar contraseña',
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: VigiaIconView(
-                            _obscure ? VigiaIcon.eye : VigiaIcon.eyeOff,
-                            size: 22,
-                            color: p.inkSecondary,
-                          ),
-                        ),
+                        icon: VigiaIcon.mail,
                       ),
                       onChanged: (_) {
-                        if (_passwordError != null) {
-                          setState(() => _passwordError = null);
+                        if (_emailError != null) {
+                          setState(() => _emailError = null);
                         }
                       },
-                      onSubmitted: (_) => _submitForm(auth),
+                      onSubmitted: _mode == _FormMode.reset
+                          ? (_) => _submitForm(auth)
+                          : null,
+                    ),
+                  ),
+                  if (_mode != _FormMode.reset)
+                    AccountField(
+                      label: 'Contraseña',
+                      field: TextField(
+                        controller: _password,
+                        enabled: !_busy,
+                        obscureText: _obscure,
+                        textInputAction: TextInputAction.done,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        autofillHints: [
+                          _mode == _FormMode.register
+                              ? AutofillHints.newPassword
+                              : AutofillHints.password,
+                        ],
+                        decoration: accountFieldDecoration(
+                          context,
+                          label: 'Contraseña',
+                          hint: _mode == _FormMode.register
+                              ? 'Mínimo 8 caracteres'
+                              : 'Tu contraseña',
+                          error: _passwordError,
+                          fillColor: fieldSurface,
+                          icon: VigiaIcon.lock,
+                          suffix: IconButton(
+                            tooltip: _obscure
+                                ? 'Mostrar contraseña'
+                                : 'Ocultar contraseña',
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            icon: VigiaIconView(
+                              _obscure ? VigiaIcon.eye : VigiaIcon.eyeOff,
+                              size: 22,
+                              color: p.inkSecondary,
+                            ),
+                          ),
+                        ),
+                        onChanged: (_) {
+                          if (_passwordError != null) {
+                            setState(() => _passwordError = null);
+                          }
+                        },
+                        onSubmitted: (_) => _submitForm(auth),
+                      ),
                     ),
                 ],
               ),

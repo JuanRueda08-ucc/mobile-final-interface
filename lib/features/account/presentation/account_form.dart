@@ -23,7 +23,6 @@ class AccountForm extends StatelessWidget {
     this.isBusy = false,
     this.onBack,
     this.accessCover = false,
-    this.icon,
   });
 
   final String title;
@@ -35,9 +34,6 @@ class AccountForm extends StatelessWidget {
   final bool isBusy;
   final VoidCallback? onBack;
   final bool accessCover;
-
-  /// Icono de la insignia del acceso (rediseño, 2026-11-15).
-  final VigiaIcon? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +52,7 @@ class AccountForm extends StatelessWidget {
       footer: accessCover ? null : submit,
       children: [
         if (accessCover)
-          _AccessCover(title: title, description: description, icon: icon)
+          _AccessCover(title: title, description: description)
         else
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,54 +111,11 @@ class AccountCard extends StatelessWidget {
   }
 }
 
-/// Insignia redonda con un icono sobre un degradado lavanda.
-class AccountBadge extends StatelessWidget {
-  const AccountBadge({super.key, required this.icon, this.size = 64});
-
-  final VigiaIcon icon;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => ExcludeSemantics(
-    child: Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE4DAFF), VigiaBrand.lavender],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x40A58BFF),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: VigiaIconView(
-        icon,
-        size: size * 0.46,
-        color: VigiaBrand.wordmarkLight,
-        strokeWidth: 2,
-      ),
-    ),
-  );
-}
-
 class _AccessCover extends StatelessWidget {
-  const _AccessCover({
-    required this.title,
-    required this.description,
-    this.icon,
-  });
+  const _AccessCover({required this.title, required this.description});
 
   final String title;
   final String description;
-  final VigiaIcon? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -170,18 +123,6 @@ class _AccessCover extends StatelessWidget {
     final intro = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Con texto ampliado se omite la insignia: el formulario cabe sin
-        // desplazarse.
-        if (icon case final icon? when !isLargeText(context)) ...[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: AccountBadge(
-              icon: icon,
-              size: isLargeText(context) ? 52 : 64,
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
         Semantics(
           header: true,
           child: VigiaText(
@@ -216,6 +157,39 @@ class _AccessCover extends StatelessWidget {
   }
 }
 
+/// Campo del acceso (2026-11-15): la etiqueta va encima, fuera del borde, y
+/// el campo lleva el icono centrado y un texto de ejemplo.
+class AccountField extends StatelessWidget {
+  const AccountField({super.key, required this.label, required this.field});
+
+  final String label;
+  final Widget field;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = VigiaColors.of(context);
+    // Con texto ampliado la etiqueta va dentro del borde
+    // ([accountFieldDecoration]) para que el formulario quepa.
+    if (isLargeText(context)) return field;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(start: 4),
+            child: VigiaText(
+              label,
+              style: VigiaType.smallIndicator.copyWith(color: p.ink),
+            ),
+          ),
+        ),
+        Semantics(label: label, child: field),
+      ],
+    );
+  }
+}
+
 InputDecoration accountFieldDecoration(
   BuildContext context, {
   required String label,
@@ -224,6 +198,7 @@ InputDecoration accountFieldDecoration(
   VigiaIcon? icon,
   Widget? suffix,
   String? helper,
+  String? hint,
 }) {
   final p = VigiaColors.of(context);
   OutlineInputBorder outline(Color color, {double width = 1}) {
@@ -233,8 +208,15 @@ InputDecoration accountFieldDecoration(
     );
   }
 
+  // Con [hint], la etiqueta va fuera del campo ([AccountField]).
+  final outside = hint != null && !isLargeText(context);
   return InputDecoration(
-    labelText: label,
+    labelText: outside ? null : label,
+    hintText: outside ? hint : null,
+    hintStyle: VigiaType.body.copyWith(color: p.inkSecondary),
+    contentPadding: outside
+        ? const EdgeInsetsDirectional.fromSTEB(4, 16, 12, 16)
+        : null,
     labelStyle: VigiaType.body.copyWith(color: p.inkSecondary),
     floatingLabelStyle: VigiaType.body.copyWith(color: p.ink),
     floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -243,13 +225,11 @@ InputDecoration accountFieldDecoration(
     constraints: const BoxConstraints(minHeight: VigiaSpace.minTap),
     prefixIcon: icon == null
         ? null
-        : Center(
-            widthFactor: 1,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(start: 14, end: 10),
-              child: VigiaIconView(icon, size: 22, color: p.inkSecondary),
-            ),
+        : Padding(
+            padding: const EdgeInsetsDirectional.only(start: 16, end: 8),
+            child: VigiaIconView(icon, size: 22, color: p.inkSecondary),
           ),
+    prefixIconConstraints: const BoxConstraints(minWidth: 46, minHeight: 22),
     suffixIcon: suffix,
     helperText: helper,
     helperStyle: VigiaType.small.copyWith(color: p.inkSecondary),
