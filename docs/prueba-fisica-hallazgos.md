@@ -278,3 +278,21 @@ con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
   100 653 639 bytes. SHA-256
   `e3dc4f901a01b6f362e8ac2522397a21c857486c431d780458b9386679d6d2fe`.
   Incluye también el rediseño del monitoreo.
+
+### Botones sin rayas en toda la app (2026-11-15, Claude)
+
+- A petición del usuario, `VigiaButton` deshabilitado deja el borde
+  discontinuo de B5.2. Ahora lleva fondo `sfs`, texto `i2` y un borde fino
+  continuo `line`. La semántica sigue indicando que está desactivado. Las
+  rayas siguen solo donde no son botones: el panel «Simulación DEMO» y la
+  leyenda de un gráfico.
+- `Material(animationDuration: Duration.zero)`: el cambio de borde entre
+  estados ya no se interpola durante 200 ms. Antes se interpolaba incluso
+  con movimiento reducido, y lo detectó la prueba de diálogos DEMO.
+- Se regeneraron 98 capturas con botones deshabilitados.
+- Validación propia: análisis sin diagnósticos, 961/961 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-botones-sin-rayas-pruebas.apk`,
+  100 653 639 bytes. SHA-256
+  `376966ce3cf0fe1c7b25dd36320cc67d400db51dd063cfb50d46cc47f783aded`. No
+  se probó en el teléfono.

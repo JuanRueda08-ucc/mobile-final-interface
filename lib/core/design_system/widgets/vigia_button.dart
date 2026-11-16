@@ -20,9 +20,10 @@ enum VigiaButtonKind {
   onPaper,
 }
 
-/// Botón de Vigía. Con [onPressed] nulo se muestra deshabilitado con el estilo
-/// de B5.2 (fondo `sfs`, texto `i2` y borde discontinuo), con texto e indicación
-/// semántica de desactivado, no solo por color.
+/// Botón de Vigía. Con [onPressed] nulo se muestra deshabilitado: fondo
+/// `sfs`, texto `i2` y borde fino continuo, con indicación semántica de
+/// desactivado. El usuario pidió quitar el borde discontinuo de B5.2
+/// (2026-11-15).
 ///
 /// Acceso (2026-11-15, a petición del usuario): al pulsar, el botón que
 /// espera respuesta usa [loading] (mismos colores e indicador de progreso) y
@@ -77,11 +78,10 @@ class VigiaButton extends StatelessWidget {
         };
     late final Color bg, fg;
     BorderSide side = BorderSide.none;
-    var dashed = false;
     if (styledDisabled) {
       bg = p.surfaceStrong;
       fg = p.inkSecondary;
-      dashed = true;
+      side = BorderSide(color: p.line);
     } else {
       switch (kind) {
         case VigiaButtonKind.primary:
@@ -143,6 +143,9 @@ class VigiaButton extends StatelessWidget {
     Widget surface = Material(
       color: bg,
       shape: shape,
+      // El cambio de estado no interpola el borde (Material lo animaría
+      // 200 ms, también con movimiento reducido).
+      animationDuration: Duration.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: disabled ? null : onPressed,
@@ -159,15 +162,6 @@ class VigiaButton extends StatelessWidget {
         ),
       ),
     );
-    if (dashed) {
-      surface = CustomPaint(
-        foregroundPainter: DashedRRectPainter(
-          color: p.control,
-          radius: VigiaRadius.button,
-        ),
-        child: surface,
-      );
-    }
     if (disabled && !styledDisabled && !loading) {
       surface = AnimatedOpacity(
         opacity: 0.45,
