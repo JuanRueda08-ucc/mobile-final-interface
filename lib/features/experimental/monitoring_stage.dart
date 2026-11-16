@@ -51,6 +51,29 @@ List<Rect>? stageFaceBoxes(FrontCameraState cam) {
   ];
 }
 
+/// Inclinación de la cabeza en pantalla (radianes, ±45° como mucho): el
+/// ángulo de la línea entre los centros de los ojos, medida de izquierda a
+/// derecha en pantalla.
+double stageFaceRoll(Offset eyeA, Offset eyeB) {
+  final (l, r) = eyeA.dx <= eyeB.dx ? (eyeA, eyeB) : (eyeB, eyeA);
+  final d = r - l;
+  if (d.distance < 1) return 0;
+  return math.atan2(d.dy, d.dx).clamp(-math.pi / 4, math.pi / 4);
+}
+
+/// Tamaño del rostro sin girar a partir de su caja recta en pantalla y la
+/// inclinación [roll]: deshace `W = w·cos + h·sen`, `H = w·sen + h·cos`.
+/// Nunca baja del 60 % de la caja.
+Size uprightFaceSize(Size box, double roll) {
+  final c = math.cos(roll).abs();
+  final s = math.sin(roll).abs();
+  final det = c * c - s * s;
+  if (det < 0.2) return box * 0.75;
+  final w = (box.width * c - box.height * s) / det;
+  final h = (box.height * c - box.width * s) / det;
+  return Size(math.max(w, box.width * 0.6), math.max(h, box.height * 0.6));
+}
+
 /// Lleva un recuadro normalizado del cuadro analizado (sin girar) a la
 /// imagen mostrada: gira [quarterTurns] cuartos en sentido horario, como el
 /// `RotatedBox` de la vista previa, y después espeja en horizontal.
@@ -364,49 +387,60 @@ class _BoxesPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final face = _onScreen(boxes[0]).inflate(6);
-    final thin = Paint()
+    final right = _onScreen(boxes[1]);
+    final left = _onScreen(boxes[2]);
+    // Como en la referencia: el recuadro se inclina con la cabeza. El giro
+    // sale de la línea entre los ojos (solo presentación).
+    final roll = stageFaceRoll(right.center, left.center);
+    final box = _onScreen(boxes[0]);
+    final upright = uprightFaceSize(box.size, roll);
+    final line = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = color.withValues(alpha: 0.75);
-    final thick = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 1.4
       ..color = color;
-    canvas.drawRect(face, thin);
-    _corners(canvas, face, math.min(22, face.shortestSide / 4), thick);
-    for (var i = 1; i < 3; i++) {
-      // Recuadro de ojo cuadrado en pantalla, del ancho del ojo detectado.
-      final r = _onScreen(boxes[i]);
+    canvas.save();
+    canvas.translate(box.center.dx, box.center.dy);
+    canvas.rotate(roll);
+    _dashed(
+      canvas,
+      Path()..addRect(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: upright.width + 12,
+          height: upright.height + 12,
+        ),
+      ),
+      line,
+    );
+    canvas.restore();
+    final eyePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = color.withValues(alpha: 0.9);
+    for (final r in [right, left]) {
+      // Marca de ojo del ancho del ojo detectado, inclinada igual.
       final side = math.max(14.0, math.max(r.width, r.height) * 0.85);
-      final eye = Rect.fromCenter(
-        center: r.center,
-        width: side,
-        height: side * 0.7,
+      canvas.save();
+      canvas.translate(r.center.dx, r.center.dy);
+      canvas.rotate(roll);
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset.zero, width: side, height: side * 0.55),
+        eyePaint,
       );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(eye, const Radius.circular(4)),
-        thin..strokeWidth = 1.6,
-      );
+      canvas.restore();
     }
   }
 
-  void _corners(Canvas canvas, Rect r, double l, Paint p) {
-    final path = Path()
-      ..moveTo(r.left, r.top + l)
-      ..lineTo(r.left, r.top)
-      ..lineTo(r.left + l, r.top)
-      ..moveTo(r.right - l, r.top)
-      ..lineTo(r.right, r.top)
-      ..lineTo(r.right, r.top + l)
-      ..moveTo(r.right, r.bottom - l)
-      ..lineTo(r.right, r.bottom)
-      ..lineTo(r.right - l, r.bottom)
-      ..moveTo(r.left + l, r.bottom)
-      ..lineTo(r.left, r.bottom)
-      ..lineTo(r.left, r.bottom - l);
-    canvas.drawPath(path, p);
+  /// Trazo discontinuo fino (6 de línea, 4 de hueco).
+  void _dashed(Canvas canvas, Path path, Paint paint) {
+    for (final metric in path.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += 10) {
+        canvas.drawPath(
+          metric.extractPath(d, math.min(d + 6, metric.length)),
+          paint,
+        );
+      }
+    }
   }
 
   @override

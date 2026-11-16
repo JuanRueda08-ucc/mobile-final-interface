@@ -309,8 +309,8 @@ class FakeFrontCameraBridge implements FrontCameraBridge {
   /// Cara, ojo derecho e izquierdo, normalizados al cuadro sin girar.
   static const sampleBoxes = <double>[
     0.30, 0.26, 0.70, 0.74, //
-    0.56, 0.40, 0.64, 0.46, //
-    0.36, 0.40, 0.44, 0.46,
+    0.56, 0.38, 0.64, 0.44, // cabeza algo ladeada
+    0.36, 0.42, 0.44, 0.48,
   ];
 
   int get restarts => calls.where((c) => c.startsWith('restartFace:')).length;

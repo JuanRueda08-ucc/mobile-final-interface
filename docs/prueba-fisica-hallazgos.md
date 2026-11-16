@@ -327,3 +327,31 @@ con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
   100 571 719 bytes. SHA-256
   `59c92836021064829d30c73a67642f580658f1d2eb145ecc91b6b4a4217cff36`. No
   se probó en el teléfono.
+
+### Recuadro inclinado, según el vídeo de referencia (2026-11-16, Claude)
+
+- El usuario envió el MP4 del GIF. En 12 fotogramas se ve:
+  - el recuadro de la cara gira con la cabeza, en trazo fino discontinuo;
+  - los chips pasan a rojo y cambian de palabra cuando hay un evento:
+    «Distracted», «Asleep», «Phone» y «Smoking».
+
+  No se copian distracción, teléfono, cigarrillo ni cinturón, porque Vigía
+  no los detecta. El chip de cierre en coral ya existía.
+- `MonitoringStage`:
+  - el recuadro de la cara es discontinuo y fino, y se inclina con
+    `stageFaceRoll`: el ángulo de la línea entre los ojos en pantalla,
+    limitado a ±45°;
+  - `uprightFaceSize` recupera el tamaño sin girar a partir de la caja
+    recta;
+  - las marcas de los ojos son óvalos con la misma inclinación.
+
+  Solo cambia la presentación: no hay cambios en el motor.
+- Pruebas: 3 nuevas de inclinación y tamaño en `monitoring_stage_test.dart`.
+  El doble de cámara usa una cabeza algo ladeada y se regeneraron 26
+  capturas.
+- Validación propia: análisis sin diagnósticos, 964/964 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-recuadro-inclinado-pruebas.apk`,
+  100 637 255 bytes. SHA-256
+  `2776c770c4921a31c11b94a09719db2a659322db7fe4133d4e5d2e4027f3c2bd`. No
+  se probó con una cara real.

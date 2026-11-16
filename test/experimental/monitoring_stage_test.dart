@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:monitoring_engine/monitoring_engine.dart';
@@ -137,6 +139,36 @@ void main() {
       );
       expect(find.byKey(const Key('camera-preview')), findsNothing);
       expect(find.text('Abriendo la cámara frontal…'), findsOneWidget);
+    });
+  });
+
+  group('inclinación del recuadro', () {
+    test('ojos a la misma altura: sin giro, en cualquier orden', () {
+      expect(stageFaceRoll(const Offset(10, 50), const Offset(60, 50)), 0);
+      expect(stageFaceRoll(const Offset(60, 50), const Offset(10, 50)), 0);
+    });
+
+    test('cabeza ladeada: el ángulo sigue la línea de los ojos', () {
+      final roll = stageFaceRoll(const Offset(0, 0), const Offset(10, 10));
+      expect(roll, closeTo(math.pi / 4, 1e-9));
+      final other = stageFaceRoll(const Offset(10, 0), const Offset(0, 10));
+      expect(other, closeTo(-math.pi / 4, 1e-9));
+      // Más de 45°: se limita.
+      expect(
+        stageFaceRoll(const Offset(0, 0), const Offset(1, 10)),
+        closeTo(math.pi / 4, 1e-9),
+      );
+    });
+
+    test('el tamaño sin girar deshace la caja recta', () {
+      const roll = 0.3;
+      const w = 100.0, h = 140.0;
+      final c = math.cos(roll), s = math.sin(roll);
+      final box = Size(w * c + h * s, w * s + h * c);
+      final up = uprightFaceSize(box, roll);
+      expect(up.width, closeTo(w, 1e-6));
+      expect(up.height, closeTo(h, 1e-6));
+      expect(uprightFaceSize(const Size(80, 90), 0), const Size(80, 90));
     });
   });
 }
