@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vigia/core/design_system/widgets/vigia_button.dart';
 import 'package:vigia/features/account/firebase_account.dart';
 import 'package:vigia/features/account/firebase_account_screen.dart';
 
@@ -181,6 +182,15 @@ void main() {
     await tester.tap(button('Crear cuenta'));
     await tester.pump();
     expect(button('Creando cuenta…'), findsOneWidget);
+    // Al pulsar: indicador de progreso y ningún borde discontinuo (rediseño
+    // del acceso, 2026-11-15).
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.foregroundPainter is DashedRRectPainter,
+      ),
+      findsNothing,
+    );
     expect(
       tester
           .widgetList<TextField>(find.byType(TextField))

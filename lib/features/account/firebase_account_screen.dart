@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/design_system/theme.dart';
 import '../../core/design_system/tokens.dart';
+import '../../core/design_system/vigia_icons.dart';
 import '../../core/design_system/widgets/vigia_blocks.dart';
 import '../../core/design_system/widgets/vigia_button.dart';
+import '../../core/design_system/widgets/vigia_text.dart';
 import 'firebase_account.dart';
 import 'presentation/account_form.dart';
+import 'presentation/account_verification.dart';
 import 'presentation/account_welcome.dart';
 
 class FirebaseAccountScreen extends ConsumerStatefulWidget {
@@ -28,6 +31,11 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   // P01: sin sesión, la bienvenida precede a los formularios de acceso.
   bool _welcome = true;
   bool _busy = false;
+
+  /// Botón cuya operación está en curso: muestra el progreso; los demás se
+  /// atenúan sin el borde discontinuo (rediseño del acceso, 2026-11-15).
+  String? _active;
+  bool _obscure = true;
   String? _feedback;
   String? _emailError;
   String? _passwordError;
@@ -39,10 +47,11 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     super.dispose();
   }
 
-  Future<void> _run(Future<String?> Function() action) async {
+  Future<void> _run(String id, Future<String?> Function() action) async {
     if (_busy) return;
     setState(() {
       _busy = true;
+      _active = id;
       _feedback = null;
     });
     String? feedback;
@@ -70,6 +79,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     setState(() {
       _feedback = feedback;
       _busy = false;
+      _active = null;
     });
     if (feedback != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -97,7 +107,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     });
     if (_emailError != null || _passwordError != null) return;
     FocusScope.of(context).unfocus();
-    _run(() => _submit(auth, email, password));
+    _run('submit', () => _submit(auth, email, password));
   }
 
   Future<String?> _submit(
@@ -142,10 +152,14 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
   VigiaButton _button(
     String label,
     VoidCallback action, {
+    required String id,
     bool secondary = false,
   }) => VigiaButton(
+    key: ValueKey('account-$id'),
     label: label,
     kind: secondary ? VigiaButtonKind.secondary : VigiaButtonKind.primary,
+    loading: _busy && _active == id,
+    quietDisabled: _busy,
     onPressed: _busy ? null : action,
   );
 
@@ -154,6 +168,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     setState(() {
       _mode = mode;
       _welcome = false;
+      _obscure = true;
       _password.clear();
       _feedback = null;
       _emailError = null;
@@ -201,15 +216,51 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       style: TextButton.styleFrom(
         foregroundColor: p.ink,
         disabledForegroundColor: p.inkSecondary,
-        alignment: AlignmentDirectional.centerStart,
-        textStyle: VigiaType.secondaryButton,
+        textStyle: VigiaType.secondaryButton.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
         minimumSize: const Size(VigiaSpace.minTap, VigiaSpace.minTap),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(VigiaRadius.tag),
         ),
       ),
       child: Text(label),
+    );
+  }
+
+  /// Enlaces bajo la tarjeta: cambiar entre acceso, registro y recuperación.
+  Widget _links() {
+    final p = VigiaColors.of(context);
+    Widget prompt(String text, Widget link) => Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      children: [
+        Text(text, style: VigiaType.body.copyWith(color: p.inkSecondary)),
+        link,
+      ],
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: switch (_mode) {
+        _FormMode.signIn => [
+          prompt(
+            '¿No tienes cuenta?',
+            _modeLink('Crear cuenta', _FormMode.register),
+          ),
+          Center(child: _modeLink('Olvidé mi contraseña', _FormMode.reset)),
+        ],
+        _FormMode.register => [
+          prompt(
+            '¿Ya tienes cuenta?',
+            _modeLink('Inicia sesión', _FormMode.signIn),
+          ),
+        ],
+        _FormMode.reset => [
+          Center(child: _modeLink('Volver al acceso', _FormMode.signIn)),
+        ],
+      },
     );
   }
 
@@ -243,15 +294,14 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
     }
     if (user != null) {
       return _switch(
-        AccountForm(
+        AccountVerification(
           key: const ValueKey('verify'),
-          title: 'Verifica tu correo',
-          description: 'Abre el enlace de verificación en tu correo. Después, vuelve a Vigía.',
-          detail: user.email,
-          isBusy: _busy,
-          action: _button(
+          email: user.email,
+          message: message,
+          confirm: _button(
             'Ya verifiqué mi correo',
-            () => _run(() async {
+            id: 'verified',
+            () => _run('verified', () async {
               await user.reload();
               final current = auth.currentUser;
               if (current?.emailVerified == true) {
@@ -261,22 +311,21 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
               return 'La verificación sigue pendiente.';
             }),
           ),
-          children: [
-            ?message,
-            _button(
-              'Reenviar correo',
-              () => _run(() async {
-                await user.sendEmailVerification();
-                return 'Enviamos un nuevo enlace.';
-              }),
-              secondary: true,
-            ),
-            _button(
-              'Usar otro correo',
-              () => _run(() => _signOut(auth)),
-              secondary: true,
-            ),
-          ],
+          resend: _button(
+            'Reenviar correo',
+            id: 'resend',
+            () => _run('resend', () async {
+              await user.sendEmailVerification();
+              return 'Enviamos un nuevo enlace.';
+            }),
+            secondary: true,
+          ),
+          useOther: _button(
+            'Usar otro correo',
+            id: 'other',
+            () => _run('other', () => _signOut(auth)),
+            secondary: true,
+          ),
         ),
       );
     }
@@ -291,6 +340,11 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
       );
     }
 
+    final icon = switch (_mode) {
+      _FormMode.signIn => VigiaIcon.lock,
+      _FormMode.register => VigiaIcon.account,
+      _FormMode.reset => VigiaIcon.mail,
+    };
     final (title, description, label, busyLabel) = switch (_mode) {
       _FormMode.signIn => (
         'Inicia sesión',
@@ -311,7 +365,10 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
         'Enviando enlace…',
       ),
     };
-    final fieldSurface = VigiaColors.of(context).surface;
+    final p = VigiaColors.of(context);
+    final fieldSurface = p.brightness == Brightness.dark
+        ? p.surfaceStrong
+        : VigiaBrand.neutral;
     return _switch(
       PopScope(
         key: const ValueKey('form'),
@@ -324,18 +381,14 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
           onBack: _busy ? null : _backToWelcome,
           description: description,
           accessCover: true,
+          icon: icon,
           isBusy: _busy,
-          action: _button(_busy ? busyLabel : label, () => _submitForm(auth)),
-          afterAction: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: 16,
-            children: _mode == _FormMode.signIn
-                ? [
-                    _modeLink('Crear cuenta', _FormMode.register),
-                    _modeLink('Olvidé mi contraseña', _FormMode.reset),
-                  ]
-                : [_modeLink('Volver al acceso', _FormMode.signIn)],
+          action: _button(
+            _busy ? busyLabel : label,
+            id: 'submit',
+            () => _submitForm(auth),
           ),
+          afterAction: _links(),
           children: [
             AutofillGroup(
               child: Column(
@@ -355,6 +408,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                       label: 'Correo',
                       error: _emailError,
                       fillColor: fieldSurface,
+                      icon: VigiaIcon.mail,
                     ),
                     onChanged: (_) {
                       if (_emailError != null) {
@@ -369,7 +423,7 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                     TextField(
                       controller: _password,
                       enabled: !_busy,
-                      obscureText: true,
+                      obscureText: _obscure,
                       textInputAction: TextInputAction.done,
                       autocorrect: false,
                       enableSuggestions: false,
@@ -383,6 +437,24 @@ class _FirebaseAccountScreenState extends ConsumerState<FirebaseAccountScreen> {
                         label: 'Contraseña',
                         error: _passwordError,
                         fillColor: fieldSurface,
+                        icon: VigiaIcon.lock,
+                        // Con texto ampliado, la regla aparece al validar.
+                        helper:
+                            _mode == _FormMode.register &&
+                                !isLargeText(context)
+                            ? 'Usa al menos 8 caracteres.'
+                            : null,
+                        suffix: IconButton(
+                          tooltip: _obscure
+                              ? 'Mostrar contraseña'
+                              : 'Ocultar contraseña',
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                          icon: VigiaIconView(
+                            _obscure ? VigiaIcon.eye : VigiaIcon.eyeOff,
+                            size: 22,
+                            color: p.inkSecondary,
+                          ),
+                        ),
                       ),
                       onChanged: (_) {
                         if (_passwordError != null) {

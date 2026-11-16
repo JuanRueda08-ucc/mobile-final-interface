@@ -237,3 +237,44 @@ con el GIF, barra, voz y animaciones base. Falta probarlos en el teléfono.
 3. Voz en la calibración.
 4. Barra lateral desplegable.
 5. Animaciones en el resto del recorrido.
+
+## 6. Acceso y verificación del correo
+
+- El usuario pidió mejorar el aspecto del inicio de sesión, el registro y
+  la verificación del correo. También le molestaba que, al pulsar, los
+  botones quedaran «con rayas». La causa: mientras Firebase responde, todos
+  los botones pasaban a deshabilitados, y ese estilo de B5.2 lleva borde
+  discontinuo.
+
+### Rediseño aplicado (2026-11-15, Claude)
+
+- `VigiaButton` tiene dos estados nuevos:
+  - `loading`: el botón pulsado conserva su color, muestra un indicador de
+    progreso y no admite otra pulsación;
+  - `quietDisabled`: los demás se atenúan al 45 % sin borde discontinuo.
+
+  El deshabilitado discontinuo de B5.2 sigue en el resto de la app, por
+  ejemplo en «Calibrar» sin ojos medibles.
+- Acceso, registro y recuperación:
+  - insignia lavanda con icono (candado, persona o sobre), que se omite con
+    texto ampliado;
+  - campos dentro de una tarjeta, con icono de correo y de candado;
+  - botón para mostrar u ocultar la contraseña;
+  - en el registro, la ayuda «Usa al menos 8 caracteres.»;
+  - enlaces centrados: «¿No tienes cuenta? Crear cuenta», «Olvidé mi
+    contraseña» y «¿Ya tienes cuenta? Inicia sesión».
+- Verificación (`account_verification.dart`):
+  - insignia de sobre que late dos veces;
+  - el correo destacado;
+  - una tarjeta con tres pasos numerados, un consejo sobre la carpeta de
+    spam, «Reenviar correo» y «Usar otro correo»;
+  - «Ya verifiqué mi correo» fijo abajo.
+- Pruebas: el registro comprueba que al pulsar se ven el indicador de
+  progreso y ningún borde discontinuo. Se regeneraron 12 capturas de
+  acceso, registro y verificación.
+- Validación propia: análisis sin diagnósticos, 961/961 pruebas y registro
+  OK. No se probó en el teléfono.
+- APK: `D:/dev/vigia-entrega/vigia-normal-acceso-redisenado-pruebas.apk`,
+  100 653 639 bytes. SHA-256
+  `e3dc4f901a01b6f362e8ac2522397a21c857486c431d780458b9386679d6d2fe`.
+  Incluye también el rediseño del monitoreo.

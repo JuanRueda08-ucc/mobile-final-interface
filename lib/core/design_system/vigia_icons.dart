@@ -44,7 +44,11 @@ enum VigiaIcon {
   eye(
     'M2.5 12c2-4 5.5-6 9.5-6c4 0 7.5 2 9.5 6c-2 4-5.5 6-9.5 6c-4 0-7.5-2-9.5-6z'
     'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-  );
+  ),
+
+  // Rediseño del acceso (2026-11-15).
+  mail('M3.5 6h17v12h-17zM3.5 6.5l8.5 6.5 8.5-6.5'),
+  send('M21 3L3 10.5l7 2.5M21 3l-7.5 18-3.5-8M21 3L10 13');
 
   const VigiaIcon(this.svgPath);
 

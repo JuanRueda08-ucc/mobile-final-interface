@@ -23,6 +23,10 @@ enum VigiaButtonKind {
 /// Botón de Vigía. Con [onPressed] nulo se muestra deshabilitado con el estilo
 /// de B5.2 (fondo `sfs`, texto `i2` y borde discontinuo), con texto e indicación
 /// semántica de desactivado, no solo por color.
+///
+/// Acceso (2026-11-15, a petición del usuario): al pulsar, el botón que
+/// espera respuesta usa [loading] (mismos colores e indicador de progreso) y
+/// los demás, [quietDisabled] (atenuados, sin borde discontinuo).
 class VigiaButton extends StatelessWidget {
   const VigiaButton({
     super.key,
@@ -32,7 +36,16 @@ class VigiaButton extends StatelessWidget {
     this.icon,
     this.expand = true,
     this.height,
+    this.loading = false,
+    this.quietDisabled = false,
   });
+
+  /// Operación en curso: conserva su aspecto, muestra un indicador de
+  /// progreso y no admite otra pulsación.
+  final bool loading;
+
+  /// Deshabilitado temporal: atenuado, sin el borde discontinuo.
+  final bool quietDisabled;
 
   final String label;
   final VoidCallback? onPressed;
@@ -53,7 +66,8 @@ class VigiaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
-    final disabled = onPressed == null;
+    final disabled = onPressed == null || loading;
+    final styledDisabled = onPressed == null && !loading && !quietDisabled;
     final minHeight =
         height ??
         switch (kind) {
@@ -64,7 +78,7 @@ class VigiaButton extends StatelessWidget {
     late final Color bg, fg;
     BorderSide side = BorderSide.none;
     var dashed = false;
-    if (disabled) {
+    if (styledDisabled) {
       bg = p.surfaceStrong;
       fg = p.inkSecondary;
       dashed = true;
@@ -109,7 +123,13 @@ class VigiaButton extends StatelessWidget {
               style: labelStyle.copyWith(color: fg),
             ),
           ),
-          if (iconToShow != null) ...[
+          if (loading) ...[
+            const SizedBox(width: 12),
+            SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2.2, color: fg),
+            ),
+          ] else if (iconToShow != null) ...[
             const SizedBox(width: 8),
             VigiaIconView(iconToShow, size: 22, color: fg),
           ],
@@ -125,7 +145,7 @@ class VigiaButton extends StatelessWidget {
       shape: shape,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onPressed,
+        onTap: disabled ? null : onPressed,
         // B5.2 no usa ondas ni resaltado al pulsar (solo escala); el foco sí es visible.
         highlightColor: Colors.transparent,
         hoverColor: Colors.transparent,
@@ -145,6 +165,15 @@ class VigiaButton extends StatelessWidget {
           color: p.control,
           radius: VigiaRadius.button,
         ),
+        child: surface,
+      );
+    }
+    if (disabled && !styledDisabled && !loading) {
+      surface = AnimatedOpacity(
+        opacity: 0.45,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : VigiaMotion.colorDuration,
         child: surface,
       );
     }
