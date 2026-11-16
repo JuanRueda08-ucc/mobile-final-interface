@@ -1,5 +1,3 @@
-import 'dart:ui' show PointerDeviceKind;
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -100,56 +98,37 @@ void main() {
     return auth;
   }
 
-  testWidgets('la barra revela el destino al pasar el cursor', (tester) async {
+  testWidgets('cerrada solo se ve ≡; abierta, iconos con nombres', (
+    tester,
+  ) async {
     await mount(tester, (width: 360.0, scale: 1.0, dark: false));
-    // Barra fija (usuario, 2026-11-16): cerrada es una franja de iconos;
-    // al pasar el cursor se ve el nombre del destino.
-    expect(rail, findsOneWidget);
+    // Barra (usuario, 2026-11-16): cerrada no hay barra, solo ≡.
+    expect(rail, findsNothing);
     expect(menu, findsOneWidget);
-    final history = find.byTooltip('Historial');
-    expect(find.text('Historial'), findsNothing);
-    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
-    await mouse.addPointer(location: const Offset(300, 700));
-    addTearDown(mouse.removePointer);
-    await mouse.moveTo(tester.getCenter(history));
-    await tester.pump(const Duration(milliseconds: 300));
+    final body = find.byType(SingleChildScrollView);
+    final before = tester.getRect(body);
+    final barriers = find.byType(ModalBarrier).evaluate().length;
+    await tester.tap(menu);
     await tester.pumpAndSettle();
-    final label = find.text('Historial');
-    expect(label, findsOneWidget);
-    expect(
-      tester.getRect(label).left,
-      greaterThan(tester.getRect(history).right),
-    );
+    expect(rail, findsOneWidget);
+    for (final label in ['Inicio', 'Historial', 'Ajustes', 'Cuenta']) {
+      expect(
+        find.descendant(of: rail, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
+    // Se desliza encima: sin capa oscura y la pantalla no se mueve.
+    expect(find.byType(ModalBarrier), findsNWidgets(barriers));
+    expect(find.byType(Drawer), findsNothing);
+    expect(tester.getRect(body), before);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('navegacion/inicio_etiqueta__claro_360_100.png'),
     );
-    await mouse.moveTo(const Offset(300, 700));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pumpAndSettle();
-    expect(label, findsNothing);
-  });
-
-  testWidgets('abrir la barra muestra los nombres y empuja el contenido', (
-    tester,
-  ) async {
-    await mount(tester, (width: 360.0, scale: 1.0, dark: false));
-    final body = find.byType(SingleChildScrollView);
-    final before = tester.getRect(body).left;
-    expect(tester.getSize(rail).width, 64);
-    await tester.tap(menu);
-    await tester.pumpAndSettle();
-    expect(tester.getSize(rail).width, greaterThan(150));
-    expect(
-      find.descendant(of: rail, matching: find.text('Historial')),
-      findsOneWidget,
-    );
-    // Sin capa encima: el contenido se corre a la derecha.
-    expect(find.byType(Drawer), findsNothing);
-    expect(tester.getRect(body).left, greaterThan(before));
     await tester.tap(find.byTooltip('Cerrar navegación'));
     await tester.pumpAndSettle();
-    expect(tester.getSize(rail).width, 64);
+    expect(rail, findsNothing);
+    expect(menu, findsOneWidget);
   });
 
   testWidgets('tocar abre el destino sin mostrar una etiqueta', (tester) async {
@@ -157,9 +136,8 @@ void main() {
     await openRail(tester);
     await tester.tap(find.byTooltip('Cuenta'));
     await tester.pumpAndSettle();
-    // La barra sigue a la vista y vuelve a cerrarse.
-    expect(rail, findsOneWidget);
-    expect(tester.getSize(rail).width, 64);
+    // Al elegir un destino la barra se esconde.
+    expect(rail, findsNothing);
     expect(email, findsOneWidget);
     expect(find.text('Cuenta'), findsOneWidget);
   });
@@ -180,6 +158,7 @@ void main() {
         expect(whole('Correo verificado'), findsOneWidget);
         expect(whole('Sin envíos pendientes'), findsOneWidget);
         await tester.ensureVisible(button('Cerrar sesión'));
+        await tester.pumpAndSettle();
         expect(button('Cerrar sesión').hitTestable(), findsOneWidget);
         await tester.drag(
           find.byType(SingleChildScrollView),
@@ -224,7 +203,7 @@ void main() {
           await capture('cuenta_panel');
           await tester.tap(find.byTooltip('Cuenta'));
           await tester.pumpAndSettle();
-          expect(tester.getSize(rail).width, 64);
+          expect(rail, findsNothing);
           expect(email, findsOneWidget);
         }
 

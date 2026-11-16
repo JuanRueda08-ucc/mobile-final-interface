@@ -411,3 +411,27 @@ Eligió la barra que «se encoge y se expande» y el acceso «menos cargado».
   `6779eb780e9afa959e9696427c376b939d56ef95b6f99895497e928ac9c94fed`. No
   se probó en el teléfono. El titileo no se reprodujo aquí, porque hace
   falta una sesión iniciada en el emulador.
+
+### Menú deslizante sin oscurecer (2026-11-16, Claude)
+
+- El usuario no quería la barra fija: la veía fea, y su color blanco no
+  combinaba con el aura. Su idea: cerrada, solo el icono ☰; al tocarlo, un
+  panel entra deslizando con iconos y nombres; al tocarlo otra vez, todo
+  desaparece salvo ☰. Sin oscurecer la pantalla.
+- `_SideRail`:
+  - ☰ arriba a la izquierda, junto a la marca; pasa a ✕ con el panel
+    abierto;
+  - el panel (200–260 dp) entra deslizando en 240 ms, o al instante con
+    movimiento reducido. Es de vidrio: desenfoque del fondo, `bg` al 62 %,
+    borde suave y esquinas redondeadas a la derecha;
+  - no hay capa oscura y la pantalla no se mueve;
+  - se cierra con ✕, al tocar fuera o al elegir un destino.
+- Pruebas de navegación adaptadas: cerrada no hay panel; abierta, cuatro
+  destinos con nombre, sin barrera nueva y con el contenido en su sitio.
+  Se regeneraron 63 capturas.
+- Validación propia: análisis sin diagnósticos, 967/967 pruebas y registro
+  OK.
+- APK: `D:/dev/vigia-entrega/vigia-normal-menu-deslizante-pruebas.apk`,
+  100 866 631 bytes. SHA-256
+  `45ddfc2ff80aaaf0abb77785851375d1b6c64dfce28ba3ca63bcff3e84f69303`. No
+  se probó en el teléfono.

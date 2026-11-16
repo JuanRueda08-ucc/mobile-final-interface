@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
@@ -164,9 +166,9 @@ class VigiaScaffold extends StatelessWidget {
     final side = sideNavigation && navIndex != null;
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Barra lateral fija (usuario, 2026-11-16): siempre visible a la
-        // izquierda. Cerrada es una franja de iconos; con ≡ se ensancha y
-        // muestra los nombres, empujando el contenido sin taparlo.
+        // Barra lateral (usuario, 2026-11-16): cerrada solo se ve ≡; al
+        // tocarlo entra deslizando un panel con iconos y nombres, sin
+        // oscurecer la pantalla. Otro toque lo esconde.
         void select(int index) => onNavSelected?.call(index);
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -177,7 +179,15 @@ class VigiaScaffold extends StatelessWidget {
               ),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: onBack == null
+                child: side
+                    // Hueco para ≡, que dibuja la barra encima.
+                    ? Row(
+                        children: [
+                          const SizedBox(width: 56),
+                          Expanded(child: heading),
+                        ],
+                      )
+                    : onBack == null
                     ? Align(alignment: Alignment.centerLeft, child: heading)
                     : Row(
                         children: [
@@ -467,8 +477,9 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// Barra lateral fija: ≡ arriba y los destinos debajo. Al elegir un destino
-/// vuelve a cerrarse.
+/// Barra lateral: ≡ arriba a la izquierda; al tocarlo, un panel con los
+/// destinos (icono y nombre) entra deslizando sobre la pantalla, sin capa
+/// oscura. Otro toque en ≡, fuera del panel o en un destino lo esconde.
 class _SideRail extends StatefulWidget {
   const _SideRail({
     required this.currentIndex,
@@ -478,113 +489,147 @@ class _SideRail extends StatefulWidget {
     required this.content,
   });
 
-  /// Pantalla junto a la barra. Abierta la barra, conserva su ancho y se
-  /// desplaza a la derecha (lo que sobra queda fuera), sin reacomodarse.
-  final Widget content;
-
   final int currentIndex;
   final bool accountDestination;
   final double maxWidth;
   final ValueChanged<int> onSelected;
-
-  static const collapsedWidth = 64.0;
+  final Widget content;
 
   @override
   State<_SideRail> createState() => _SideRailState();
 }
 
-class _SideRailState extends State<_SideRail> {
-  bool _expanded = false;
+class _SideRailState extends State<_SideRail>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: const Offset(-1, 0),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _c, curve: VigiaMotion.press));
+
+  bool get _open =>
+      _c.status == AnimationStatus.forward ||
+      _c.status == AnimationStatus.completed;
+
+  void _toggle() {
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    setState(() {
+      if (_open) {
+        reduce ? _c.value = 0 : _c.reverse();
+      } else {
+        reduce ? _c.value = 1 : _c.forward();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = VigiaColors.of(context);
-    final reduce = MediaQuery.disableAnimationsOf(context);
     final destinations = [
       ...vigiaNavDestinations,
       if (widget.accountDestination)
         const VigiaNavDestination('Cuenta', VigiaIcon.account),
     ];
-    final open = (widget.maxWidth * 0.6).clamp(160.0, 220.0);
-    final width = _expanded ? open : _SideRail.collapsedWidth;
-    final duration = reduce ? Duration.zero : const Duration(milliseconds: 220);
-    final rail = Semantics(
-      container: true,
-      label: 'Navegación principal',
-      explicitChildNodes: true,
-      child: AnimatedContainer(
-        key: const Key('vigia-side-nav'),
-        duration: duration,
-        curve: VigiaMotion.press,
-        width: width,
-        decoration: BoxDecoration(
-          color: p.surface.withValues(alpha: 0.72),
-          border: Border(right: BorderSide(color: p.line)),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: LayoutBuilder(
-          builder: (context, box) {
-            // Los nombres solo caben cuando la barra ya se abrió.
-            final labels = _expanded && box.maxWidth > 120;
-            final items = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 6,
-              children: [
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: IconButton(
-                    tooltip: _expanded
-                        ? 'Cerrar navegación'
-                        : 'Abrir navegación',
-                    constraints: const BoxConstraints.tightFor(
-                      width: 48,
-                      height: 48,
-                    ),
-                    onPressed: () => setState(() => _expanded = !_expanded),
-                    icon: VigiaIconView(
-                      _expanded ? VigiaIcon.close : VigiaIcon.menu,
-                      color: p.ink,
-                    ),
-                  ),
+    final width = (widget.maxWidth * 0.68).clamp(200.0, 260.0);
+    final panel = SlideTransition(
+      position: _slide,
+      child: Semantics(
+        container: true,
+        label: 'Navegación principal',
+        explicitChildNodes: true,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.horizontal(
+            right: Radius.circular(28),
+          ),
+          // Vidrio sobre el aura: el fondo se ve difuminado, sin tapar el
+          // color de la pantalla.
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              key: const Key('vigia-side-nav'),
+              width: width,
+              decoration: BoxDecoration(
+                color: p.bg.withValues(alpha: 0.62),
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(28),
                 ),
-                const SizedBox(height: 4),
-                for (var i = 0; i < destinations.length; i++)
-                  VigiaSideNavItem(
-                    key: ValueKey('nav-${destinations[i].label}'),
-                    label: destinations[i].label,
-                    icon: destinations[i].icon,
-                    selected: i == widget.currentIndex,
-                    expanded: labels,
-                    onTap: () {
-                      setState(() => _expanded = false);
-                      widget.onSelected(i);
-                    },
+                border: Border.all(color: p.line.withValues(alpha: 0.6)),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 72, 12, 16),
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: 6,
+                    children: [
+                      for (var i = 0; i < destinations.length; i++)
+                        VigiaSideNavItem(
+                          key: ValueKey('nav-${destinations[i].label}'),
+                          label: destinations[i].label,
+                          icon: destinations[i].icon,
+                          selected: i == widget.currentIndex,
+                          expanded: true,
+                          onTap: () {
+                            _c.value = 0;
+                            setState(() {});
+                            widget.onSelected(i);
+                          },
+                        ),
+                    ],
                   ),
-              ],
-            );
-            // Lista propia: el único SingleChildScrollView es el contenido.
-            return ListView(
-              // 7 + 48 + 7 + 1 de borde = 63 < 64: área táctil completa.
-              padding: const EdgeInsets.fromLTRB(7, 8, 7, 12),
-              children: [items],
-            );
-          },
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
     return Stack(
-      clipBehavior: Clip.hardEdge,
+      fit: StackFit.expand,
       children: [
-        AnimatedPositioned(
-          duration: duration,
-          curve: VigiaMotion.press,
-          left: width,
-          top: 0,
-          bottom: 0,
-          width: widget.maxWidth - _SideRail.collapsedWidth,
-          child: widget.content,
+        Positioned.fill(child: widget.content),
+        AnimatedBuilder(
+          animation: _c,
+          builder: (context, child) => _c.value == 0
+              ? const Positioned(left: 0, top: 0, child: SizedBox.shrink())
+              : Positioned.fill(
+                  child: Stack(
+                    children: [
+                      // Tocar fuera cierra; sin capa oscura.
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _toggle,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                      Positioned(left: 0, top: 0, bottom: 0, child: panel),
+                    ],
+                  ),
+                ),
         ),
-        Positioned(left: 0, top: 0, bottom: 0, child: rail),
+        Positioned(
+          left: 12,
+          top: 8,
+          child: IconButton(
+            tooltip: _open ? 'Cerrar navegación' : 'Abrir navegación',
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+            onPressed: _toggle,
+            icon: VigiaIconView(
+              _open ? VigiaIcon.close : VigiaIcon.menu,
+              color: p.ink,
+            ),
+          ),
+        ),
       ],
     );
   }
