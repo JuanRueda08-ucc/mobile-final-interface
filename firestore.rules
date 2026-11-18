@@ -45,6 +45,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['complete', 'activeMs', 'evaluableMs', 'closures'])
         && validSummary(request.resource.data);
+      // Eliminar la cuenta retira también los resúmenes de la nube.
+      allow delete: if owns(uid);
     }
   }
 }

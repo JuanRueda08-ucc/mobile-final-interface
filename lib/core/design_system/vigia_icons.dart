@@ -48,7 +48,14 @@ enum VigiaIcon {
 
   // Rediseño del acceso (2026-11-15).
   mail('M3.5 6h17v12h-17zM3.5 6.5l8.5 6.5 8.5-6.5'),
-  send('M21 3L3 10.5l7 2.5M21 3l-7.5 18-3.5-8M21 3L10 13');
+  send('M21 3L3 10.5l7 2.5M21 3l-7.5 18-3.5-8M21 3L10 13'),
+
+  // Rediseño de Cuenta (2026-11-17).
+  chevron('M9 6l6 6-6 6'),
+  logout('M10 4H5v16h5M15 8l4 4-4 4M19 12H9'),
+  trash('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5'),
+  cloud('M7 18a4 4 0 0 1-.6-7.96A5.5 5.5 0 0 1 17.2 8.8 4.6 4.6 0 0 1 17 18z'),
+  phone('M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11 18h2');
 
   const VigiaIcon(this.svgPath);
 

@@ -64,6 +64,26 @@ CollectionReference<Map<String, dynamic>> _sessions(String uid) =>
         .doc(uid)
         .collection('sessions');
 
+/// Borra todos los resúmenes de [uid] en la nube, por lotes. Lo usa la
+/// eliminación de la cuenta; las reglas lo permiten solo al propietario.
+Future<void> deleteCloudSessions(String uid) async {
+  while (true) {
+    final page = await _sessions(uid)
+        .limit(400)
+        .get(const GetOptions(source: Source.server));
+    if (page.docs.isEmpty) return;
+    final batch = FirebaseFirestore.instance.batch();
+    for (final doc in page.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+}
+
+final cloudSessionsEraserProvider = Provider<Future<void> Function(String)>(
+  (ref) => deleteCloudSessions,
+);
+
 final cloudSessionUploadProvider = FutureProvider.autoDispose
     .family<void, String>((ref, uid) async {
       final auth = ref.watch(firebaseAuthProvider);

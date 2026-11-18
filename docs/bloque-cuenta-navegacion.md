@@ -471,3 +471,31 @@ ilustración profesional.
   Wear OS (`sdk_gwear_x86_64`, `emulator-5556`) que estaba abierto como
   único dispositivo. El 2026-11-14 se desinstaló a petición del usuario.
   `pm list packages` ya no lo muestra.
+
+### Rediseño de Cuenta y acciones de seguridad · 2026-11-17 (Claude)
+
+Pedido por el usuario. Sin commit todavía.
+
+- `AccountScreen` se reorganiza: avatar con inicial, correo y etiqueta de
+  verificación sobre el aura; tarjeta «Estado» (sincronización del
+  historial y privacidad); tarjeta «Seguridad» con **Cambiar correo**,
+  **Cambiar contraseña** y **Eliminar cuenta**; aviso de versión de prueba
+  en recuadro tonal; «Cerrar sesión» al final.
+- Las tres acciones abren una hoja inferior
+  (`presentation/account_actions.dart`) y piden la contraseña actual
+  (reautenticación). Correo: `verifyBeforeUpdateEmail` (cambia al abrir el
+  enlace). Contraseña: `updatePassword` con la misma lista de requisitos del
+  registro (`PasswordChecklist`). Eliminar: reautentica, borra los resúmenes
+  de `users/{uid}/sessions` por lotes y después `user.delete()`; si falla el
+  borrado en la nube, la cuenta se conserva. Se bloquea con una sesión de
+  monitoreo abierta. Los registros locales del teléfono **no** se borran.
+- **Pendiente de despliegue:** `firestore.rules` añade `allow delete` para el
+  propietario verificado. Hasta desplegarlas
+  (`firebase deploy --only firestore:rules`), eliminar la cuenta falla en el
+  borrado de la nube y la cuenta se conserva.
+- Pruebas: `test/account/account_actions_test.dart` (7 de comportamiento y
+  8 capturas de hojas) y 12 capturas de Cuenta regeneradas. 978/978 pruebas,
+  análisis sin diagnósticos, registro OK.
+- APK Release con firma Debug: `D:/dev/vigia-entrega/vigia-normal-cuenta-rediseno-pruebas.apk`,
+  SHA-256 `788dc9203f633572c661facaf2f2daad93e83b2786909586787e3781b80581d8`.
+  Instalado en `vigia_pixel`. No se probó con cuentas reales alojadas.
